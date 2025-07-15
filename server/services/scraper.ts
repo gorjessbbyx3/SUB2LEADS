@@ -1,6 +1,6 @@
 import { spawn } from 'child_process';
 import { storage } from '../storage';
-import { ContactEnrichmentService } from './contactEnrichment';
+import { ContactEnrichmentService } from './contactEnrichment.js';
 import type { InsertProperty, InsertContact, InsertScrapingJob } from '@shared/schema';
 import path from 'path';
 

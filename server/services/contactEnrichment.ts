@@ -1,6 +1,6 @@
 import { storage } from "../storage";
 
-class ContactEnrichmentService {
+export class ContactEnrichmentService {
   async enrichContact(contactId: number) {
     try {
       const contact = await storage.getContact(contactId);
@@ -147,5 +147,6 @@ class ContactEnrichmentService {
   }
 }
 
-export { ContactEnrichmentService };
 export const contactEnrichmentService = new ContactEnrichmentService();
+
+class ContactEnrichmentService {

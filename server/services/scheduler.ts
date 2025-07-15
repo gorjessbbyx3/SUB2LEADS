@@ -87,10 +87,10 @@ class SchedulerService {
   private async updatePropertyPriorities() {
     try {
       const properties = await storage.getProperties({ limit: 1000 });
-      
+
       for (const property of properties) {
         let newPriority = 'low';
-        
+
         // High priority criteria
         if (property.daysUntilAuction && property.daysUntilAuction <= 7) {
           newPriority = 'high';
@@ -101,7 +101,7 @@ class SchedulerService {
         } else if (property.status === 'tax_delinquent' && property.amountOwed && property.amountOwed > 10000) {
           newPriority = 'medium';
         }
-        
+
         // Update if priority has changed
         if (property.priority !== newPriority) {
           await storage.updateProperty(property.id, { priority: newPriority });
@@ -120,7 +120,7 @@ class SchedulerService {
       // 2. Archive old outreach history
       // 3. Clean up orphaned records
       // 4. Compress old AI interactions
-      
+
       console.log('Data cleanup completed');
     } catch (error) {
       console.error('Error in data cleanup:', error);
@@ -139,20 +139,20 @@ class SchedulerService {
         // Find leads for this property
         const allLeads = await storage.getLeads({ limit: 1000 });
         const propertyLeads = allLeads.filter(l => l.propertyId === property.id);
-        
+
         for (const lead of propertyLeads) {
           // Check if lead has been contacted recently
           const hoursSinceContact = lead.lastContactDate 
             ? (Date.now() - new Date(lead.lastContactDate).getTime()) / (1000 * 60 * 60)
             : Infinity;
-          
+
           if (hoursSinceContact > 24) {
             // Update lead status to high priority
             await storage.updateLead(lead.id, {
               priority: 'high',
               notes: (lead.notes || '') + `\n[URGENT] Auction in ${property.daysUntilAuction} days - requires immediate attention`
             });
-            
+
             console.log(`Marked lead ${lead.id} as urgent - auction in ${property.daysUntilAuction} days`);
           }
         }
