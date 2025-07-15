@@ -6,6 +6,7 @@ import { AuthProvider } from '@/hooks/useAuth';
 import Landing from '@/pages/Landing';
 import Dashboard from '@/pages/Dashboard';
 import Properties from '@/pages/Properties';
+import PropertyDetail from '@/pages/PropertyDetail';
 import LeadManagement from '@/pages/LeadManagement';
 import NotFound from '@/pages/not-found';
 
@@ -18,6 +19,7 @@ function App() {
             <Route path="/" component={Landing} />
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/properties" component={Properties} />
+            <Route path="/properties/:id" component={PropertyDetail} />
             <Route path="/leads" component={LeadManagement} />
             <Route component={NotFound} />
           </Switch>

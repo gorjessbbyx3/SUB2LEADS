@@ -1,212 +1,195 @@
-import { storage } from "../storage";
-import { contactEnrichmentService } from "./contactEnrichment";
-import { aiService } from "./aiService";
-import type { InsertProperty, InsertContact, InsertScrapingJob } from "@shared/schema";
+import puppeteer from 'puppeteer';
+import { storage } from '../storage';
+
+interface ScrapedProperty {
+  address: string;
+  ownerName?: string;
+  propertyType?: string;
+  lienAmount?: number;
+  taxStatus?: string;
+  auctionDate?: Date;
+  description?: string;
+  source: string;
+}
 
 class ScraperService {
-  async startScraping(source: 'star_advertiser' | 'tax_delinquent') {
-    // Create scraping job
-    const job = await storage.createScrapingJob({
-      source,
-      status: 'running',
-      startedAt: new Date(),
-    });
+  private browser: any = null;
 
-    // Run scraping in background
-    this.runScraping(job.id, source).catch(error => {
-      console.error(`Scraping failed for ${source}:`, error);
-      storage.updateScrapingJob(job.id, {
-        status: 'failed',
-        errorMessage: error.message,
-        completedAt: new Date(),
+  async initBrowser() {
+    if (!this.browser) {
+      this.browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
-    });
-
-    return job;
+    }
+    return this.browser;
   }
 
-  private async runScraping(jobId: number, source: string) {
+  async startScraping(source: string) {
+    const job = await storage.createScrapingJob(source, 'running');
+
     try {
-      let properties: any[] = [];
-      
+      let properties: ScrapedProperty[] = [];
+
       if (source === 'star_advertiser') {
         properties = await this.scrapeStarAdvertiser();
       } else if (source === 'tax_delinquent') {
         properties = await this.scrapeTaxDelinquent();
       }
 
-      await storage.updateScrapingJob(jobId, {
-        propertiesFound: properties.length,
-      });
-
-      let processed = 0;
-      for (const propertyData of properties) {
-        try {
-          // Check if property already exists
-          const existingProperties = await storage.getProperties({
-            limit: 1000, // Get all to check for duplicates
-          });
-          
-          const exists = existingProperties.some(p => 
-            p.address.toLowerCase() === propertyData.address.toLowerCase()
-          );
-
-          if (!exists) {
-            // Create property
-            const property = await storage.createProperty(propertyData);
-            
-            // Create contact if owner info is available
-            if (propertyData.ownerName) {
-              const contact = await storage.createContact({
-                propertyId: property.id,
-                name: propertyData.ownerName,
-                address: propertyData.ownerAddress,
-              });
-
-              // Trigger contact enrichment
-              contactEnrichmentService.enrichContact(contact.id);
-            }
-
-            // Generate AI summary
-            if (property.id) {
-              try {
-                const summary = await aiService.generatePropertySummary(property);
-                await storage.updateProperty(property.id, { aiSummary: summary });
-              } catch (error) {
-                console.error('Failed to generate AI summary:', error);
-              }
-            }
-          }
-
-          processed++;
-          await storage.updateScrapingJob(jobId, {
-            propertiesProcessed: processed,
-          });
-        } catch (error) {
-          console.error('Error processing property:', error);
-        }
+      // Save properties to database
+      for (const prop of properties) {
+        await storage.createProperty({
+          address: prop.address,
+          ownerName: prop.ownerName,
+          propertyType: prop.propertyType || 'residential',
+          status: 'new',
+          priority: 'medium',
+          source: prop.source,
+          lienAmount: prop.lienAmount,
+          taxStatus: prop.taxStatus,
+          auctionDate: prop.auctionDate,
+          description: prop.description,
+        });
       }
 
-      await storage.updateScrapingJob(jobId, {
+      await storage.updateScrapingJob(job.id, {
         status: 'completed',
+        propertiesFound: properties.length,
         completedAt: new Date(),
-        lastRunAt: new Date(),
       });
 
+      return { ...job, status: 'completed', propertiesFound: properties.length };
     } catch (error) {
-      await storage.updateScrapingJob(jobId, {
+      console.error(`Scraping error for ${source}:`, error);
+      await storage.updateScrapingJob(job.id, {
         status: 'failed',
-        errorMessage: error.message,
+        error: error.message,
         completedAt: new Date(),
       });
       throw error;
     }
   }
 
-  private async scrapeStarAdvertiser(): Promise<any[]> {
-    // This would use puppeteer/selenium to scrape Star Advertiser legal notices
-    // For now, returning mock data structure
-    const properties = [];
-    
-    try {
-      // Simulate scraping Star Advertiser legal notices
-      // In real implementation, would use puppeteer to navigate pages
-      
-      const mockProperties = [
-        {
-          address: "530 S King St, Honolulu, HI 96813",
-          city: "Honolulu",
-          state: "HI",
-          zipCode: "96813",
-          status: "foreclosure",
-          priority: "high",
-          auctionDate: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 6 days from now
-          daysUntilAuction: 6,
-          estimatedValue: 720000,
-          ownerName: "Maria Santos",
-          sourceUrl: "https://www.staradvertiser.com/legal-notices/",
-        },
-        {
-          address: "1247 Beretania St, Honolulu, HI 96814",
-          city: "Honolulu", 
-          state: "HI",
-          zipCode: "96814",
-          status: "tax_delinquent",
-          priority: "medium",
-          amountOwed: 15000,
-          estimatedValue: 890000,
-          ownerName: "David Kim",
-          sourceUrl: "https://www.staradvertiser.com/legal-notices/",
-        }
-      ];
+  async scrapeStarAdvertiser(): Promise<ScrapedProperty[]> {
+    const browser = await this.initBrowser();
+    const page = await browser.newPage();
+    const properties: ScrapedProperty[] = [];
 
-      // In real implementation, would extract data from scraped HTML
-      properties.push(...mockProperties);
-      
+    try {
+      // Navigate to Star-Advertiser legal notices
+      await page.goto('https://www.staradvertiser.com/classifieds/legal-notices/', {
+        waitUntil: 'networkidle2'
+      });
+
+      // Look for foreclosure notices
+      const notices = await page.evaluate(() => {
+        const items = document.querySelectorAll('.legal-notice-item, .notice-item, .foreclosure-notice');
+        return Array.from(items).map(item => {
+          const text = item.textContent || '';
+          const titleElement = item.querySelector('h3, h4, .title');
+          const title = titleElement?.textContent || '';
+
+          return { text, title };
+        });
+      });
+
+      // Parse addresses and details from notices
+      for (const notice of notices) {
+        const addressMatch = notice.text.match(/(?:located at|situated at|property at)\s*([^,\n]+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Way|Circle|Cir|Court|Ct|Boulevard|Blvd)[^,\n]*)/i);
+
+        if (addressMatch) {
+          const address = addressMatch[1].trim();
+
+          // Extract owner name
+          const ownerMatch = notice.text.match(/(?:vs\.|versus|against)\s*([^,\n]+?)(?:\s*et\s*al\.?)?(?:\s*,|\s*defendant)/i);
+          const ownerName = ownerMatch ? ownerMatch[1].trim() : undefined;
+
+          // Extract lien amount
+          const lienMatch = notice.text.match(/\$([0-9,]+\.?\d*)/);
+          const lienAmount = lienMatch ? parseFloat(lienMatch[1].replace(/,/g, '')) : undefined;
+
+          // Extract auction date
+          const dateMatch = notice.text.match(/(?:auction|sale).*?(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})/i);
+          const auctionDate = dateMatch ? new Date(dateMatch[1]) : undefined;
+
+          properties.push({
+            address,
+            ownerName,
+            lienAmount,
+            auctionDate,
+            description: notice.text.substring(0, 500),
+            source: 'star_advertiser',
+            taxStatus: 'foreclosure',
+            propertyType: 'residential'
+          });
+        }
+      }
+
     } catch (error) {
-      console.error('Error scraping Star Advertiser:', error);
-      throw error;
+      console.error('Star-Advertiser scraping error:', error);
+    } finally {
+      await page.close();
     }
 
     return properties;
   }
 
-  private async scrapeTaxDelinquent(): Promise<any[]> {
-    // This would download and parse Hawaii tax delinquent PDFs
-    const properties = [];
-    
-    try {
-      // Simulate parsing tax delinquent PDF
-      // In real implementation, would use pdf-parse or similar
-      
-      const mockProperties = [
-        {
-          address: "2140 Kapiolani Blvd, Honolulu, HI 96826",
-          city: "Honolulu",
-          state: "HI", 
-          zipCode: "96826",
-          status: "tax_delinquent",
-          priority: "low",
-          amountOwed: 8500,
-          estimatedValue: 1200000,
-          ownerName: "Pacific Holdings LLC",
-          sourceUrl: "https://files.hawaii.gov/tax/news/announce/",
-        }
-      ];
+  async scrapeTaxDelinquent(): Promise<ScrapedProperty[]> {
+    const browser = await this.initBrowser();
+    const page = await browser.newPage();
+    const properties: ScrapedProperty[] = [];
 
-      properties.push(...mockProperties);
-      
+    try {
+      // Navigate to Hawaii tax delinquent properties
+      await page.goto('https://www.realquest.com/hawaii/delinquent', {
+        waitUntil: 'networkidle2'
+      });
+
+      // This would need to be customized based on the actual site structure
+      const taxProperties = await page.evaluate(() => {
+        const rows = document.querySelectorAll('tr, .property-row');
+        return Array.from(rows).map(row => {
+          const cells = row.querySelectorAll('td, .cell');
+          if (cells.length >= 3) {
+            return {
+              address: cells[0]?.textContent?.trim() || '',
+              owner: cells[1]?.textContent?.trim() || '',
+              amount: cells[2]?.textContent?.trim() || ''
+            };
+          }
+          return null;
+        }).filter(Boolean);
+      });
+
+      for (const prop of taxProperties) {
+        if (prop && prop.address) {
+          const lienAmount = prop.amount ? parseFloat(prop.amount.replace(/[$,]/g, '')) : undefined;
+
+          properties.push({
+            address: prop.address,
+            ownerName: prop.owner,
+            lienAmount,
+            source: 'tax_delinquent',
+            taxStatus: 'delinquent',
+            propertyType: 'residential'
+          });
+        }
+      }
+
     } catch (error) {
-      console.error('Error scraping tax delinquent list:', error);
-      throw error;
+      console.error('Tax delinquent scraping error:', error);
+    } finally {
+      await page.close();
     }
 
     return properties;
   }
 
-  async scheduleRegularScraping() {
-    try {
-      // Check if we should run scraping based on last run time
-      const starAdvertiserJob = await storage.getLatestScrapingJob('star_advertiser');
-      const taxDelinquentJob = await storage.getLatestScrapingJob('tax_delinquent');
-
-      const now = new Date();
-      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-      // Run Star Advertiser daily
-      if (!starAdvertiserJob || !starAdvertiserJob.lastRunAt || new Date(starAdvertiserJob.lastRunAt) < oneDayAgo) {
-        console.log('Starting scheduled Star Advertiser scraping...');
-        this.startScraping('star_advertiser');
-      }
-
-      // Run tax delinquent weekly
-      if (!taxDelinquentJob || !taxDelinquentJob.lastRunAt || new Date(taxDelinquentJob.lastRunAt) < oneWeekAgo) {
-        console.log('Starting scheduled tax delinquent scraping...');
-        this.startScraping('tax_delinquent');
-      }
-    } catch (error) {
-      console.error('Error in scheduled scraping:', error);
+  async closeBrowser() {
+    if (this.browser) {
+      await this.browser.close();
+      this.browser = null;
     }
   }
 }
