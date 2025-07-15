@@ -48,49 +48,74 @@ class ContactEnrichmentService {
 
       enrichedData.contactScore = score;
 
-      // In a real implementation, this would:
-      // 1. Use people search APIs (PeopleDataLabs, FullContact, etc.)
-      // 2. Search social media platforms
-      // 3. Check public records
-      // 4. Validate email addresses
-      // 5. Lookup phone numbers
-
-      // Mock enrichment for demo
+      // Enhanced mock enrichment for demo
       if (contact.name && !contact.email) {
-        // Simulate finding an email
+        // Simulate finding an email with more realistic patterns
         const firstName = contact.name.split(' ')[0]?.toLowerCase();
         const lastName = contact.name.split(' ')[1]?.toLowerCase();
         if (firstName && lastName) {
-          enrichedData.email = `${firstName}.${lastName}@email.com`;
+          const emailProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'hawaii.rr.com'];
+          const provider = emailProviders[Math.floor(Math.random() * emailProviders.length)];
+          const patterns = [
+            `${firstName}.${lastName}@${provider}`,
+            `${firstName}${lastName}@${provider}`,
+            `${firstName}_${lastName}@${provider}`,
+            `${firstName}${lastName[0]}@${provider}`,
+          ];
+          enrichedData.email = patterns[Math.floor(Math.random() * patterns.length)];
           enrichedData.contactScore += 30;
         }
       }
 
       if (contact.name && !contact.phone) {
-        // Simulate finding a phone number
-        enrichedData.phone = '(808) 555-' + Math.floor(Math.random() * 9000 + 1000);
+        // Simulate finding a phone number with Hawaii area codes
+        const areaCodes = ['808'];
+        const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+        const exchange = Math.floor(Math.random() * 900 + 100);
+        const number = Math.floor(Math.random() * 9000 + 1000);
+        enrichedData.phone = `(${areaCode}) ${exchange}-${number}`;
         enrichedData.contactScore += 30;
       }
 
-      // Check if it's an LLC
+      // Check if it's an LLC or corporation
       if (contact.name?.toLowerCase().includes('llc') || 
           contact.name?.toLowerCase().includes('inc') ||
-          contact.name?.toLowerCase().includes('corp')) {
+          contact.name?.toLowerCase().includes('corp') ||
+          contact.name?.toLowerCase().includes('ltd') ||
+          contact.name?.toLowerCase().includes('limited')) {
         enrichedData.isLLC = true;
+        enrichedData.contactType = 'business';
+      } else {
+        enrichedData.contactType = 'individual';
       }
 
-      // Simulate finding social media profiles
-      if (contact.name && Math.random() > 0.5) {
+      // Simulate finding social media profiles with more realistic probability
+      if (contact.name && Math.random() > 0.4) {
         const namePart = contact.name.toLowerCase().replace(/\s+/g, '');
         enrichedData.linkedinUrl = `https://linkedin.com/in/${namePart}`;
         enrichedData.contactScore += 5;
       }
 
-      if (contact.name && Math.random() > 0.7) {
+      if (contact.name && Math.random() > 0.6) {
         const namePart = contact.name.toLowerCase().replace(/\s+/g, '.');
         enrichedData.facebookUrl = `https://facebook.com/${namePart}`;
         enrichedData.contactScore += 5;
       }
+
+      // Add estimated income/property value insights
+      if (contact.estimatedValue) {
+        if (contact.estimatedValue > 800000) {
+          enrichedData.wealthIndicator = 'high';
+        } else if (contact.estimatedValue > 400000) {
+          enrichedData.wealthIndicator = 'medium';
+        } else {
+          enrichedData.wealthIndicator = 'low';
+        }
+      }
+
+      // Add contact quality score
+      enrichedData.leadQuality = enrichedData.contactScore >= 80 ? 'hot' : 
+                                enrichedData.contactScore >= 60 ? 'warm' : 'cold';
 
       return enrichedData;
     } catch (error) {
@@ -122,4 +147,5 @@ class ContactEnrichmentService {
   }
 }
 
+export { ContactEnrichmentService };
 export const contactEnrichmentService = new ContactEnrichmentService();
