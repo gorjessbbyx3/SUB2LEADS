@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Mail, Phone, FileText, Download, MapPin, DollarSign, Calendar, Bot, AlertCircle } from "lucide-react";
+import { ArrowLeft, Mail, Phone, FileText, Download, MapPin, DollarSign, Calendar, Bot, AlertCircle, User, MessageSquare } from "lucide-react";
 import { apiRequest } from '@/lib/queryClient';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';

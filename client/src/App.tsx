@@ -1,4 +1,3 @@
-
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
@@ -7,8 +6,9 @@ import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import Landing from '@/pages/Landing';
 import Dashboard from '@/pages/Dashboard';
 import Properties from '@/pages/Properties';
-import LeadManagement from '@/pages/LeadManagement';
 import PropertyDetail from '@/pages/PropertyDetail';
+import LeadManagement from '@/pages/LeadManagement';
+import DataScraper from "@/pages/DataScraper";
 import NotFound from '@/pages/not-found';
 
 function AppRoutes() {
@@ -34,6 +34,8 @@ function AppRoutes() {
             <Route path="/properties" component={Properties} />
             <Route path="/properties/:id" component={PropertyDetail} />
             <Route path="/leads" component={LeadManagement} />
+            <Route path="/scraper" component={DataScraper} />
+            <Route component={NotFound} />
           </>
         )}
         <Route component={NotFound} />

@@ -393,18 +393,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/properties/:id/generate-binder', async (req, res) => {
     try {
       const propertyId = parseInt(req.params.id);
-      const { userId = 'default-user' } = req.body;
+      const { userId } = req.body;
 
       const property = await storage.getProperty(propertyId);
       if (!property) {
         return res.status(404).json({ error: 'Property not found' });
       }
 
-      const pdfUrl = await pdfGeneratorService.generatePropertyBinder(property, userId);
-      res.json({ url: pdfUrl });
+      const pdfPath = await pdfGeneratorService.generatePropertyBinder(property, userId);
+
+      res.json({ 
+        success: true, 
+        url: pdfPath,
+        message: 'PDF binder generated successfully' 
+      });
     } catch (error) {
       console.error('PDF generation error:', error);
-      res.status(500).json({ error: 'Failed to generate PDF' });
+      res.status(500).json({ error: 'Failed to generate PDF binder' });
+    }
+  });
+
+  // Scraper endpoints
+  app.post('/api/scraper/run', async (req, res) => {
+    try {
+      const { source } = req.body;
+
+      if (!source) {
+        return res.status(400).json({ error: 'Source is required' });
+      }
+
+      const result = await scraperService.runScrapingJob(source);
+      res.json(result);
+    } catch (error) {
+      console.error('Scraper error:', error);
+      res.status(500).json({ error: 'Failed to run scraper' });
+    }
+  });
+
+  app.post('/api/scraper/run-all', async (req, res) => {
+    try {
+      const result = await scraperService.runAllScrapers();
+      res.json(result);
+    } catch (error) {
+      console.error('Run all scrapers error:', error);
+      res.status(500).json({ error: 'Failed to run all scrapers' });
+    }
+  });
+
+  app.get('/api/scraper/history', async (req, res) => {
+    try {
+      const history = await scraperService.getScrapingHistory();
+      res.json(history);
+    } catch (error) {
+      console.error('Scraper history error:', error);
+      res.status(500).json({ error: 'Failed to get scraper history' });
+    }
+  });
+
+  app.get('/api/scraper/stats', async (req, res) => {
+    try {
+      const stats = await storage.getPropertiesStats();
+      const history = await scraperService.getScrapingHistory();
+
+      const totalJobs = history.length;
+      const successfulJobs = history.filter(job => job.status === 'completed').length;
+      const successRate = totalJobs > 0 ? Math.round((successfulJobs / totalJobs) * 100) : 0;
+
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      const thisWeek = history.filter(job => 
+        new Date(job.startedAt) >= oneWeekAgo
+      ).reduce((sum, job) => sum + job.propertiesFound, 0);
+
+      res.json({
+        totalProperties: stats.total,
+        thisWeek,
+        successRate,
+        totalJobs,
+        successfulJobs
+      });
+    } catch (error) {
+      console.error('Scraper stats error:', error);
+      res.status(500).json({ error: 'Failed to get scraper stats' });
     }
   });
 
