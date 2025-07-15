@@ -13,12 +13,29 @@ import DataScraper from "@/pages/DataScraper";
 import NotFound from '@/pages/not-found';
 
 function AppRoutes() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, login } = useAuth();
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Hawaii Real Estate CRM</h1>
+          <p className="text-gray-600 mb-6">Please login to access your CRM dashboard</p>
+          <button
+            onClick={login}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md"
+          >
+            Login with Replit
+          </button>
+        </div>
       </div>
     );
   }
