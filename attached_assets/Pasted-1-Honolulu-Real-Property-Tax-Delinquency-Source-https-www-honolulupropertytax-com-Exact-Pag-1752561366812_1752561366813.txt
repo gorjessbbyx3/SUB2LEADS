@@ -1,0 +1,42 @@
+1. 🏠 Honolulu Real Property Tax Delinquency
+Source: https://www.honolulupropertytax.com/
+
+Exact Page for Delinquent Properties:
+
+Go to: https://www.honolulupropertytax.com/search.html
+
+Use filters like “delinquent” or search by parcel
+
+Scraping strategy: Loop through zip codes or known blocks, parse owner info, tax owed, property address
+
+2. ⚠️ Notice of Foreclosure / Auction Listings
+Source: https://www.staradvertiser.com/legal-notices/
+
+Exact Page for Foreclosure & Auctions:
+
+Go to: https://www.staradvertiser.com/legal-notices/?searchType=foreclosures
+
+Scrape all entries tagged "Foreclosures", “Auction”, or "Notice of Sale"
+
+Info available: Owner name, property address, auction date, lawyer contact
+
+3. 📜 Judiciary Foreclosure Cases
+Source: https://www.courts.state.hi.us/legal_references/foreclosure_listings
+
+You can extract downloadable PDF lists
+
+Plan: Parse PDFs (using PyMuPDF or PDFMiner) to extract case details & addresses
+
+🔧 Implementation Plan by Feature (from previous list)
+Feature	What to Build	Tools / Stack
+✅ Web scraper: Tax Delinquent	Loop through property tax site by area → collect unpaid tax data	requests, BeautifulSoup, Replit cron job
+✅ Web scraper: Foreclosures	Crawl legal notices page daily/weekly → extract title, address, contact	Selenium for dynamic content, or direct HTML parsing
+✅ PDF Parser (Court listings)	Download, parse foreclosure listing PDFs	PyMuPDF, pdfminer.six
+🧭 Google Maps + Street View	Pull static map image or link	Google Maps embed (https://www.google.com/maps/embed...) or screenshot via headless browser
+📩 Investor CRM	New section for storing buyer preferences + email	Firebase or simple JSON DB in Replit, with UI form
+📎 Match Lead to Investor	Button on lead card: “Send to Investor” → auto attach binder, send mailto	Logic + templates (already partly built)
+🧠 Deal Summary Assistant	Already present — can enhance with AI opinion on wholesale viability	GPT prompt with: ARV, repair est., price, notes
+⏱️ Lead Activity Log	Simple array on each lead (calls, emails, updates)	Local DB field activity[], UI timeline
+📤 Binder Preview UI	View binder in browser before PDF export	React PDF Viewer or Tailwind-styled layout
+📬 Email/SMS follow-up tracker	Manual scheduler or email reminder tool	Could integrate with Notion API, Twilio (future)
+

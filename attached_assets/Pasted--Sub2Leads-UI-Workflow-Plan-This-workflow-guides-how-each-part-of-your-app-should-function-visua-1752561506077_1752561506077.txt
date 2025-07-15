@@ -1,0 +1,154 @@
+🧭 Sub2Leads – UI Workflow Plan
+This workflow guides how each part of your app should function visually and logically, including scraping, AI lookup, CRM updates, and presentation binder generation.
+
+🏠 1. Dashboard (Leads Overview)
+🎯 Purpose:
+View all leads scraped from foreclosure, tax lien, and auction sources.
+
+See priority, status, owner info, and contact progress.
+
+📋 UI Components:
+Table/List of Properties
+
+Address
+
+Status: Tax Delinquent | Foreclosure | Auction
+
+Priority Level (High, Med, Low)
+
+Contacted? ✅/❌
+
+Owner Info Found? ✅/❌
+
+📎 “View Lead” button
+
+Filters:
+
+Search by address, parcel number, or owner
+
+Filter by status or priority
+
+“New Scan” Button: Triggers scraper & AI lookup
+
+🔍 2. Lead Detail Page
+🎯 Purpose:
+Drill into a specific property lead.
+
+See scraped info, AI-enhanced data, and take next steps.
+
+📋 UI Components:
+Property Info Panel:
+
+Address, parcel number, source link
+
+Tax status, auction date (if any), or foreclosure status
+
+Screenshot from Redfin/Zillow (via Selenium)
+
+Owner Contact Info:
+
+Name, email, phone, social media links (from AI enrichment)
+
+Buttons:
+
+📨 Open in Email App with Template
+
+📂 Generate Binder PDF
+
+✅ Mark as Contacted
+
+💾 Save to CRM
+
+⚙️ 3. Scraping & AI Enrichment Workflow
+🎯 Purpose:
+Trigger background lead generation and contact info lookup.
+
+📋 UI Actions:
+User clicks “New Scan”
+
+🔁 Runs:
+
+staradvertiser_foreclosure_scraper.py
+
+honolulu_tax_scraper.py
+
+Any auction site parser
+
+🧠 AI Lookup runs:
+
+Owner contact info
+
+Social media
+
+Estimated property value (via Redfin/Zillow + AI guess)
+
+UI shows loading status, then displays “X new leads found.”
+
+📧 4. Email Contact Flow (No SendGrid)
+🎯 Purpose:
+Let user use their default email app to reach out.
+
+✅ Use mailto: links:
+Template example:
+
+html
+Copy
+Edit
+<a href="mailto:owner@email.com?subject=Help With Your Property&body=Hi [Owner], I noticed your property at [Address] might be at risk of foreclosure. I work with buyers in Hawaii who may be able to help you. Let's talk.">
+  Email Owner
+</a>
+📂 5. Presentation Binder Generator
+🎯 Purpose:
+Quickly create a PDF for internal use or buyer handoff.
+
+📋 Flow:
+Button: “Generate Binder”
+
+Compiles:
+
+Address + status
+
+Scraped data
+
+Screenshot (Redfin/Zillow)
+
+Owner details
+
+Google Maps image (static or screenshot)
+
+Output: Save PDF or auto-download in browser
+
+📇 6. CRM Panel
+🎯 Purpose:
+Manage the lifecycle of each lead.
+
+📋 Tabs or Columns:
+“New Leads”
+
+“Contacted”
+
+“Follow-up Needed”
+
+“Under Contract”
+
+“Dead Lead”
+
+📋 Actions:
+Drag & drop between stages
+
+Add notes
+
+Schedule reminders
+
+💡 Optional AI Chatbot Panel
+A chat window where the AI acts as your assistant to summarize leads, suggest contact scripts, or answer: “What’s the best way to reach this seller?”
+
+✅ Summary of UI Pages:
+Page	Description
+Dashboard	Lead summary with filters
+Lead Detail Page	Full view of a property + actions
+CRM Panel	Track lead progress
+Scraper Trigger Page	Starts scraping & AI contact enrichment
+Email Compose Template	Opens user’s default mail client
+PDF Binder Generator	Compiles property info into printable format
+

@@ -1,0 +1,85 @@
+🔧 Sub2Leads Scraper Bundle: Starter Code
+✅ 1. honolulu_tax_scraper.py — Delinquent Property Tax Data
+python
+Copy
+Edit
+import requests
+from bs4 import BeautifulSoup
+
+def search_property_tax_by_parcel(parcel_number):
+    url = f"https://www.honolulupropertytax.com/search.html?parcel={parcel_number}"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Adjust the logic based on actual HTML structure
+    results = {}
+    for row in soup.select("table tr"):
+        cols = row.find_all("td")
+        if len(cols) == 2:
+            key = cols[0].text.strip()
+            val = cols[1].text.strip()
+            results[key] = val
+
+    return results
+
+# Example usage:
+if __name__ == "__main__":
+    example_parcel = "21001001"
+    data = search_property_tax_by_parcel(example_parcel)
+    print(data)
+✅ 2. staradvertiser_foreclosure_scraper.py
+python
+Copy
+Edit
+import requests
+from bs4 import BeautifulSoup
+
+def scrape_foreclosures():
+    url = "https://www.staradvertiser.com/legal-notices/?searchType=foreclosures"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    listings = []
+    for notice in soup.select(".legal-notice"):
+        title = notice.find("h2")
+        content = notice.find("div", class_="entry-content")
+        if title and content:
+            listings.append({
+                "title": title.text.strip(),
+                "details": content.text.strip()
+            })
+    return listings
+
+if __name__ == "__main__":
+    for item in scrape_foreclosures()[:5]:
+        print(item["title"])
+        print(item["details"])
+        print("-" * 50)
+✅ 3. pdf_parser.py (for Hawaii Judiciary Foreclosure PDFs)
+python
+Copy
+Edit
+import fitz  # PyMuPDF
+
+def extract_text_from_pdf(pdf_path):
+    doc = fitz.open(pdf_path)
+    full_text = ""
+    for page in doc:
+        full_text += page.get_text()
+    return full_text
+
+# Example:
+if __name__ == "__main__":
+    print(extract_text_from_pdf("example_foreclosure_list.pdf"))
+📝 Next Step for Replit Setup
+Add Files: Create these Python files in your Replit workspace.
+
+Install Libraries: In .replit or shell:
+
+bash
+Copy
+Edit
+pip install beautifulsoup4 requests pymupdf
+Connect to Your UI: Call these scrapers on a cron or button click → save result to DB or JSON file.
+
