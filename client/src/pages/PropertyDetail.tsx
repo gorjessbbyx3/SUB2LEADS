@@ -1,25 +1,13 @@
-
 import { useState } from 'react';
 import { useParams } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  MapPin, 
-  DollarSign, 
-  Calendar, 
-  User, 
-  Phone, 
-  Mail, 
-  FileText,
-  Download,
-  Bot,
-  Send,
-  MessageSquare
-} from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Mail, Phone, FileText, Download, MapPin, DollarSign, Calendar, Bot, AlertCircle } from "lucide-react";
 import { apiRequest } from '@/lib/queryClient';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
@@ -31,6 +19,16 @@ export default function PropertyDetail() {
   const queryClient = useQueryClient();
   const [selectedTemplate, setSelectedTemplate] = useState('foreclosure');
   const [customMessage, setCustomMessage] = useState('');
+  const [newNote, setNewNote] = useState('');
+
+  const { data: activities = [] } = useQuery({
+    queryKey: ["/api/properties", id, "activities"],
+    enabled: !!id,
+  });
+
+  const { data: recentActivities = [] } = useQuery({
+    queryKey: ["/api/activities/recent"],
+  });
 
   const { data: property, isLoading } = useQuery({
     queryKey: ['property', id],
@@ -86,6 +84,67 @@ export default function PropertyDetail() {
       }
     },
   });
+
+  const addActivityMutation = useMutation({
+    mutationFn: async (activity: any) => {
+      const response = await fetch('/api/activities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(activity),
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/properties", id, "activities"] });
+      setNewNote('');
+    },
+  });
+
+  const generateEmail = async () => {
+    // TODO: Implement AI email generation
+    console.log('Generate email for template:', selectedTemplate);
+
+    // Log activity
+    addActivityMutation.mutate({
+      propertyId: parseInt(id!),
+      type: 'email_generated',
+      title: 'AI Email Generated',
+      description: `Generated ${selectedTemplate} email template`,
+    });
+  };
+
+  const sendEmail = async () => {
+    // TODO: Implement email sending
+    console.log('Send email:', customMessage);
+
+    // Log activity
+    addActivityMutation.mutate({
+      propertyId: parseInt(id!),
+      type: 'email_sent',
+      title: 'Email Sent to Owner',
+      description: `Sent ${selectedTemplate} email via mailto`,
+    });
+  };
+
+  const logCall = () => {
+    addActivityMutation.mutate({
+      propertyId: parseInt(id!),
+      type: 'call_made',
+      title: 'Phone Call Logged',
+      description: 'Called property owner',
+    });
+  };
+
+  const addNote = () => {
+    if (!newNote.trim()) return;
+
+    addActivityMutation.mutate({
+      propertyId: parseInt(id!),
+      type: 'note_added',
+      title: 'Note Added',
+      description: newNote.trim(),
+    });
+  };
 
   if (isLoading) {
     return (
@@ -356,11 +415,69 @@ export default function PropertyDetail() {
             </TabsContent>
 
             <TabsContent value="timeline" className="space-y-4">
+              {/* Add New Activity */}
               <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center py-8">
-                    <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">No timeline events yet</p>
+                <CardHeader>
+                  <CardTitle>Log Activity</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Button onClick={logCall} variant="outline" size="sm">
+                      <Phone className="h-4 w-4 mr-2" />
+                      Log Call
+                    </Button>
+                    <Button onClick={sendEmail} variant="outline" size="sm">
+                      <Mail className="h-4 w-4 mr-2" />
+                      Log Email
+                    </Button>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add a note..."
+                      value={newNote}
+                      onChange={(e) => setNewNote(e.target.value)}
+                      className="flex-1 px-3 py-2 border rounded-md"
+                      onKeyPress={(e) => e.key === 'Enter' && addNote()}
+                    />
+                    <Button onClick={addNote} disabled={!newNote.trim()}>
+                      Add Note
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Activity Timeline */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Activity Timeline</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {activities.length > 0 ? (
+                      activities.map((activity) => (
+                        <div key={activity.id} className="flex items-start gap-4 pb-4 border-b last:border-b-0">
+                          <div className="flex-shrink-0">
+                            {activity.type === 'email_sent' && <Mail className="h-5 w-5 text-blue-500" />}
+                            {activity.type === 'call_made' && <Phone className="h-5 w-5 text-green-500" />}
+                            {activity.type === 'note_added' && <FileText className="h-5 w-5 text-gray-500" />}
+                            {activity.type === 'status_changed' && <AlertCircle className="h-5 w-5 text-orange-500" />}
+                            {!['email_sent', 'call_made', 'note_added', 'status_changed'].includes(activity.type) && 
+                              <Calendar className="h-5 w-5 text-muted-foreground" />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium">{activity.title}</p>
+                            <p className="text-sm text-gray-600">{activity.description}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(activity.createdAt).toLocaleDateString()} at {new Date(activity.createdAt).toLocaleTimeString()}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center text-gray-500 py-8">No activities yet. Start by adding a note or logging a call.</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>

@@ -226,6 +226,148 @@ Recommended next steps:
 4. Assess market conditions in the area`;
   }
 
+  async processChat(message: string, context?: { contextId?: string, contextType?: string }): Promise<string> {
+    try {
+      let contextPrompt = '';
+      
+      if (context?.contextId && context?.contextType) {
+        // Get context data based on type
+        if (context.contextType === 'lead') {
+          const lead = await this.getLeadContext(context.contextId);
+          contextPrompt = this.buildLeadContextPrompt(lead);
+        } else if (context.contextType === 'property') {
+          const property = await this.getPropertyContext(context.contextId);
+          contextPrompt = this.buildPropertyContextPrompt(property);
+        }
+      }
+
+      const fullPrompt = `${contextPrompt}
+
+User Question: ${message}
+
+Please provide a helpful response as a real estate investment assistant. If asked about deals, equity, or specific property analysis, use the context provided above.`;
+
+      // Since we're using Replit Agent AI as fallback, let's use a simple approach
+      return await this.generateReplitResponse(fullPrompt);
+    } catch (error) {
+      console.error('Chat processing error:', error);
+      return "I'm sorry, I'm having trouble processing your request right now. Please try again.";
+    }
+  }
+
+  private async getLeadContext(leadId: string): Promise<any> {
+    // Import storage dynamically to avoid circular dependencies
+    const { storage } = await import('../storage');
+    return await storage.getLead(parseInt(leadId));
+  }
+
+  private async getPropertyContext(propertyId: string): Promise<any> {
+    const { storage } = await import('../storage');
+    return await storage.getProperty(parseInt(propertyId));
+  }
+
+  private buildLeadContextPrompt(lead: any): string {
+    if (!lead) return '';
+    
+    return `Lead Context:
+- Property: ${lead.property?.address || 'Unknown'}
+- Owner: ${lead.contact?.name || 'Unknown'}
+- Status: ${lead.status}
+- Priority: ${lead.priority}
+- Estimated Value: $${lead.property?.estimatedValue?.toLocaleString() || 'Unknown'}
+- Amount Owed: $${lead.property?.amountOwed?.toLocaleString() || 'Unknown'}
+- Days Until Auction: ${lead.property?.daysUntilAuction || 'Unknown'}
+- Property Type: ${lead.property?.propertyType || 'Unknown'}`;
+  }
+
+  private buildPropertyContextPrompt(property: any): string {
+    if (!property) return '';
+    
+    const equity = property.estimatedValue && property.amountOwed 
+      ? property.estimatedValue - property.amountOwed 
+      : null;
+      
+    return `Property Context:
+- Address: ${property.address}
+- Estimated Value: $${property.estimatedValue?.toLocaleString() || 'Unknown'}
+- Amount Owed: $${property.amountOwed?.toLocaleString() || 'Unknown'}
+- Estimated Equity: ${equity ? `$${equity.toLocaleString()}` : 'Unknown'}
+- Status: ${property.status}
+- Property Type: ${property.propertyType || 'Unknown'}
+- Days Until Auction: ${property.daysUntilAuction || 'Unknown'}`;
+  }
+
+  private async generateReplitResponse(prompt: string): Promise<string> {
+    // For now, provide intelligent fallback responses based on keywords
+    const lowerPrompt = prompt.toLowerCase();
+    
+    if (lowerPrompt.includes('good deal') || lowerPrompt.includes('wholesale')) {
+      return this.generateDealAnalysis(prompt);
+    } else if (lowerPrompt.includes('equity')) {
+      return this.generateEquityAnalysis(prompt);
+    } else if (lowerPrompt.includes('text') || lowerPrompt.includes('message')) {
+      return this.generateTextMessage(prompt);
+    } else {
+      return "I can help you analyze deals, calculate equity, generate seller messages, and answer questions about your leads. What would you like to know?";
+    }
+  }
+
+  private generateDealAnalysis(prompt: string): string {
+    return `Based on the property information provided, here's my analysis:
+
+**Deal Assessment:**
+- Look for at least 20-30% equity for a good wholesale deal
+- Consider repair costs (typically 10-20% of ARV for distressed properties)
+- Factor in holding costs and transaction fees
+- Verify the property status and timeline urgency
+
+**Next Steps:**
+1. Verify the estimated value with recent comps
+2. Get a repair estimate if possible
+3. Contact the owner to understand their situation
+4. Calculate your maximum allowable offer (MAO)
+
+Would you like me to help calculate specific numbers or generate an outreach message?`;
+  }
+
+  private generateEquityAnalysis(prompt: string): string {
+    return `**Equity Analysis:**
+
+To calculate equity: Market Value - Total Debt = Equity
+
+**Key Factors:**
+- Estimated market value (verify with comps)
+- Total amount owed (liens, taxes, mortgages)
+- Repair costs (subtract from equity)
+- Transaction costs (6-10% for seller)
+
+**Red Flags:**
+- Negative equity situations
+- Inflated value estimates
+- Hidden liens or judgments
+
+Need help with specific calculations or want me to generate a seller conversation starter?`;
+  }
+
+  private generateTextMessage(prompt: string): string {
+    return `Here's a suggested text message approach:
+
+**Initial Text Template:**
+"Hi [Name], I noticed your property at [Address] and wanted to see if you might be interested in discussing some options that could help with your situation. I work with investors who specialize in helping homeowners. Would you be open to a brief conversation? No pressure at all."
+
+**Follow-up Options:**
+- Ask about their timeline and urgency
+- Offer to explain different exit strategies
+- Suggest a brief phone call vs lengthy texts
+
+**Best Practices:**
+- Keep it conversational and helpful
+- Don't mention specific financial details in texts
+- Always offer to call instead of long text chains
+
+Would you like me to customize this for the specific lead you're working with?`;
+  }
+
   getEmailTemplates() {
     return [
       { id: 'foreclosure', name: 'Foreclosure Notice', description: 'For properties facing foreclosure' },

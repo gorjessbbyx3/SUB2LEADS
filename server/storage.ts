@@ -295,6 +295,18 @@ export class DatabaseStorage implements IStorage {
       .set({ ...lead, updatedAt: new Date() })
       .where(eq(leads.id, id))
       .returning();
+
+    // Log status changes
+    if (lead.status) {
+      await this.createActivity({
+        leadId: id,
+        userId: 'system',
+        type: 'status_changed',
+        title: `Status changed to ${lead.status}`,
+        description: `Lead status updated from previous status to ${lead.status}`,
+      });
+    }
+
     return updatedLead;
   }
 
@@ -355,37 +367,12 @@ export class DatabaseStorage implements IStorage {
     return newHistory;
   }
 
-  // Scraping operations
   async getScrapingJobs(limit = 10): Promise<ScrapingJob[]> {
     return await db
       .select()
       .from(scrapingJobs)
       .orderBy(desc(scrapingJobs.createdAt))
       .limit(limit);
-  }
-
-  async createScrapingJob(job: InsertScrapingJob): Promise<ScrapingJob> {
-    const [newJob] = await db.insert(scrapingJobs).values(job).returning();
-    return newJob;
-  }
-
-  async updateScrapingJob(id: number, job: Partial<InsertScrapingJob>): Promise<ScrapingJob | undefined> {
-    const [updatedJob] = await db
-      .update(scrapingJobs)
-      .set(job)
-      .where(eq(scrapingJobs.id, id))
-      .returning();
-    return updatedJob;
-  }
-
-  async getLatestScrapingJob(source: string): Promise<ScrapingJob | undefined> {
-    const [job] = await db
-      .select()
-      .from(scrapingJobs)
-      .where(eq(scrapingJobs.source, source))
-      .orderBy(desc(scrapingJobs.createdAt))
-      .limit(1);
-    return job;
   }
 
   // AI operations

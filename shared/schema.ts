@@ -13,7 +13,7 @@ import {
   date,
   json
 } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
@@ -249,7 +249,6 @@ export type InsertScrapingJob = typeof scrapingJobs.$inferInsert;
 
 export type AIInteraction = typeof aiInteractions.$inferSelect;
 export type InsertAIInteraction = typeof aiInteractions.$inferInsert;
-export type AIInteraction = typeof aiInteractions.$inferSelect;
 
 // Zod schemas
 export const insertPropertySchema = createInsertSchema(properties);

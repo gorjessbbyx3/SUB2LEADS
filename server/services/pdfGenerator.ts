@@ -60,256 +60,337 @@ class PDFGeneratorService {
     }
   }
 
-  private async generateBinderHTML(property: any, contacts: any[], mapData: any): Promise<string> {
-    const contact = contacts[0] || {};
+  private generateBinderHTML(property: any, contacts: any[], mapData: any): Promise<string> {
+    const equity = this.calculateEquity(property);
+    const roi = this.calculateROI(property);
     const currentDate = new Date().toLocaleDateString();
 
     return `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Property Investment Binder - ${property.address}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            margin: 0;
-            padding: 20px;
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Property Investment Binder - ${property.address}</title>
+      <style>
+        @page { margin: 20mm; }
+        body { 
+          font-family: 'Arial', sans-serif; 
+          margin: 0; 
+          color: #333;
+          line-height: 1.6;
         }
-        .header {
-            text-align: center;
-            border-bottom: 3px solid #2563eb;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+        .header { 
+          text-align: center; 
+          margin-bottom: 40px; 
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 30px;
+          border-radius: 10px;
         }
-        .header h1 {
-            color: #2563eb;
-            margin: 0;
-            font-size: 2.5em;
+        .logo { 
+          font-size: 24px; 
+          font-weight: bold; 
+          margin-bottom: 10px;
         }
-        .header p {
-            color: #6b7280;
-            margin: 10px 0 0 0;
-            font-size: 1.2em;
+        .property-title { 
+          font-size: 28px; 
+          margin: 15px 0; 
+          font-weight: bold;
         }
-        .section {
-            margin-bottom: 30px;
-            page-break-inside: avoid;
+        .date { opacity: 0.9; }
+
+        .summary-cards {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 20px;
+          margin: 30px 0;
         }
-        .section h2 {
-            color: #1f2937;
-            border-left: 4px solid #2563eb;
-            padding-left: 15px;
-            margin-bottom: 15px;
+        .card {
+          background: white;
+          border: 1px solid #e0e0e0;
+          border-radius: 8px;
+          padding: 20px;
+          text-align: center;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        .property-details {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #e5e7eb;
+        .card-value {
+          font-size: 24px;
+          font-weight: bold;
+          color: #667eea;
+          margin-bottom: 5px;
         }
-        .detail-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 15px;
+        .card-label {
+          color: #666;
+          font-size: 14px;
         }
-        .detail-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #e5e7eb;
+
+        .section { 
+          margin-bottom: 40px; 
+          background: white;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
-        .detail-label {
-            font-weight: bold;
-            color: #374151;
+        .section-header {
+          background: #f8f9fa;
+          padding: 20px;
+          border-bottom: 1px solid #e0e0e0;
         }
-        .detail-value {
-            color: #6b7280;
+        .section-content {
+          padding: 30px;
         }
-        .financial-summary {
-            background: #fef3c7;
-            border: 1px solid #f59e0b;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
+        h2 { 
+          color: #2c3e50; 
+          margin: 0;
+          font-size: 20px;
         }
-        .financial-summary h3 {
-            color: #92400e;
-            margin-top: 0;
+
+        .property-details table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
         }
-        .opportunity-highlights {
-            background: #ecfdf5;
-            border: 1px solid #10b981;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
+        .property-details td {
+          padding: 12px;
+          border-bottom: 1px solid #eee;
         }
-        .opportunity-highlights h3 {
-            color: #047857;
-            margin-top: 0;
+        .property-details td:first-child {
+          font-weight: bold;
+          background: #f8f9fa;
+          width: 200px;
         }
-        .map-container {
-            text-align: center;
-            margin: 20px 0;
+
+        .financial-highlight {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 25px;
+          border-radius: 8px;
+          margin: 20px 0;
         }
-        .map-image {
-            max-width: 100%;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
+        .financial-highlight h3 {
+          margin-top: 0;
+          color: white;
         }
-        .contact-info {
-            background: #eff6ff;
-            border: 1px solid #3b82f6;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
+        .financial-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 20px;
+          margin-top: 15px;
         }
-        .contact-info h3 {
-            color: #1e40af;
-            margin-top: 0;
+        .financial-item {
+          background: rgba(255,255,255,0.1);
+          padding: 15px;
+          border-radius: 5px;
         }
+
+        .map-placeholder {
+          width: 100%;
+          height: 300px;
+          background: #f0f0f0;
+          border: 2px dashed #ccc;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #666;
+          border-radius: 8px;
+          margin: 20px 0;
+        }
+
+        .contact-summary {
+          background: #e8f4fd;
+          border: 1px solid #b3d9ff;
+          padding: 20px;
+          border-radius: 8px;
+          margin: 20px 0;
+        }
+
+        .action-items {
+          background: #fff3cd;
+          border: 1px solid #ffeaa7;
+          padding: 20px;
+          border-radius: 8px;
+        }
+        .action-items ul {
+          margin: 10px 0;
+          padding-left: 20px;
+        }
+
         .footer {
-            text-align: center;
-            margin-top: 50px;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
-            color: #6b7280;
-            font-size: 0.9em;
+          text-align: center;
+          margin-top: 50px;
+          padding: 20px;
+          color: #666;
+          border-top: 1px solid #eee;
         }
+
         @media print {
-            body { margin: 0; }
-            .section { page-break-inside: avoid; }
+          .section { break-inside: avoid; }
+          .summary-cards { break-inside: avoid; }
         }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>Property Investment Binder</h1>
-        <p>Confidential Investment Analysis</p>
-        <p>Generated on ${currentDate}</p>
-    </div>
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="logo">🏠 Sub2Leads Investment Report</div>
+        <div class="property-title">${property.address}</div>
+        <div class="date">Report Generated: ${currentDate}</div>
+      </div>
 
-    <div class="section">
-        <h2>Property Overview</h2>
-        <div class="property-details">
-            <div class="detail-grid">
-                <div class="detail-item">
-                    <span class="detail-label">Address:</span>
-                    <span class="detail-value">${property.address}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">Property Type:</span>
-                    <span class="detail-value">${property.propertyType || 'Residential'}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">Current Owner:</span>
-                    <span class="detail-value">${property.ownerName || 'Unknown'}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">Status:</span>
-                    <span class="detail-value">${property.taxStatus || property.status}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">Source:</span>
-                    <span class="detail-value">${property.source || 'Manual Entry'}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">Discovery Date:</span>
-                    <span class="detail-value">${new Date(property.createdAt).toLocaleDateString()}</span>
-                </div>
-            </div>
+      <div class="summary-cards">
+        <div class="card">
+          <div class="card-value">$${property.estimatedValue?.toLocaleString() || '---'}</div>
+          <div class="card-label">Estimated Value</div>
         </div>
-    </div>
-
-    ${property.lienAmount ? `
-    <div class="section">
-        <h2>Financial Information</h2>
-        <div class="financial-summary">
-            <h3>Outstanding Liens & Debts</h3>
-            <div class="detail-item">
-                <span class="detail-label">Primary Lien Amount:</span>
-                <span class="detail-value">$${property.lienAmount.toLocaleString()}</span>
-            </div>
-            ${property.auctionDate ? `
-            <div class="detail-item">
-                <span class="detail-label">Auction Date:</span>
-                <span class="detail-value">${new Date(property.auctionDate).toLocaleDateString()}</span>
-            </div>
-            ` : ''}
+        <div class="card">
+          <div class="card-value">$${equity.toLocaleString()}</div>
+          <div class="card-label">Potential Equity</div>
         </div>
-    </div>
-    ` : ''}
+        <div class="card">
+          <div class="card-value">${property.daysUntilAuction || '---'}</div>
+          <div class="card-label">Days to Auction</div>
+        </div>
+      </div>
 
-    ${property.aiSummary ? `
-    <div class="section">
-        <h2>AI Investment Analysis</h2>
-        <div class="opportunity-highlights">
+      <div class="section">
+        <div class="section-header">
+          <h2>📋 Property Information</h2>
+        </div>
+        <div class="section-content">
+          <table class="property-details">
+            <tr><td>Full Address</td><td>${property.address}, ${property.city || ''}, ${property.state || 'HI'} ${property.zipCode || ''}</td></tr>
+            <tr><td>Property Type</td><td>${property.propertyType || 'Residential'}</td></tr>
+            <tr><td>Bedrooms</td><td>${property.bedrooms || 'Unknown'}</td></tr>
+            <tr><td>Bathrooms</td><td>${property.bathrooms || 'Unknown'}</td></tr>
+            <tr><td>Square Feet</td><td>${property.squareFeet?.toLocaleString() || 'Unknown'}</td></tr>
+            <tr><td>Year Built</td><td>${property.yearBuilt || 'Unknown'}</td></tr>
+            <tr><td>Current Status</td><td><strong>${property.status}</strong></td></tr>
+            <tr><td>Priority Level</td><td><strong>${property.priority?.toUpperCase() || 'MEDIUM'}</strong></td></tr>
+          </table>
+
+          <div class="map-placeholder">
+            📍 Property Location Map
+            <br><small>(Map image would be inserted here)</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2>💰 Financial Analysis</h2>
+        </div>
+        <div class="section-content">
+          <div class="financial-highlight">
             <h3>Investment Opportunity Summary</h3>
-            <p>${property.aiSummary}</p>
-        </div>
-    </div>
-    ` : ''}
+            <div class="financial-grid">
+              <div class="financial-item">
+                <strong>Market Value:</strong><br>
+                $${property.estimatedValue?.toLocaleString() || 'TBD'}
+              </div>
+              <div class="financial-item">
+                <strong>Total Debt:</strong><br>
+                $${property.amountOwed?.toLocaleString() || 'TBD'}
+              </div>
+              <div class="financial-item">
+                <strong>Gross Equity:</strong><br>
+                $${equity.toLocaleString()}
+              </div>
+              <div class="financial-item">
+                <strong>Potential ROI:</strong><br>
+                ${roi}%
+              </div>
+            </div>
+          </div>
 
-    ${mapData?.imageUrl ? `
-    <div class="section">
-        <h2>Property Location</h2>
-        <div class="map-container">
-            <img src="${mapData.imageUrl}" alt="Property Location Map" class="map-image" />
-            <p>Coordinates: ${mapData.latitude}, ${mapData.longitude}</p>
+          <div style="margin-top: 30px;">
+            <h3>📊 Deal Analysis</h3>
+            <p><strong>Estimated Repair Costs:</strong> $${this.estimateRepairs(property).toLocaleString()} (10-15% of value)</p>
+            <p><strong>Net Equity After Repairs:</strong> $${(equity - this.estimateRepairs(property)).toLocaleString()}</p>
+            <p><strong>Recommended Max Offer:</strong> $${this.calculateMaxOffer(property).toLocaleString()} (70% of ARV - Repairs)</p>
+          </div>
         </div>
-    </div>
-    ` : ''}
+      </div>
 
-    ${contact.name || contact.email ? `
-    <div class="section">
-        <h2>Owner Contact Information</h2>
-        <div class="contact-info">
-            <h3>Primary Contact</h3>
-            ${contact.name ? `<p><strong>Name:</strong> ${contact.name}</p>` : ''}
-            ${contact.email ? `<p><strong>Email:</strong> ${contact.email}</p>` : ''}
-            ${contact.phone ? `<p><strong>Phone:</strong> ${contact.phone}</p>` : ''}
-            ${contact.socialProfiles ? `<p><strong>Social Profiles:</strong> Found</p>` : ''}
+      <div class="section">
+        <div class="section-header">
+          <h2>📞 Contact Information</h2>
         </div>
-    </div>
-    ` : ''}
-
-    <div class="section">
-        <h2>Investment Strategy Recommendations</h2>
-        <div class="opportunity-highlights">
-            <h3>Recommended Approach</h3>
-            <ul>
-                <li>Initial outreach within 48 hours</li>
-                <li>Schedule property inspection if owner is interested</li>
-                <li>Prepare cash offer based on property condition</li>
-                <li>Negotiate flexible closing terms</li>
-                <li>Consider alternative solutions (loan modification, short sale)</li>
-            </ul>
+        <div class="section-content">
+          <div class="contact-summary">
+            <h3>Property Owner Details</h3>
+            <p><strong>Contact Status:</strong> ${property.contacts?.[0] ? 'Contact Found' : 'Contact Search Needed'}</p>
+            <p><strong>Owner Name:</strong> ${property.contacts?.[0]?.name || 'To Be Determined'}</p>
+            <p><strong>Phone:</strong> ${property.contacts?.[0]?.phone || 'Not Available'}</p>
+            <p><strong>Email:</strong> ${property.contacts?.[0]?.email || 'Not Available'}</p>
+            <p><strong>Last Contact:</strong> ${property.contacts?.[0]?.lastEnriched ? new Date(property.contacts[0].lastEnriched).toLocaleDateString() : 'Never'}</p>
+          </div>
         </div>
-    </div>
+      </div>
 
-    <div class="section">
-        <h2>Next Steps</h2>
-        <div class="property-details">
+      <div class="section">
+        <div class="section-header">
+          <h2>🤖 AI Investment Analysis</h2>
+        </div>
+        <div class="section-content">
+          <p>${property.aiSummary || 'This property represents a potential investment opportunity in the Hawaii market. The current distressed status provides an opportunity for investor intervention. Key factors to consider include the timeline urgency, total debt obligations, and property condition. Recommended next steps include property inspection, title research, and direct owner contact to understand their situation and timeline.'}</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2>✅ Next Action Items</h2>
+        </div>
+        <div class="section-content">
+          <div class="action-items">
             <h3>Immediate Actions Required:</h3>
-            <ol>
-                <li>Contact property owner via personalized email/letter</li>
-                <li>Research comparable sales in the area</li>
-                <li>Verify property condition and title status</li>
-                <li>Prepare initial offer parameters</li>
-                <li>Schedule follow-up contact in 1 week</li>
-            </ol>
-        </div>
-    </div>
+            <ul>
+              <li>Contact property owner to discuss situation</li>
+              <li>Schedule property inspection</li>
+              <li>Verify debt amounts and legal status</li>
+              <li>Research recent comparable sales</li>
+              <li>Calculate repair estimates</li>
+              <li>Prepare purchase agreement terms</li>
+            </ul>
 
-    <div class="footer">
-        <p>This document contains confidential information for investment analysis purposes only.</p>
-        <p>Hawaii Investment Team • (808) 555-0123 • info@hawaiiinvestments.com</p>
-    </div>
-</body>
-</html>`;
+            <h3>Timeline Considerations:</h3>
+            <ul>
+              <li><strong>Auction Date:</strong> ${property.auctionDate ? new Date(property.auctionDate).toLocaleDateString() : 'TBD'}</li>
+              <li><strong>Days Remaining:</strong> ${property.daysUntilAuction || 'Unknown'}</li>
+              <li><strong>Urgency Level:</strong> ${property.priority?.toUpperCase() || 'MEDIUM'}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p><strong>Sub2Leads Investment Platform</strong> | Professional Property Analysis</p>
+        <p>This report is for investment analysis purposes only. Verify all information independently.</p>
+      </div>
+    </body>
+    </html>`;
+  }
+
+  private estimateRepairs(property: any): number {
+    // Estimate 10-15% of property value for repairs on distressed properties
+    const baseEstimate = (property.estimatedValue || 0) * 0.125;
+    return Math.round(baseEstimate);
+  }
+
+  private calculateMaxOffer(property: any): number {
+    // 70% rule: 70% of ARV minus repairs
+    const arv = property.estimatedValue || 0;
+    const repairs = this.estimateRepairs(property);
+    return Math.round((arv * 0.70) - repairs);
+  }
+
+  private calculateEquity(property: any): number {
+    return (property.estimatedValue || 0) - (property.amountOwed || 0);
+  }
+
+  private calculateROI(property: any): string {
+    const equity = this.calculateEquity(property);
+    const investment = this.estimateRepairs(property) + this.calculateMaxOffer(property);
+    const roi = (equity - investment) / investment * 100;
+    return roi.toFixed(2);
   }
 
   async closeBrowser() {
