@@ -1,85 +1,54 @@
-import { useState } from "react";
-import { useQuery, useMutation, queryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { apiRequest } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
-import { Phone, Mail, Calendar, User } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { ArrowRight, Phone, Mail, Eye } from 'lucide-react';
 
 interface Lead {
   id: number;
-  propertyId: number;
-  contactId: number;
-  status: string;
-  priority: string;
-  lastContactDate?: string;
-  nextFollowUpDate?: string;
-  appointmentDate?: string;
-  notes?: string;
-  property?: {
-    address: string;
-    estimatedValue?: number;
-    daysUntilAuction?: number;
-  };
-  contact?: {
-    name?: string;
-    email?: string;
-    phone?: string;
-  };
+  name: string;
+  address: string;
+  status: 'new' | 'contacted' | 'qualified' | 'closed';
+  priority: 'low' | 'medium' | 'high';
+  estimatedValue: number;
+  lastContact?: string;
+  phone?: string;
+  email?: string;
 }
 
-const columns = [
-  { id: 'to_contact', title: 'To Contact', color: 'bg-gray-500' },
-  { id: 'in_conversation', title: 'In Conversation', color: 'bg-yellow-500' },
-  { id: 'appointment_set', title: 'Appointment Set', color: 'bg-purple-500' },
-  { id: 'follow_up', title: 'Follow-up', color: 'bg-green-500' },
-];
+export default function LeadKanban() {
+  const [leads, setLeads] = useState<Lead[]>([]);
 
-export function LeadKanban() {
-  const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
+  useEffect(() => {
+    // Fetch leads from API
+    fetchLeads();
+  }, []);
 
-  const { data: leads = [], isLoading } = useQuery({
-    queryKey: ["/api/leads"],
-    queryFn: async () => {
-      const response = await fetch("/api/leads?limit=100");
-      return response.json();
-    },
-  });
+  const fetchLeads = async () => {
+    try {
+      const response = await fetch('/api/properties');
+      const properties = await response.json();
 
-  const updateLeadMutation = useMutation({
-    mutationFn: async ({ leadId, updates }: { leadId: number; updates: any }) => {
-      const response = await apiRequest('PATCH', `/api/leads/${leadId}`, updates);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-    },
-  });
+      const formattedLeads = properties.map((prop: any) => ({
+        id: prop.id,
+        name: prop.ownerName || 'Unknown Owner',
+        address: prop.address,
+        status: prop.leadStatus || 'new',
+        priority: prop.priority,
+        estimatedValue: prop.estimatedValue,
+        lastContact: prop.lastContact,
+        phone: prop.phone,
+        email: prop.email
+      }));
 
-  const handleDragStart = (e: React.DragEvent, lead: Lead) => {
-    setDraggedLead(lead);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDrop = (e: React.DragEvent, newStatus: string) => {
-    e.preventDefault();
-    if (draggedLead && draggedLead.status !== newStatus) {
-      updateLeadMutation.mutate({
-        leadId: draggedLead.id,
-        updates: { status: newStatus }
-      });
+      setLeads(formattedLeads);
+    } catch (error) {
+      console.error('Error fetching leads:', error);
     }
-    setDraggedLead(null);
   };
 
   const getLeadsByStatus = (status: string) => {
-    return leads.filter((lead: Lead) => lead.status === status);
+    return leads.filter(lead => lead.status === status);
   };
 
   const getPriorityColor = (priority: string) => {
@@ -91,131 +60,114 @@ export function LeadKanban() {
     }
   };
 
-  const getTimeDisplay = (dateString?: string) => {
-    if (!dateString) return null;
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffInDays === 0) return 'Today';
-    if (diffInDays === 1) return 'Yesterday';
-    if (diffInDays > 0) return `${diffInDays} days ago`;
-    return `In ${Math.abs(diffInDays)} days`;
+  const moveLeadToNextStatus = async (leadId: number, currentStatus: string) => {
+    const statusFlow = {
+      'new': 'contacted',
+      'contacted': 'qualified',
+      'qualified': 'closed',
+      'closed': 'closed'
+    };
+
+    const nextStatus = statusFlow[currentStatus as keyof typeof statusFlow];
+
+    try {
+      const response = await fetch(`/api/properties/${leadId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ leadStatus: nextStatus })
+      });
+
+      if (response.ok) {
+        setLeads(leads.map(lead => 
+          lead.id === leadId ? { ...lead, status: nextStatus as any } : lead
+        ));
+      }
+    } catch (error) {
+      console.error('Error updating lead status:', error);
+    }
   };
 
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {columns.map((column) => (
-          <Card key={column.id} className="h-96">
-            <CardHeader>
-              <CardTitle className="text-sm">{column.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="animate-pulse space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-20 bg-gray-200 rounded"></div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
+  const columns = [
+    { title: 'New Leads', status: 'new', count: getLeadsByStatus('new').length },
+    { title: 'Contacted', status: 'contacted', count: getLeadsByStatus('contacted').length },
+    { title: 'Qualified', status: 'qualified', count: getLeadsByStatus('qualified').length },
+    { title: 'Closed', status: 'closed', count: getLeadsByStatus('closed').length },
+  ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-      {columns.map((column) => {
-        const columnLeads = getLeadsByStatus(column.id);
-        
-        return (
-          <Card key={column.id} className="h-fit min-h-96">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-gray-900">
-                  {column.title}
+    <div className="p-6">
+      <div className="flex gap-6 overflow-x-auto">
+        {columns.map((column) => (
+          <div key={column.status} className="flex-1 min-w-80">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>{column.title}</span>
+                  <Badge variant="secondary">{column.count}</Badge>
                 </CardTitle>
-                <Badge className={cn("text-white text-xs", column.color)}>
-                  {columnLeads.length}
-                </Badge>
-              </div>
-            </CardHeader>
-            
-            <CardContent 
-              className="space-y-3 min-h-80"
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, column.id)}
-            >
-              {columnLeads.map((lead: Lead) => (
-                <div
-                  key={lead.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, lead)}
-                  className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 cursor-move hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <User className="h-3 w-3 text-gray-400" />
-                        <span className="font-medium text-sm text-gray-900">
-                          {lead.contact?.name || 'Unknown'}
-                        </span>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {getLeadsByStatus(column.status).map((lead) => (
+                    <Card key={lead.id} className="p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-semibold">{lead.name}</h3>
+                        <Badge className={getPriorityColor(lead.priority)}>
+                          {lead.priority}
+                        </Badge>
                       </div>
-                      <p className="text-xs text-gray-500 truncate">
-                        {lead.property?.address || 'Address unknown'}
-                      </p>
-                    </div>
-                    <Badge className={cn("text-white text-xs", getPriorityColor(lead.priority))}>
-                      {lead.priority}
-                    </Badge>
-                  </div>
-                  
-                  {lead.property?.estimatedValue && (
-                    <p className="text-xs text-gray-600 mb-2">
-                      Est. ${lead.property.estimatedValue.toLocaleString()}
-                    </p>
-                  )}
-                  
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <div className="flex space-x-2">
-                      {lead.contact?.email && (
-                        <Mail className="h-3 w-3" />
+                      <p className="text-sm text-gray-600 mb-2">{lead.address}</p>
+                      <p className="text-sm font-medium mb-3">${lead.estimatedValue.toLocaleString()}</p>
+
+                      {/* Contact Information */}
+                      <div className="flex gap-2 mb-3">
+                        {lead.phone && (
+                          <Button size="sm" variant="outline" className="flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            Call
+                          </Button>
+                        )}
+                        {lead.email && (
+                          <Button size="sm" variant="outline" className="flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            Email
+                          </Button>
+                        )}
+                        <Button size="sm" variant="outline" className="flex items-center gap-1">
+                          <Eye className="w-3 h-3" />
+                          View
+                        </Button>
+                      </div>
+
+                      {/* Move to Next Status */}
+                      {lead.status !== 'closed' && (
+                        <Button 
+                          size="sm" 
+                          className="w-full flex items-center gap-1"
+                          onClick={() => moveLeadToNextStatus(lead.id, lead.status)}
+                        >
+                          {lead.status === 'new' ? 'Mark as Contacted' : 
+                           lead.status === 'contacted' ? 'Mark as Qualified' : 
+                           'Mark as Closed'}
+                          <ArrowRight className="w-3 h-3" />
+                        </Button>
                       )}
-                      {lead.contact?.phone && (
-                        <Phone className="h-3 w-3" />
+
+                      {lead.lastContact && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          Last contact: {lead.lastContact}
+                        </p>
                       )}
-                      {lead.appointmentDate && (
-                        <Calendar className="h-3 w-3 text-purple-500" />
-                      )}
-                    </div>
-                    <span>
-                      {lead.appointmentDate 
-                        ? getTimeDisplay(lead.appointmentDate)
-                        : lead.lastContactDate 
-                        ? getTimeDisplay(lead.lastContactDate)
-                        : 'No contact'
-                      }
-                    </span>
-                  </div>
-                  
-                  {lead.property?.daysUntilAuction && lead.property.daysUntilAuction <= 7 && (
-                    <div className="mt-2 text-xs text-red-600 font-medium">
-                      ⚠ Auction in {lead.property.daysUntilAuction} days
-                    </div>
-                  )}
+                    </Card>
+                  ))}
                 </div>
-              ))}
-              
-              {columnLeads.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <p className="text-sm">No leads in this column</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        );
-      })}
+              </CardContent>
+            </Card>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

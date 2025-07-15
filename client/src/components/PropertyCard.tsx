@@ -1,104 +1,137 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { MapPin, Calendar, DollarSign, User, ExternalLink } from 'lucide-react';
 
-interface PropertyCardProps {
-  property: {
-    id: number;
-    address: string;
-    status: string;
-    priority: string;
-    estimatedValue?: number;
-    daysUntilAuction?: number;
-    amountOwed?: number;
-    createdAt: string;
-  };
-  onClick?: () => void;
+interface Property {
+  id: number;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  estimatedValue: number;
+  status: string;
+  priority: 'low' | 'medium' | 'high';
+  amountOwed?: number;
+  daysUntilAuction?: number;
+  auctionDate?: string;
+  ownerName?: string;
+  sourceUrl?: string;
 }
 
-export function PropertyCard({ property, onClick }: PropertyCardProps) {
-  const getStatusDisplay = (status: string) => {
-    switch (status) {
-      case 'foreclosure':
-        return 'Foreclosure Notice';
-      case 'tax_delinquent':
-        return 'Tax Delinquent';
-      case 'auction':
-        return 'Auction';
-      default:
-        return status;
-    }
-  };
+interface PropertyCardProps {
+  property: Property;
+  onViewDetails: (property: Property) => void;
+}
 
+export default function PropertyCard({ property, onViewDetails }: PropertyCardProps) {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high':
-        return 'bg-red-500 text-white';
-      case 'medium':
-        return 'bg-yellow-500 text-white';
-      case 'low':
-        return 'bg-green-500 text-white';
-      default:
-        return 'bg-gray-500 text-white';
+      case 'high': return 'bg-red-500';
+      case 'medium': return 'bg-yellow-500';
+      case 'low': return 'bg-green-500';
+      default: return 'bg-gray-500';
     }
   };
 
-  const getTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours} hours ago`;
-    const diffInDays = Math.floor(diffInHours / 24);
-    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'foreclosure': return 'bg-red-100 text-red-800';
+      case 'tax_delinquent': return 'bg-orange-100 text-orange-800';
+      case 'auction': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Generate OpenStreetMap static image URL
+  const getMapImageUrl = (address: string) => {
+    const encodedAddress = encodeURIComponent(address);
+    return `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`;
   };
 
   return (
-    <div 
-      className={cn(
-        "flex items-start space-x-4 p-4 bg-gray-50 rounded-lg transition-all",
-        onClick && "cursor-pointer hover:bg-gray-100"
-      )}
-      onClick={onClick}
-    >
-      {/* Property Image Placeholder */}
-      <div className="w-16 h-16 bg-gray-300 rounded-lg flex items-center justify-center">
-        <span className="text-xs text-gray-600">IMG</span>
-      </div>
-      
-      <div className="flex-1 min-w-0">
-        <h4 className="font-medium text-gray-900 truncate">{property.address}</h4>
-        <p className="text-sm text-gray-500 mt-1">
-          {getStatusDisplay(property.status)}
-          {property.daysUntilAuction && (
-            <> • Auction in {property.daysUntilAuction} days</>
-          )}
-          {property.amountOwed && (
-            <> • ${property.amountOwed.toLocaleString()} owed</>
-          )}
-        </p>
-        <div className="flex items-center space-x-3 mt-2">
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-lg">{property.address}</CardTitle>
           <Badge className={getPriorityColor(property.priority)}>
-            {property.priority.charAt(0).toUpperCase() + property.priority.slice(1)} Priority
+            {property.priority}
           </Badge>
-          {property.estimatedValue && (
-            <span className="text-sm text-gray-500">
-              Est. ${property.estimatedValue.toLocaleString()}
-            </span>
-          )}
         </div>
-      </div>
-      
-      <div className="flex flex-col items-end space-y-2">
-        <span className="text-xs text-gray-500">
-          {getTimeAgo(property.createdAt)}
-        </span>
-        <Button variant="ghost" size="sm">
-          <ExternalLink className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
+        <div className="flex items-center text-sm text-gray-600">
+          <MapPin className="w-4 h-4 mr-1" />
+          {property.city}, {property.state} {property.zipCode}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {/* Map Preview */}
+          <div className="w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
+            <iframe
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=-158.3,21.2,-157.6,21.8&layer=mapnik&marker=${21.5},${-158.0}`}
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              title="Property Location"
+              className="rounded-lg"
+            />
+          </div>
+
+          <div className="flex justify-between items-center">
+            <Badge className={getStatusColor(property.status)}>
+              {property.status.replace('_', ' ')}
+            </Badge>
+            <div className="text-right">
+              <div className="flex items-center text-sm">
+                <DollarSign className="w-4 h-4 mr-1" />
+                ${property.estimatedValue.toLocaleString()}
+              </div>
+              {property.amountOwed && (
+                <div className="text-sm text-red-600">
+                  Owed: ${property.amountOwed.toLocaleString()}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {property.ownerName && (
+            <div className="flex items-center text-sm">
+              <User className="w-4 h-4 mr-1" />
+              {property.ownerName}
+            </div>
+          )}
+
+          {property.auctionDate && (
+            <div className="flex items-center text-sm">
+              <Calendar className="w-4 h-4 mr-1" />
+              Auction: {property.auctionDate}
+              {property.daysUntilAuction && (
+                <span className="ml-1 text-red-600">
+                  ({property.daysUntilAuction} days)
+                </span>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button 
+              className="flex-1" 
+              onClick={() => onViewDetails(property)}
+            >
+              View Details
+            </Button>
+            {property.sourceUrl && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => window.open(property.sourceUrl, '_blank')}
+              >
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
