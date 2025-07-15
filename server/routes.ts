@@ -356,8 +356,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Send email to lead
-  app.post('/api/leads/:id/send-email', async (req, res) => {
+  // Generate mailto link for lead
+  app.post('/api/leads/:id/generate-mailto', async (req, res) => {
     try {
       const leadId = parseInt(req.params.id);
       const { customMessage, templateId } = req.body;
@@ -367,11 +367,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Lead not found' });
       }
 
-      const result = await emailService.sendEmail(lead, templateId, customMessage);
+      const result = await emailService.generateMailtoLink(lead, templateId, customMessage);
       res.json(result);
     } catch (error) {
-      console.error('Email sending error:', error);
-      res.status(500).json({ error: 'Failed to send email' });
+      console.error('Email generation error:', error);
+      res.status(500).json({ error: 'Failed to generate email' });
+    }
+  });
+
+  // Mark email as sent
+  app.post('/api/leads/:id/mark-email-sent', async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.id);
+      const { emailLogId } = req.body;
+
+      const result = await emailService.markEmailSent(leadId, emailLogId);
+      res.json(result);
+    } catch (error) {
+      console.error('Error marking email as sent:', error);
+      res.status(500).json({ error: 'Failed to mark email as sent' });
     }
   });
 
@@ -435,6 +449,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Contact enrichment error:', error);
       res.status(500).json({ error: 'Failed to start contact enrichment' });
+    }
+  });
+
+  // Email Templates API
+  app.get('/api/email-templates', async (req, res) => {
+    try {
+      const templates = await emailService.getEmailTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error('Error fetching email templates:', error);
+      res.status(500).json({ message: 'Failed to fetch email templates' });
     }
   });
 

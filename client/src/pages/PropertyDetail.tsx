@@ -1,4 +1,5 @@
 
+import { useState } from 'react';
 import { useParams } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +17,8 @@ import {
   FileText,
   Download,
   Bot,
-  Send
+  Send,
+  MessageSquare
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import Sidebar from '@/components/Sidebar';
@@ -27,6 +29,8 @@ export default function PropertyDetail() {
   const { id } = useParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedTemplate, setSelectedTemplate] = useState('foreclosure');
+  const [customMessage, setCustomMessage] = useState('');
 
   const { data: property, isLoading } = useQuery({
     queryKey: ['property', id],
@@ -37,6 +41,11 @@ export default function PropertyDetail() {
     queryKey: ['property-contacts', id],
     queryFn: () => apiRequest(`/api/properties/${id}/contacts`),
     enabled: !!id,
+  });
+
+  const { data: emailTemplates = [] } = useQuery({
+    queryKey: ['email-templates'],
+    queryFn: () => apiRequest('/api/email-templates'),
   });
 
   const generateSummaryMutation = useMutation({
@@ -59,6 +68,22 @@ export default function PropertyDetail() {
       toast({ title: 'Property binder generated!', description: 'Download will start automatically' });
       // In a real app, you'd handle the download here
       console.log('PDF generated:', data.url);
+    },
+  });
+
+  const generateMailtoMutation = useMutation({
+    mutationFn: () => apiRequest(`/api/leads/${id}/generate-mailto`, {
+      method: 'POST',
+      body: { 
+        templateId: selectedTemplate,
+        customMessage: customMessage || undefined
+      },
+    }),
+    onSuccess: (data) => {
+      if (data.mailtoLink) {
+        window.location.href = data.mailtoLink;
+        toast({ title: 'Email app opened!', description: 'Your email client should open with the pre-filled message' });
+      }
     },
   });
 
@@ -212,6 +237,46 @@ export default function PropertyDetail() {
             </TabsContent>
 
             <TabsContent value="contacts" className="space-y-4">
+              {/* Email Template Selector */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    Email Templates
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Select Template
+                      </label>
+                      <select 
+                        value={selectedTemplate}
+                        onChange={(e) => setSelectedTemplate(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="foreclosure">Foreclosure Notice</option>
+                        <option value="tax_lien">Tax Lien</option>
+                        <option value="auction">Auction Notice</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Custom Message (Optional)
+                      </label>
+                      <textarea
+                        value={customMessage}
+                        onChange={(e) => setCustomMessage(e.target.value)}
+                        placeholder="Add any custom message here..."
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               {contacts.length > 0 ? (
                 <div className="grid gap-4">
                   {contacts.map((contact: any) => (
@@ -239,10 +304,29 @@ export default function PropertyDetail() {
                               <Badge variant="outline">{contact.role}</Badge>
                             )}
                           </div>
-                          <Button variant="outline" size="sm">
-                            <Send className="h-4 w-4 mr-2" />
-                            Contact
-                          </Button>
+                          <div className="flex gap-2">
+                            {contact.email && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => generateMailtoMutation.mutate()}
+                                disabled={generateMailtoMutation.isPending}
+                              >
+                                <Mail className="h-4 w-4 mr-2" />
+                                {generateMailtoMutation.isPending ? 'Generating...' : 'Email'}
+                              </Button>
+                            )}
+                            {contact.phone && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => window.location.href = `tel:${contact.phone}`}
+                              >
+                                <Phone className="h-4 w-4 mr-2" />
+                                Call
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

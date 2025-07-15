@@ -1,17 +1,14 @@
-import sgMail from '@sendgrid/mail';
 import { storage } from '../storage';
 import { aiService } from './aiService';
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY || 'your-sendgrid-key-here');
-
 interface EmailResult {
   success: boolean;
-  messageId?: string;
+  mailtoLink?: string;
   error?: string;
 }
 
 class EmailService {
-  async sendEmail(lead: any, templateId: string, customMessage?: string): Promise<EmailResult> {
+  async generateMailtoLink(lead: any, templateId: string, customMessage?: string): Promise<EmailResult> {
     try {
       // Get property and contact details
       const property = await storage.getProperty(lead.propertyId);
@@ -34,60 +31,34 @@ class EmailService {
 
       const body = emailContent.replace(subjectLine || '', '').trim();
 
-      const msg = {
-        to: contact.email,
-        from: {
-          email: process.env.FROM_EMAIL || 'noreply@hawaiicrm.com',
-          name: 'Hawaii Investment Team'
-        },
-        subject,
-        html: this.formatEmailHTML(body, property, contact),
-        text: body,
-        trackingSettings: {
-          clickTracking: { enable: true },
-          openTracking: { enable: true },
-          subscriptionTracking: { enable: false },
-        },
-        customArgs: {
-          leadId: lead.id.toString(),
-          propertyId: property.id.toString(),
-          templateId,
-        },
-      };
+      // Create mailto link
+      const mailtoLink = this.createMailtoLink(contact.email, subject, body);
 
-      const response = await sgMail.send(msg);
-
-      // Log email sent
+      // Log email generation
       await storage.createEmailLog({
         leadId: lead.id,
         propertyId: property.id,
         contactId: contact.id,
         subject,
         content: body,
-        status: 'sent',
+        status: 'generated',
         templateId,
-        sendgridMessageId: response[0].headers['x-message-id'],
-      });
-
-      // Update lead status
-      await storage.updateLead(lead.id, {
-        status: 'contacted',
-        lastContactDate: new Date(),
+        mailtoLink,
       });
 
       return {
         success: true,
-        messageId: response[0].headers['x-message-id'],
+        mailtoLink,
       };
 
     } catch (error) {
-      console.error('Email sending error:', error);
+      console.error('Email generation error:', error);
 
       // Log failed email
       await storage.createEmailLog({
         leadId: lead.id,
         propertyId: lead.propertyId,
-        subject: 'Failed to send',
+        subject: 'Failed to generate',
         content: error.message,
         status: 'failed',
         templateId,
@@ -100,69 +71,68 @@ class EmailService {
     }
   }
 
-  private formatEmailHTML(body: string, property: any, contact: any): string {
-    const htmlBody = body
-      .replace(/\n/g, '<br>')
-      .replace('{address}', property.address)
-      .replace('{ownerName}', contact.name || 'Property Owner')
-      .replace('{agentName}', 'Hawaii Investment Team')
-      .replace('{agentPhone}', '(808) 555-0123')
-      .replace('{agentEmail}', 'info@hawaiiinvestments.com');
+  private createMailtoLink(email: string, subject: string, body: string): string {
+    const encodedSubject = encodeURIComponent(subject);
+    const encodedBody = encodeURIComponent(body.replace(/\n/g, '\r\n'));
 
-    return `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hawaii Investment Opportunity</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-        <h2 style="color: #2563eb; margin: 0;">Hawaii Investment Team</h2>
-        <p style="margin: 5px 0; color: #6b7280;">Professional Real Estate Solutions</p>
-    </div>
-
-    <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
-        ${htmlBody}
-    </div>
-
-    <div style="margin-top: 20px; padding: 15px; background: #f3f4f6; border-radius: 8px; font-size: 12px; color: #6b7280;">
-        <p>This email was sent regarding the property at ${property.address}.</p>
-        <p>If you no longer wish to receive these emails, please reply with "UNSUBSCRIBE".</p>
-    </div>
-</body>
-</html>`;
+    return `mailto:${email}?subject=${encodedSubject}&body=${encodedBody}`;
   }
 
-  async handleWebhook(eventData: any) {
+  // Generate pre-written email templates
+  generateEmailTemplate(lead: any, templateType: string): string {
+    const templates = {
+      foreclosure: (lead: any) => `Hi ${lead.contact?.name || 'Property Owner'},
+
+I'm reaching out because I noticed your property at ${lead.property?.address} may be at risk of foreclosure. I work with buyers who are looking to help homeowners like you find a way out.
+
+Would you be open to discussing your options?
+
+Best,
+Hawaii Investment Team
+(808) 555-0123`,
+
+      taxLien: (lead: any) => `Dear ${lead.contact?.name || 'Property Owner'},
+
+I'm writing regarding a tax lien at ${lead.property?.address}. I understand this can be stressful, and I wanted to reach out to see if I could help.
+
+We specialize in resolving tax situations quickly and fairly. Would you be interested in discussing your options?
+
+Sincerely,
+Hawaii Investment Team
+(808) 555-0123`,
+
+      auction: (lead: any) => `Hello ${lead.contact?.name || 'Property Owner'},
+
+I noticed your property at ${lead.property?.address} is scheduled for auction soon. We may be able to provide a solution that works better for you.
+
+Would you be interested in exploring your options before the auction?
+
+Best,
+Hawaii Investment Team
+(808) 555-0123`
+    };
+
+    return templates[templateType] ? templates[templateType](lead) : templates.foreclosure(lead);
+  }
+
+  async markEmailSent(leadId: number, emailLogId: number) {
     try {
-      const { event, leadId, propertyId } = eventData;
+      // Update email log status
+      await storage.updateEmailLog(emailLogId, {
+        status: 'sent',
+        sentAt: new Date(),
+      });
 
-      if (leadId) {
-        await storage.createEmailEvent({
-          leadId: parseInt(leadId),
-          event,
-          timestamp: new Date(),
-          data: eventData,
-        });
+      // Update lead status
+      await storage.updateLead(leadId, {
+        status: 'contacted',
+        lastContactDate: new Date(),
+      });
 
-        // Update lead based on event
-        if (event === 'open') {
-          await storage.updateLead(parseInt(leadId), {
-            emailOpened: true,
-            lastEmailOpenDate: new Date(),
-          });
-        } else if (event === 'click') {
-          await storage.updateLead(parseInt(leadId), {
-            emailClicked: true,
-            lastEmailClickDate: new Date(),
-            status: 'engaged',
-          });
-        }
-      }
+      return { success: true };
     } catch (error) {
-      console.error('Webhook handling error:', error);
+      console.error('Error marking email as sent:', error);
+      return { success: false, error: error.message };
     }
   }
 
