@@ -19,16 +19,101 @@ interface Contact {
 }
 
 class AIService {
-  async processChat(message: string, context?: { contextId?: string; contextType?: string }) {
-    // Mock AI response - in real implementation, integrate with OpenAI API
-    const responses = [
-      "I understand you're looking for information about this property. Based on the data available, I can help you analyze the investment potential.",
-      "This property appears to be in the foreclosure process. Would you like me to generate a personalized outreach email for the property owner?",
-      "The property shows good potential for investment. The estimated value suggests a reasonable equity position even after liens.",
-      "I can help you create a comprehensive property analysis report. Would you like me to generate that for you?",
-    ];
+  private openaiApiKey = process.env.OPENAI_API_KEY;
 
-    return responses[Math.floor(Math.random() * responses.length)];
+  async processChat(message: string, context?: { contextId?: string; contextType?: string }) {
+    try {
+      // If no OpenAI API key, fall back to intelligent mock responses
+      if (!this.openaiApiKey) {
+        return this.generateIntelligentMockResponse(message, context);
+      }
+
+      // Real OpenAI integration
+      const systemPrompt = this.getSystemPrompt(context);
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: message }
+          ],
+          max_tokens: 500,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content;
+    } catch (error) {
+      console.error('AI Chat Error:', error);
+      return this.generateIntelligentMockResponse(message, context);
+    }
+  }
+
+  private getSystemPrompt(context?: { contextId?: string; contextType?: string }): string {
+    const basePrompt = `You are an AI assistant for Sub2Leads, a real estate investment platform focused on distressed properties in Hawaii. You help investors analyze properties, manage leads, and create outreach strategies.
+
+Your expertise includes:
+- Foreclosure and tax delinquent property analysis
+- Investment ROI calculations
+- Lead management and CRM guidance
+- Email outreach strategies for property owners
+- Hawaii real estate market insights
+
+Always be helpful, professional, and focused on practical real estate investment advice.`;
+
+    if (context?.contextType === 'property') {
+      return basePrompt + `\n\nYou are currently discussing a specific property (ID: ${context.contextId}). Focus on property-specific analysis, investment potential, and actionable next steps.`;
+    }
+
+    return basePrompt;
+  }
+
+  private generateIntelligentMockResponse(message: string, context?: { contextId?: string; contextType?: string }): string {
+    const lowerMessage = message.toLowerCase();
+    
+    // Lead qualification responses
+    if (lowerMessage.includes('lead') || lowerMessage.includes('qualify')) {
+      return "For lead qualification, I recommend focusing on these key factors: 1) Property equity position (aim for 20%+ equity), 2) Owner motivation level (foreclosure timeline urgency), 3) Property condition and repair needs, 4) Local market conditions. Would you like me to help analyze a specific lead's qualification score?";
+    }
+    
+    // Property analysis responses
+    if (lowerMessage.includes('property') || lowerMessage.includes('analysis') || lowerMessage.includes('investment')) {
+      return "I can help you analyze this property's investment potential. Key metrics to consider: estimated market value vs. outstanding liens, repair costs (typically 15-25% of value), holding costs, and exit strategy timeline. Would you like me to generate a detailed property summary or create an outreach email for the owner?";
+    }
+    
+    // Email/outreach responses
+    if (lowerMessage.includes('email') || lowerMessage.includes('outreach') || lowerMessage.includes('contact')) {
+      return "For effective outreach to distressed property owners, I recommend a compassionate approach focusing on solutions rather than problems. Key elements: acknowledge their situation respectfully, offer multiple options (not just cash purchase), provide quick response timeline, and emphasize no-pressure consultation. Would you like me to generate a personalized email template?";
+    }
+    
+    // Offer/pricing responses
+    if (lowerMessage.includes('offer') || lowerMessage.includes('price') || lowerMessage.includes('value')) {
+      return "When determining offer prices for distressed properties, consider: 1) ARV (After Repair Value) based on recent comps, 2) Repair costs (get contractor estimates), 3) Holding costs and timeline, 4) Your target profit margin (typically 20-30%). A good starting point is 70% of ARV minus repair costs. Need help calculating an offer for a specific property?";
+    }
+    
+    // Market/Hawaii specific responses
+    if (lowerMessage.includes('hawaii') || lowerMessage.includes('market') || lowerMessage.includes('honolulu')) {
+      return "The Hawaii real estate market has unique characteristics: limited inventory drives higher values, but also higher repair costs due to island logistics. Focus on areas with good rental demand like Honolulu, Pearl City, and Kailua. Watch for properties in foreclosure through Star Advertiser legal notices and tax delinquent lists. The median home price requires careful analysis of deal viability.";
+    }
+    
+    // CRM/follow-up responses
+    if (lowerMessage.includes('follow') || lowerMessage.includes('crm') || lowerMessage.includes('timeline')) {
+      return "Effective follow-up sequences for distressed property leads: 1) Initial contact within 24 hours, 2) Follow-up call/email after 3 days, 3) Check-in after 1 week with additional options, 4) Final offer after 2 weeks with deadline. Track all interactions in your CRM and set automated reminders. Most motivated sellers respond within the first week.";
+    }
+    
+    // Default helpful response
+    return "I'm here to help with your real estate investment questions! I can assist with property analysis, lead qualification, outreach strategies, offer calculations, and Hawaii market insights. What specific aspect of your investment process would you like to discuss?";
   }
 
   async generatePropertySummary(property: Property): Promise<string> {

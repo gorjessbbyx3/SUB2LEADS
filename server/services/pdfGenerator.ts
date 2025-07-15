@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { storage } from '../storage';
 import { mapService } from './mapService';
+import PDFDocument from 'pdfkit';
 
 class PDFGeneratorService {
   private browser: any = null;

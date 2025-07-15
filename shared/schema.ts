@@ -13,7 +13,7 @@ import {
   date,
   json
 } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
+import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
@@ -150,13 +150,26 @@ export const scrapingJobs = pgTable("scraping_jobs", {
 // AI interactions and chat history
 export const aiInteractions = pgTable("ai_interactions", {
   id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  type: varchar("type", { length: 30 }).notNull(), // 'chat', 'summary', 'strategy'
+  userId: text("user_id").notNull(),
+  type: text("type").notNull(), // 'chat', 'summary', 'email_generation'
   prompt: text("prompt").notNull(),
   response: text("response").notNull(),
-  contextId: varchar("context_id"), // property_id or lead_id for context
-  contextType: varchar("context_type", { length: 20 }), // 'property', 'lead'
-  createdAt: timestamp("created_at").defaultNow(),
+  contextId: text("context_id"),
+  contextType: text("context_type"), // 'property', 'lead', 'contact'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Activity Log for CRM Timeline
+export const activities = pgTable("activities", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").references(() => leads.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  userId: text("user_id").notNull(),
+  type: text("type").notNull(), // 'email_sent', 'call_made', 'note_added', 'status_changed', 'email_opened', 'email_clicked'
+  title: text("title").notNull(),
+  description: text("description"),
+  metadata: text("metadata"), // JSON string for additional data
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // PDF binders generated
@@ -247,6 +260,8 @@ export const insertAIInteractionSchema = createInsertSchema(aiInteractions);
 export const selectAIInteractionSchema = createSelectSchema(aiInteractions);
 export type InsertAIInteraction = z.infer<typeof insertAIInteractionSchema>;
 export type AIInteraction = z.infer<typeof selectAIInteractionSchema>;
+export const insertActivitySchema = createInsertSchema(activities);
+export const selectActivitySchema = createSelectSchema(activities);
 
 // Scraping Jobs table
 export const scrapingJobs2 = pgTable("scraping_jobs2", {

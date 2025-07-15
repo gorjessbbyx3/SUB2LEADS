@@ -7,6 +7,7 @@ import {
   outreachHistory,
   scrapingJobs,
   aiInteractions,
+  activities,
   pdfBinders,
   type User,
   type UpsertUser,
@@ -95,6 +96,23 @@ export interface IStorage {
   // PDF operations
   createPDFBinder(binder: InsertPDFBinder): Promise<PDFBinder>;
   getPDFBinders(propertyId: number): Promise<PDFBinder[]>;
+
+  // Activity operations
+  createActivity(data: {
+    leadId?: number;
+    propertyId?: number;
+    userId: string;
+    type: string;
+    title: string;
+    description?: string;
+    metadata?: string;
+  }): Promise<any>; // Type any because activities schema is not defined
+
+  getActivitiesByLead(leadId: number, limit?: number): Promise<any>; // Type any because activities schema is not defined
+
+  getActivitiesByProperty(propertyId: number, limit?: number): Promise<any>; // Type any because activities schema is not defined
+
+  getRecentActivities(userId: string, limit?: number): Promise<any>; // Type any because activities schema is not defined
 }
 
 export class DatabaseStorage implements IStorage {
@@ -382,6 +400,48 @@ export class DatabaseStorage implements IStorage {
       .from(aiInteractions)
       .where(eq(aiInteractions.userId, userId))
       .orderBy(desc(aiInteractions.createdAt))
+      .limit(limit);
+  }
+
+  // Activities for CRM Timeline
+  async createActivity(data: {
+    leadId?: number;
+    propertyId?: number;
+    userId: string;
+    type: string;
+    title: string;
+    description?: string;
+    metadata?: string;
+  }) {
+    // Assuming 'activities' table exists in your database
+    const [activity] = await db.insert(activities).values(data).returning();
+    return activity;
+  }
+
+  async getActivitiesByLead(leadId: number, limit = 100) {
+    return db
+      .select()
+      .from(activities)
+      .where(eq(activities.leadId, leadId))
+      .orderBy(desc(activities.createdAt))
+      .limit(limit);
+  }
+
+  async getActivitiesByProperty(propertyId: number, limit = 100) {
+    return db
+      .select()
+      .from(activities)
+      .where(eq(activities.propertyId, propertyId))
+      .orderBy(desc(activities.createdAt))
+      .limit(limit);
+  }
+
+  async getRecentActivities(userId: string, limit = 50) {
+    return db
+      .select()
+      .from(activities)
+      .where(eq(activities.userId, userId))
+      .orderBy(desc(activities.createdAt))
       .limit(limit);
   }
 

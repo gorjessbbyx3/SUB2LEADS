@@ -438,6 +438,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Activity Timeline API
+  app.get('/api/leads/:id/activities', isAuthenticated, async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.id);
+      const activities = await storage.getActivitiesByLead(leadId);
+      res.json(activities);
+    } catch (error) {
+      console.error('Error fetching activities:', error);
+      res.status(500).json({ message: 'Failed to fetch activities' });
+    }
+  });
+
+  app.get('/api/properties/:id/activities', isAuthenticated, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      const activities = await storage.getActivitiesByProperty(propertyId);
+      res.json(activities);
+    } catch (error) {
+      console.error('Error fetching activities:', error);
+      res.status(500).json({ message: 'Failed to fetch activities' });
+    }
+  });
+
+  app.post('/api/activities', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const data = { ...req.body, userId };
+      const activity = await storage.createActivity(data);
+      res.status(201).json(activity);
+    } catch (error) {
+      console.error('Error creating activity:', error);
+      res.status(500).json({ message: 'Failed to create activity' });
+    }
+  });
+
+  app.get('/api/activities/recent', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { limit } = req.query;
+      const activities = await storage.getRecentActivities(userId, limit ? parseInt(limit) : 50);
+      res.json(activities);
+    } catch (error) {
+      console.error('Error fetching recent activities:', error);
+      res.status(500).json({ message: 'Failed to fetch recent activities' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
