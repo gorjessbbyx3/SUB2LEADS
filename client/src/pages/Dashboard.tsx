@@ -89,9 +89,11 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {recentProperties?.map((property: any) => (
-                      <PropertyCard key={property.id} property={property} />
-                    )) || (
+                    {Array.isArray(recentProperties) && recentProperties.length > 0 ? (
+                      recentProperties.map((property: any) => (
+                        <PropertyCard key={property.id} property={property} />
+                      ))
+                    ) : (
                       <div className="text-center py-8 text-gray-500">
                         No properties found. Start scraping to find leads.
                       </div>

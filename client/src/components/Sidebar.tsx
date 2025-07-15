@@ -42,16 +42,14 @@ export function Sidebar() {
             
             return (
               <li key={item.name}>
-                <Link href={item.href}>
-                  <a className={cn(
-                    "flex items-center px-4 py-3 rounded-lg font-medium transition-colors",
-                    isActive 
-                      ? "text-blue-600 bg-blue-50" 
-                      : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-                  )}>
-                    <Icon className="mr-3 h-5 w-5" />
-                    {item.name}
-                  </a>
+                <Link href={item.href} className={cn(
+                  "flex items-center px-4 py-3 rounded-lg font-medium transition-colors",
+                  isActive 
+                    ? "text-blue-600 bg-blue-50" 
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                )}>
+                  <Icon className="mr-3 h-5 w-5" />
+                  {item.name}
                 </Link>
               </li>
             );
