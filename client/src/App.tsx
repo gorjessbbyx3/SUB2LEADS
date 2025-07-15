@@ -5,7 +5,6 @@ import { Switch, Route } from "wouter";
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { queryClient } from '@/lib/queryClient';
-import Landing from '@/pages/Landing';
 import Dashboard from '@/pages/Dashboard';
 import Properties from '@/pages/Properties';
 import PropertyDetail from '@/pages/PropertyDetail';
@@ -27,19 +26,12 @@ function AppRoutes() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Switch>
-        {!isAuthenticated ? (
-          <Route path="/" component={Landing} />
-        ) : (
-          <>
-            <Route path="/" component={Dashboard} />
-            <Route path="/dashboard" component={Dashboard} />
-            <Route path="/properties" component={Properties} />
-            <Route path="/properties/:id" component={PropertyDetail} />
-            <Route path="/leads" component={LeadManagement} />
-            <Route path="/scraper" component={DataScraper} />
-            <Route component={NotFound} />
-          </>
-        )}
+        <Route path="/" component={Dashboard} />
+        <Route path="/dashboard" component={Dashboard} />
+        <Route path="/properties" component={Properties} />
+        <Route path="/properties/:id" component={PropertyDetail} />
+        <Route path="/leads" component={LeadManagement} />
+        <Route path="/scraper" component={DataScraper} />
         <Route component={NotFound} />
       </Switch>
       <Toaster />

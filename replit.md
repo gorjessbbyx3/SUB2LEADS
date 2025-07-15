@@ -7,6 +7,7 @@ This is a full-stack web application designed to help real estate professionals 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Application behavior: Direct access to CRM dashboard (no landing page).
 
 ## System Architecture
 
