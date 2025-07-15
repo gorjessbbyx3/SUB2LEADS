@@ -1,378 +1,294 @@
+import OpenAI from 'openai';
+import { storage } from '../storage';
+import type { Property, Contact, Lead } from '@shared/schema';
 
 class AIService {
-  private baseUrl = 'https://replit.com/data/repls/signed_url';
-  private apiKey = process.env.REPLIT_AI_API_KEY;
+  private openai: OpenAI | null = null;
 
-  async generateEmail(property: any, contact: any, templateId: string, customMessage?: string): Promise<string> {
-    try {
-      const prompt = this.buildEmailPrompt(property, contact, templateId, customMessage);
-      
-      // Use Replit Agent AI for email generation
-      const response = await fetch('https://replit.com/data/repls/signed_url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'replit-agent',
-          messages: [
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          max_tokens: 500,
-          temperature: 0.7
-        })
+  constructor() {
+    if (process.env.OPENAI_API_KEY) {
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
       });
-
-      if (!response.ok) {
-        throw new Error(`Replit AI API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data.choices[0].message.content;
-    } catch (error) {
-      console.error('Replit AI error:', error);
-      // Fallback to template-based email
-      return this.getFallbackEmail(property, contact, templateId, customMessage);
     }
   }
 
-  async generatePropertySummary(property: any): Promise<string> {
-    try {
-      const prompt = `Generate a professional property investment summary for:
-      
-Address: ${property.address}
-Property Type: ${property.propertyType || 'Unknown'}
-Estimated Value: $${property.estimatedValue || 'Unknown'}
-Lien Amount: $${property.lienAmount || 'Unknown'}
-Status: ${property.status}
-Days Until Auction: ${property.daysUntilAuction || 'Unknown'}
-
-Please provide a concise analysis of the investment opportunity, potential risks, and recommended next steps.`;
-
-      const response = await fetch('https://replit.com/data/repls/signed_url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'replit-agent',
-          messages: [
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          max_tokens: 300,
-          temperature: 0.5
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Replit AI API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data.choices[0].message.content;
-    } catch (error) {
-      console.error('Replit AI error:', error);
-      return this.getFallbackSummary(property);
+  private getFallbackResponse(type: string): string {
+    switch (type) {
+      case 'chat':
+        return 'I apologize, but I need an OpenAI API key to provide AI assistance. Please ask your administrator to configure the OPENAI_API_KEY environment variable.';
+      case 'email':
+        return 'Subject: Regarding Your Property\n\nHi,\n\nI hope this message finds you well. I wanted to reach out about your property and discuss potential options that might be helpful.\n\nBest regards';
+      case 'summary':
+        return 'Property analysis unavailable - OpenAI API key required for detailed summaries.';
+      default:
+        return 'AI functionality requires OpenAI API key configuration.';
     }
   }
 
-  async chatWithLead(question: string, leadContext: any): Promise<string> {
-    try {
-      const contextPrompt = `You are a real estate investment assistant. Here's the context:
-      
-Lead Information:
-- Property: ${leadContext.property?.address || 'Unknown'}
-- Contact: ${leadContext.contact?.name || 'Unknown'}
-- Status: ${leadContext.status || 'Unknown'}
-- Priority: ${leadContext.priority || 'Unknown'}
-- Last Contact: ${leadContext.lastContactDate || 'Never'}
-
-Question: ${question}
-
-Please provide a helpful response based on this lead information.`;
-
-      const response = await fetch('https://replit.com/data/repls/signed_url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'replit-agent',
-          messages: [
-            {
-              role: 'user',
-              content: contextPrompt
-            }
-          ],
-          max_tokens: 400,
-          temperature: 0.6
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Replit AI API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data.choices[0].message.content;
-    } catch (error) {
-      console.error('Replit AI chat error:', error);
-      return "I'm sorry, I'm having trouble processing your question right now. Please try again later.";
+  async processChat(message: string, context?: { contextId?: string; contextType?: string }) {
+    if (!this.openai) {
+      return { 
+        response: this.getFallbackResponse('chat'),
+        suggestions: ['Please configure OpenAI API key', 'Contact administrator for setup']
+      };
     }
-  }
 
-  private buildEmailPrompt(property: any, contact: any, templateId: string, customMessage?: string): string {
-    const basePrompt = `Generate a professional email for a real estate investment opportunity:
-
-Property Details:
-- Address: ${property.address}
-- Status: ${property.status}
-- Estimated Value: $${property.estimatedValue || 'Unknown'}
-- Lien Amount: $${property.lienAmount || 'Unknown'}
-
-Contact Information:
-- Name: ${contact.name || 'Property Owner'}
-- Email: ${contact.email}
-
-Template Type: ${templateId}
-
-${customMessage ? `Custom Message: ${customMessage}` : ''}
-
-Please generate a professional, empathetic email that offers help with their property situation. Include:
-- A clear subject line
-- Professional greeting
-- Brief explanation of the situation
-- Offer to help
-- Clear call to action
-- Professional closing
-
-Format the response with "Subject: [subject line]" on the first line, followed by the email body.`;
-
-    return basePrompt;
-  }
-
-  private getFallbackEmail(property: any, contact: any, templateId: string, customMessage?: string): string {
-    const templates = {
-      foreclosure: `Subject: Regarding Your Property at ${property.address}
-
-Hi ${contact.name || 'Property Owner'},
-
-I hope this message finds you well. I'm reaching out because I noticed your property at ${property.address} may be facing foreclosure proceedings.
-
-I work with investors who specialize in helping homeowners navigate difficult situations like this. We may be able to provide options that could help you avoid foreclosure while getting you out of a stressful situation.
-
-Would you be open to a brief conversation about your options? I'm here to help, not pressure you.
-
-Best regards,
-Hawaii Investment Team
-(808) 555-0123`,
-
-      tax_lien: `Subject: Tax Lien Notice - ${property.address}
-
-Dear ${contact.name || 'Property Owner'},
-
-I'm writing regarding the tax lien on your property at ${property.address}. I understand this can be a stressful situation, and I wanted to reach out to see if I could help.
-
-I work with a team that specializes in resolving tax lien situations quickly and fairly. We may be able to help you resolve this matter while providing you with a fair solution.
-
-Would you be interested in discussing your options? I'm happy to explain how we might be able to help.
-
-Sincerely,
-Hawaii Investment Team
-(808) 555-0123`,
-
-      auction: `Subject: Auction Notice - ${property.address}
-
-Hello ${contact.name || 'Property Owner'},
-
-I noticed your property at ${property.address} is scheduled for auction soon. I wanted to reach out before the auction to see if there might be another solution that works better for you.
-
-We work with homeowners to provide fair, fast solutions that can help avoid the auction process entirely.
-
-If you're interested in exploring your options, I'd be happy to discuss how we might be able to help.
-
-Best,
-Hawaii Investment Team
-(808) 555-0123`
-    };
-
-    return templates[templateId] || templates.foreclosure;
-  }
-
-  private getFallbackSummary(property: any): string {
-    return `Property Investment Summary for ${property.address}:
-
-This ${property.propertyType || 'residential'} property is currently ${property.status}. With an estimated value of $${property.estimatedValue?.toLocaleString() || 'Unknown'} and a lien amount of $${property.lienAmount?.toLocaleString() || 'Unknown'}, this represents a potential investment opportunity.
-
-Key considerations:
-- Property status requires immediate attention
-- Due diligence recommended before proceeding
-- Contact property owner to discuss options
-- Verify all financial information independently
-
-Recommended next steps:
-1. Contact property owner
-2. Conduct property inspection
-3. Verify lien amounts and legal status
-4. Assess market conditions in the area`;
-  }
-
-  async processChat(message: string, context?: { contextId?: string, contextType?: string }): Promise<string> {
     try {
-      let contextPrompt = '';
-      
-      if (context?.contextId && context?.contextType) {
-        // Get context data based on type
-        if (context.contextType === 'lead') {
-          const lead = await this.getLeadContext(context.contextId);
-          contextPrompt = this.buildLeadContextPrompt(lead);
-        } else if (context.contextType === 'property') {
-          const property = await this.getPropertyContext(context.contextId);
-          contextPrompt = this.buildPropertyContextPrompt(property);
+      // Build context from the database if provided
+      let contextData = '';
+      if (context?.contextType === 'property' && context.contextId) {
+        const property = await storage.getProperty(parseInt(context.contextId));
+        if (property) {
+          contextData = `\nProperty Context: ${property.address}, Status: ${property.status}, Priority: ${property.priority}`;
+        }
+      } else if (context?.contextType === 'lead' && context.contextId) {
+        const lead = await storage.getLead(parseInt(context.contextId));
+        if (lead) {
+          contextData = `\nLead Context: Status: ${lead.status}, Priority: ${lead.priority}`;
         }
       }
 
-      const fullPrompt = `${contextPrompt}
-
-User Question: ${message}
-
-Please provide a helpful response as a real estate investment assistant. If asked about deals, equity, or specific property analysis, use the context provided above.`;
-
-      // Since we're using Replit Agent AI as fallback, let's use a simple approach
-      return await this.generateReplitResponse(fullPrompt);
-    } catch (error) {
-      console.error('Chat processing error:', error);
-      return "I'm sorry, I'm having trouble processing your request right now. Please try again.";
-    }
-  }
-
-  private async getLeadContext(leadId: string): Promise<any> {
-    // Import storage dynamically to avoid circular dependencies
-    const { storage } = await import('../storage');
-    return await storage.getLead(parseInt(leadId));
-  }
-
-  private async getPropertyContext(propertyId: string): Promise<any> {
-    const { storage } = await import('../storage');
-    return await storage.getProperty(parseInt(propertyId));
-  }
-
-  private buildLeadContextPrompt(lead: any): string {
-    if (!lead) return '';
-    
-    return `Lead Context:
-- Property: ${lead.property?.address || 'Unknown'}
-- Owner: ${lead.contact?.name || 'Unknown'}
-- Status: ${lead.status}
-- Priority: ${lead.priority}
-- Estimated Value: $${lead.property?.estimatedValue?.toLocaleString() || 'Unknown'}
-- Amount Owed: $${lead.property?.amountOwed?.toLocaleString() || 'Unknown'}
-- Days Until Auction: ${lead.property?.daysUntilAuction || 'Unknown'}
-- Property Type: ${lead.property?.propertyType || 'Unknown'}`;
-  }
-
-  private buildPropertyContextPrompt(property: any): string {
-    if (!property) return '';
-    
-    const equity = property.estimatedValue && property.amountOwed 
-      ? property.estimatedValue - property.amountOwed 
-      : null;
+      const systemPrompt = `You are an AI assistant for a Hawaii real estate investment CRM focused on distressed properties. You help with:
+      - Property analysis and investment advice
+      - Lead management and follow-up strategies
+      - Market insights for Hawaii real estate
+      - Contact outreach recommendations
       
-    return `Property Context:
-- Address: ${property.address}
-- Estimated Value: $${property.estimatedValue?.toLocaleString() || 'Unknown'}
-- Amount Owed: $${property.amountOwed?.toLocaleString() || 'Unknown'}
-- Estimated Equity: ${equity ? `$${equity.toLocaleString()}` : 'Unknown'}
-- Status: ${property.status}
-- Property Type: ${property.propertyType || 'Unknown'}
-- Days Until Auction: ${property.daysUntilAuction || 'Unknown'}`;
-  }
+      Keep responses concise and actionable.${contextData}`;
 
-  private async generateReplitResponse(prompt: string): Promise<string> {
-    // For now, provide intelligent fallback responses based on keywords
-    const lowerPrompt = prompt.toLowerCase();
-    
-    if (lowerPrompt.includes('good deal') || lowerPrompt.includes('wholesale')) {
-      return this.generateDealAnalysis(prompt);
-    } else if (lowerPrompt.includes('equity')) {
-      return this.generateEquityAnalysis(prompt);
-    } else if (lowerPrompt.includes('text') || lowerPrompt.includes('message')) {
-      return this.generateTextMessage(prompt);
-    } else {
-      return "I can help you analyze deals, calculate equity, generate seller messages, and answer questions about your leads. What would you like to know?";
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message }
+        ],
+        max_tokens: 500,
+        temperature: 0.7,
+      });
+
+      const response = completion.choices[0].message.content || 'Sorry, I could not generate a response.';
+
+      // Store AI interaction
+      await storage.createAIInteraction({
+        userId: 'system', // Would be actual user ID in real implementation
+        message,
+        response,
+        contextType: context?.contextType || null,
+        contextId: context?.contextId || null,
+      });
+
+      return {
+        response,
+        suggestions: this.generateSuggestions(message, context),
+      };
+    } catch (error) {
+      console.error('OpenAI API error:', error);
+      return {
+        response: 'I apologize, but I encountered an error processing your request. Please try again.',
+        suggestions: ['Try rephrasing your question', 'Check if the OpenAI service is available']
+      };
     }
   }
 
-  private generateDealAnalysis(prompt: string): string {
-    return `Based on the property information provided, here's my analysis:
+  async generateEmail(property: Property, contact: Contact, templateId: string, customMessage?: string): Promise<string> {
+    if (!this.openai) {
+      return this.getFallbackResponse('email');
+    }
 
-**Deal Assessment:**
-- Look for at least 20-30% equity for a good wholesale deal
-- Consider repair costs (typically 10-20% of ARV for distressed properties)
-- Factor in holding costs and transaction fees
-- Verify the property status and timeline urgency
+    try {
+      const prompt = `Generate a professional, personalized email for real estate outreach:
 
-**Next Steps:**
-1. Verify the estimated value with recent comps
-2. Get a repair estimate if possible
-3. Contact the owner to understand their situation
-4. Calculate your maximum allowable offer (MAO)
+Property: ${property.address}
+Status: ${property.status}
+Contact: ${contact.name || 'Property Owner'}
+Template Type: ${templateId}
+${customMessage ? `Custom Message: ${customMessage}` : ''}
 
-Would you like me to help calculate specific numbers or generate an outreach message?`;
+Create an email that:
+1. Is respectful and professional
+2. Offers help with their property situation
+3. Mentions specific property details
+4. Includes a clear call to action
+5. Keeps it under 200 words
+
+Format: Include "Subject: [subject line]" at the top, then the email body.`;
+
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 400,
+        temperature: 0.7,
+      });
+
+      return completion.choices[0].message.content || this.getFallbackResponse('email');
+    } catch (error) {
+      console.error('Email generation error:', error);
+      return this.getTemplateEmail(property, contact, templateId);
+    }
   }
 
-  private generateEquityAnalysis(prompt: string): string {
-    return `**Equity Analysis:**
+  async generatePropertySummary(property: Property): Promise<string> {
+    if (!this.openai) {
+      return this.getFallbackResponse('summary');
+    }
 
-To calculate equity: Market Value - Total Debt = Equity
+    try {
+      const prompt = `Analyze this Hawaii distressed property for investment potential:
 
-**Key Factors:**
-- Estimated market value (verify with comps)
-- Total amount owed (liens, taxes, mortgages)
-- Repair costs (subtract from equity)
-- Transaction costs (6-10% for seller)
+Address: ${property.address}
+Status: ${property.status}
+Priority: ${property.priority}
+Estimated Value: $${property.estimatedValue || 'Unknown'}
+Amount Owed: $${property.amountOwed || 'Unknown'}
+Auction Date: ${property.auctionDate || 'Unknown'}
 
-**Red Flags:**
-- Negative equity situations
-- Inflated value estimates
-- Hidden liens or judgments
+Provide a concise investment analysis covering:
+1. Investment opportunity score (1-10)
+2. Key risks and considerations
+3. Recommended next steps
+4. Market context for Hawaii
 
-Need help with specific calculations or want me to generate a seller conversation starter?`;
+Keep it under 150 words.`;
+
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 300,
+        temperature: 0.5,
+      });
+
+      return completion.choices[0].message.content || this.getFallbackResponse('summary');
+    } catch (error) {
+      console.error('Property summary error:', error);
+      return this.getFallbackResponse('summary');
+    }
   }
 
-  private generateTextMessage(prompt: string): string {
-    return `Here's a suggested text message approach:
+  async generateOutreachTemplate(lead: Lead, templateType: 'email' | 'sms' = 'email'): Promise<string> {
+    if (!this.openai) {
+      return templateType === 'email' 
+        ? 'Subject: Your Property Options\n\nHi, I wanted to discuss potential options for your property. Please let me know if you\'d like to chat.'
+        : 'Hi, I wanted to reach out about your property. Would you be open to discussing your options? Thanks!';
+    }
 
-**Initial Text Template:**
-"Hi [Name], I noticed your property at [Address] and wanted to see if you might be interested in discussing some options that could help with your situation. I work with investors who specialize in helping homeowners. Would you be open to a brief conversation? No pressure at all."
+    try {
+      const prompt = `Create a ${templateType} outreach template for real estate lead:
 
-**Follow-up Options:**
-- Ask about their timeline and urgency
-- Offer to explain different exit strategies
-- Suggest a brief phone call vs lengthy texts
+Lead Status: ${lead.status}
+Priority: ${lead.priority}
+Template Type: ${templateType}
 
-**Best Practices:**
-- Keep it conversational and helpful
-- Don't mention specific financial details in texts
-- Always offer to call instead of long text chains
+Requirements:
+- Professional and respectful tone
+- Offers genuine help
+- Mentions property situation appropriately
+- ${templateType === 'email' ? 'Include subject line' : 'Keep under 160 characters'}
+- Clear call to action`;
 
-Would you like me to customize this for the specific lead you're working with?`;
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: templateType === 'email' ? 300 : 100,
+        temperature: 0.7,
+      });
+
+      return completion.choices[0].message.content || '';
+    } catch (error) {
+      console.error('Template generation error:', error);
+      return templateType === 'email'
+        ? 'Subject: Your Property Options\n\nHi, I wanted to discuss potential options for your property.'
+        : 'Hi, I wanted to reach out about your property. Would you be open to discussing your options?';
+    }
   }
 
-  getEmailTemplates() {
+  async analyzeMarketTrends(): Promise<string> {
+    if (!this.openai) {
+      return 'Market analysis requires OpenAI API key configuration.';
+    }
+
+    try {
+      const prompt = `Provide a brief market analysis for Hawaii distressed property investment in 2024-2025:
+
+Consider:
+- Hawaii real estate market trends
+- Foreclosure and tax lien opportunities
+- Investment recommendations
+- Risk factors specific to Hawaii market
+
+Keep it under 200 words and actionable.`;
+
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 350,
+        temperature: 0.6,
+      });
+
+      return completion.choices[0].message.content || 'Market analysis unavailable at this time.';
+    } catch (error) {
+      console.error('Market analysis error:', error);
+      return 'Unable to generate market analysis. Please try again later.';
+    }
+  }
+
+  private generateSuggestions(message: string, context?: any): string[] {
+    const suggestions = [
+      'Tell me about this property',
+      'Generate an email template',
+      'Analyze market trends',
+      'What should I do next?',
+    ];
+
+    if (context?.contextType === 'property') {
+      suggestions.unshift('Create outreach email for this property');
+    }
+
+    return suggestions.slice(0, 3);
+  }
+
+  private getTemplateEmail(property: Property, contact: Contact, templateId: string): string {
+    const templates = {
+      foreclosure: `Subject: Options for Your Property at ${property.address}
+
+Hi ${contact.name || 'Property Owner'},
+
+I noticed your property at ${property.address} may be facing foreclosure. I work with homeowners to explore all available options before any final decisions are made.
+
+Would you be open to a brief conversation about potential solutions? I may be able to help you understand your choices.
+
+Best regards`,
+
+      tax_lien: `Subject: Tax Lien Notice - ${property.address}
+
+Hi ${contact.name || 'Property Owner'},
+
+I wanted to reach out regarding the tax situation on your property at ${property.address}. There may be options available to help resolve this matter.
+
+I'd be happy to discuss potential solutions if you're interested.
+
+Thank you`,
+
+      default: `Subject: Regarding Your Property at ${property.address}
+
+Hi ${contact.name || 'Property Owner'},
+
+I hope this message finds you well. I wanted to reach out about your property at ${property.address} to see if there are any ways I might be able to help with your current situation.
+
+Would you be open to a brief conversation?
+
+Best regards`
+    };
+
+    return templates[templateId as keyof typeof templates] || templates.default;
+  }
+
+  async getEmailTemplates() {
     return [
-      { id: 'foreclosure', name: 'Foreclosure Notice', description: 'For properties facing foreclosure' },
-      { id: 'tax_lien', name: 'Tax Lien', description: 'For properties with tax liens' },
-      { id: 'auction', name: 'Auction Notice', description: 'For properties going to auction' }
+      { id: 'foreclosure', name: 'Foreclosure Outreach', description: 'For properties facing foreclosure' },
+      { id: 'tax_lien', name: 'Tax Lien Notice', description: 'For tax delinquent properties' },
+      { id: 'general', name: 'General Inquiry', description: 'General property inquiry' },
+      { id: 'follow_up', name: 'Follow Up', description: 'Follow up with previous contacts' },
     ];
   }
 }

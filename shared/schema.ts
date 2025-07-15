@@ -250,15 +250,15 @@ export type InsertScrapingJob = typeof scrapingJobs.$inferInsert;
 export type AIInteraction = typeof aiInteractions.$inferSelect;
 export type InsertAIInteraction = typeof aiInteractions.$inferInsert;
 
+export type PDFBinder = typeof pdfBinders.$inferSelect;
+export type InsertPDFBinder = typeof pdfBinders.$inferInsert;
+
 // Zod schemas
 export const insertPropertySchema = createInsertSchema(properties);
 export const insertContactSchema = createInsertSchema(contacts);
 export const insertLeadSchema = createInsertSchema(leads);
 export const insertOutreachCampaignSchema = createInsertSchema(outreachCampaigns);
 export const insertAIInteractionSchema = createInsertSchema(aiInteractions);
-export const selectAIInteractionSchema = createSelectSchema(aiInteractions);
-export type InsertAIInteraction = z.infer<typeof insertAIInteractionSchema>;
-export type AIInteraction = z.infer<typeof selectAIInteractionSchema>;
 export const insertActivitySchema = createInsertSchema(activities);
 export const selectActivitySchema = createSelectSchema(activities);
 

@@ -148,5 +148,3 @@ export class ContactEnrichmentService {
 }
 
 export const contactEnrichmentService = new ContactEnrichmentService();
-
-class ContactEnrichmentService {

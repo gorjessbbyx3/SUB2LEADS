@@ -375,6 +375,33 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
+  async createScrapingJob(job: InsertScrapingJob): Promise<ScrapingJob> {
+    const [newJob] = await db
+      .insert(scrapingJobs)
+      .values(job)
+      .returning();
+    return newJob;
+  }
+
+  async updateScrapingJob(id: number, job: Partial<InsertScrapingJob>): Promise<ScrapingJob | undefined> {
+    const [updatedJob] = await db
+      .update(scrapingJobs)
+      .set({ ...job, updatedAt: new Date() })
+      .where(eq(scrapingJobs.id, id))
+      .returning();
+    return updatedJob;
+  }
+
+  async getLatestScrapingJob(source: string): Promise<ScrapingJob | undefined> {
+    const [job] = await db
+      .select()
+      .from(scrapingJobs)
+      .where(eq(scrapingJobs.source, source))
+      .orderBy(desc(scrapingJobs.createdAt))
+      .limit(1);
+    return job;
+  }
+
   // AI operations
   async createAIInteraction(interaction: InsertAIInteraction): Promise<AIInteraction> {
     const [newInteraction] = await db.insert(aiInteractions).values(interaction).returning();

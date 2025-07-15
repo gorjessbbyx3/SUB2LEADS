@@ -11,7 +11,7 @@ class ScraperService {
     this.contactEnrichment = new ContactEnrichmentService();
   }
 
-  async runScrapingJob(source: string): Promise<{ success: boolean; message: string; propertiesFound: number }> {
+  async startScraping(source: string): Promise<{ success: boolean; message: string; propertiesFound: number }> {
     console.log(`Starting scraping job for source: ${source}`);
 
     // Create scraping job record

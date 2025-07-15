@@ -210,19 +210,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { message, contextId, contextType } = req.body;
 
-      const response = await aiService.processChat(message, { contextId, contextType });
+      const result = await aiService.processChat(message, { contextId, contextType });
 
       // Save interaction
       await storage.createAIInteraction({
         userId,
         type: 'chat',
         prompt: message,
-        response,
+        response: result.response,
         contextId,
         contextType,
       });
 
-      res.json({ response });
+      res.json(result);
     } catch (error) {
       console.error("Error processing chat:", error);
       res.status(500).json({ message: "Failed to process chat" });
@@ -367,7 +367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Lead not found' });
       }
 
-      const result = await emailService.generateMailtoLink(lead, templateId, customMessage);
+      const result = await emailService.sendEmail(lead, templateId, customMessage);
       res.json(result);
     } catch (error) {
       console.error('Email generation error:', error);
@@ -422,7 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Source is required' });
       }
 
-      const result = await scraperService.runScrapingJob(source);
+      const result = await scraperService.startScraping(source);
       res.json(result);
     } catch (error) {
       console.error('Scraper error:', error);

@@ -8,7 +8,7 @@ interface EmailResult {
 }
 
 class EmailService {
-  async generateMailtoLink(lead: any, templateId: string, customMessage?: string): Promise<EmailResult> {
+  async sendEmail(lead: any, templateId: string, customMessage?: string): Promise<EmailResult> {
     try {
       // Get property and contact details
       const property = await storage.getProperty(lead.propertyId);
@@ -138,6 +138,35 @@ Hawaii Investment Team
 
   async getEmailTemplates() {
     return aiService.getEmailTemplates();
+  }
+
+  async markEmailSent(leadId: number, emailLogId?: string): Promise<{ success: boolean }> {
+    try {
+      // Update lead's last contact date
+      await storage.updateLead(leadId, {
+        lastContactDate: new Date().toISOString(),
+      });
+
+      // Create activity record
+      await storage.createActivity({
+        leadId,
+        userId: 'system',
+        type: 'email_sent',
+        title: 'Email sent to contact',
+        description: 'Email outreach completed via mailto link',
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error marking email as sent:', error);
+      return { success: false };
+    }
+  }
+
+  async createEmailLog(data: any): Promise<any> {
+    // This is a placeholder - in the real implementation you'd store email logs
+    console.log('Email log created:', data);
+    return data;
   }
 }
 
