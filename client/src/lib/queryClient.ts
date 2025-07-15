@@ -1,4 +1,4 @@
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { QueryClient } from '@tanstack/react-query';
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -45,13 +45,12 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
     },
     mutations: {
-      retry: false,
+      retry: 1,
     },
   },
 });

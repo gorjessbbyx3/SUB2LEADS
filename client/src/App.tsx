@@ -1,41 +1,29 @@
 import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { useAuth } from "@/hooks/useAuth";
-import Landing from "@/pages/Landing";
-import Dashboard from "@/pages/Dashboard";
-import LeadManagement from "@/pages/LeadManagement";
-import Properties from "@/pages/Properties";
-import NotFound from "@/pages/not-found";
-
-function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  return (
-    <Switch>
-      {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : (
-        <>
-          <Route path="/" component={Dashboard} />
-          <Route path="/leads" component={LeadManagement} />
-          <Route path="/properties" component={Properties} />
-        </>
-      )}
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
+import { Toaster } from '@/components/ui/toaster';
+import { AuthProvider } from '@/hooks/useAuth';
+import Landing from '@/pages/Landing';
+import Dashboard from '@/pages/Dashboard';
+import Properties from '@/pages/Properties';
+import LeadManagement from '@/pages/LeadManagement';
+import NotFound from '@/pages/not-found';
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <AuthProvider>
+        <div className="min-h-screen bg-gray-50">
+          <Switch>
+            <Route path="/" component={Landing} />
+            <Route path="/dashboard" component={Dashboard} />
+            <Route path="/properties" component={Properties} />
+            <Route path="/leads" component={LeadManagement} />
+            <Route component={NotFound} />
+          </Switch>
+          <Toaster />
+        </div>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
