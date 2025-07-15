@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'wouter';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function PropertyDetail() {
   const { id } = useParams();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+
   const [selectedTemplate, setSelectedTemplate] = useState('foreclosure');
   const [customMessage, setCustomMessage] = useState('');
   const [newNote, setNewNote] = useState('');
