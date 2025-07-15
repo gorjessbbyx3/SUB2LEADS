@@ -9,8 +9,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Mail, Phone, FileText, Download, MapPin, DollarSign, Calendar, Bot, AlertCircle, User, MessageSquare } from "lucide-react";
 import { apiRequest } from '@/lib/queryClient';
-import { Sidebar } from '@/components/Sidebar';
-import { Header } from '@/components/Header';
+import {Sidebar} from '@/components/Sidebar';
+import {import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Create a client
+const queryClient = new QueryClient();
+
+function App() {
+  return (
+    // Provide the client to your App
+    <QueryClientProvider client={queryClient}>
+      <PropertyDetail />
+    </QueryClientProvider>
+  );
+}
+
+export default App;Header} from '@/components/Header';
 import { useToast } from '@/hooks/use-toast';
 
 export default function PropertyDetail() {
@@ -30,7 +44,7 @@ export default function PropertyDetail() {
     queryKey: ["/api/activities/recent"],
   });
 
-  const { data: property, isLoading, isError, error } = useQuery({
+  const { data: property, isLoading } = useQuery({
     queryKey: ['property', id],
     queryFn: () => apiRequest(`/api/properties/${id}`),
   });
@@ -64,6 +78,7 @@ export default function PropertyDetail() {
     }),
     onSuccess: (data) => {
       toast({ title: 'Property binder generated!', description: 'Download will start automatically' });
+      // In a real app, you'd handle the download here
       console.log('PDF generated:', data.url);
     },
   });
@@ -100,7 +115,10 @@ export default function PropertyDetail() {
   });
 
   const generateEmail = async () => {
+    // TODO: Implement AI email generation
     console.log('Generate email for template:', selectedTemplate);
+
+    // Log activity
     addActivityMutation.mutate({
       propertyId: parseInt(id!),
       type: 'email_generated',
@@ -110,7 +128,10 @@ export default function PropertyDetail() {
   };
 
   const sendEmail = async () => {
+    // TODO: Implement email sending
     console.log('Send email:', customMessage);
+
+    // Log activity
     addActivityMutation.mutate({
       propertyId: parseInt(id!),
       type: 'email_sent',
@@ -130,6 +151,7 @@ export default function PropertyDetail() {
 
   const addNote = () => {
     if (!newNote.trim()) return;
+
     addActivityMutation.mutate({
       propertyId: parseInt(id!),
       type: 'note_added',
@@ -146,20 +168,6 @@ export default function PropertyDetail() {
           <Header />
           <div className="p-6">
             <div className="text-lg">Loading property details...</div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="flex h-screen">
-        <Sidebar />
-        <div className="flex-1 ml-64">
-          <Header />
-          <div className="p-6">
-            <div className="text-lg text-red-600">Error loading property details: {error.message}</div>
           </div>
         </div>
       </div>

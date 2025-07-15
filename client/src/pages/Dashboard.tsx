@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { StatsCard } from "@/components/StatsCard";
-import { PropertyCard } from "@/components/PropertyCard";
+import PropertyCard from "@/components/PropertyCard";
 import { AIchatbot } from "@/components/AIchatbot";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

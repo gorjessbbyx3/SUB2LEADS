@@ -20,8 +20,8 @@ import {
   Calendar
 } from "lucide-react";
 import { apiRequest } from '@/lib/queryClient';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
+import {Sidebar} from '@/components/Sidebar';
+import {Header} from '@/components/Header';
 import { useToast } from '@/hooks/use-toast';
 
 interface ScrapingJob {
