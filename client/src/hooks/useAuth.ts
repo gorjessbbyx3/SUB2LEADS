@@ -1,17 +1,18 @@
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiRequest } from '@/lib/queryClient';
 
 interface User {
   id: string;
-  name: string;
   email: string;
+  name: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: () => void;
   logout: () => void;
 }
 
@@ -22,34 +23,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    checkAuthStatus();
+    checkAuth();
   }, []);
 
-  const checkAuthStatus = async () => {
+  const checkAuth = async () => {
     try {
-      const response = await fetch('/api/auth/user');
+      const response = await fetch('/api/auth/user', {
+        credentials: 'include',
+      });
+      
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
+      } else {
+        setUser(null);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const login = async (email: string, password: string) => {
-    // Mock login - in real app this would call your auth API
-    setUser({
-      id: '1',
-      name: 'Demo User',
-      email: email
-    });
+  const login = () => {
+    window.location.href = '/api/login';
   };
 
   const logout = () => {
-    setUser(null);
+    window.location.href = '/api/logout';
   };
 
   const value = {
@@ -57,10 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: !!user,
     isLoading,
     login,
-    logout
+    logout,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
