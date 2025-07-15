@@ -1,400 +1,321 @@
-import PDFDocument from "pdfkit";
-import fs from "fs";
-import path from "path";
-import { storage } from "../storage";
-import { mapService } from "./mapService";
-import type { Property } from "@shared/schema";
+import puppeteer from 'puppeteer';
+import path from 'path';
+import fs from 'fs/promises';
+import { storage } from '../storage';
+import { mapService } from './mapService';
 
 class PDFGeneratorService {
-  async generatePropertyBinder(property: Property, userId: string): Promise<string> {
+  private browser: any = null;
+
+  async initBrowser() {
+    if (!this.browser) {
+      this.browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+    }
+    return this.browser;
+  }
+
+  async generatePropertyBinder(property: any, userId: string): Promise<string> {
+    const browser = await this.initBrowser();
+    const page = await browser.newPage();
+
     try {
-      // Create PDF directory if it doesn't exist
-      const pdfDir = path.join(process.cwd(), 'generated_pdfs');
-      if (!fs.existsSync(pdfDir)) {
-        fs.mkdirSync(pdfDir, { recursive: true });
-      }
-
-      const fileName = `property_binder_${property.id}_${Date.now()}.pdf`;
-      const filePath = path.join(pdfDir, fileName);
-
       // Get additional data
       const contacts = await storage.getContactsByProperty(property.id);
       const mapData = await mapService.getPropertyMap(property);
 
-      // Create PDF
-      const doc = new PDFDocument({ margin: 50 });
-      doc.pipe(fs.createWriteStream(filePath));
+      // Generate HTML content
+      const htmlContent = await this.generateBinderHTML(property, contacts, mapData);
 
-      // Cover Page
-      this.addCoverPage(doc, property);
-      
-      // Property Details Page
-      doc.addPage();
-      this.addPropertyDetailsPage(doc, property, contacts[0]);
-      
-      // Market Analysis Page
-      doc.addPage();
-      this.addMarketAnalysisPage(doc, property);
-      
-      // Contact Information Page
-      if (contacts.length > 0) {
-        doc.addPage();
-        this.addContactPage(doc, contacts[0], property);
-      }
-      
-      // Strategy & Notes Page
-      doc.addPage();
-      this.addStrategyPage(doc, property);
+      // Set page content
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
-      // Finalize PDF
-      doc.end();
+      // Generate PDF
+      const pdfPath = path.join(process.cwd(), 'pdfs', `property-${property.id}-${Date.now()}.pdf`);
 
-      // Save to database
-      await storage.createPDFBinder({
-        propertyId: property.id,
-        userId,
-        fileName,
-        filePath: `/api/pdf/download/${fileName}`,
-        fileSize: 0, // Will be updated after file is written
+      // Ensure directory exists
+      await fs.mkdir(path.dirname(pdfPath), { recursive: true });
+
+      await page.pdf({
+        path: pdfPath,
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '20px',
+          right: '20px',
+          bottom: '20px',
+          left: '20px',
+        },
       });
 
-      return `/api/pdf/download/${fileName}`;
+      return `/pdfs/${path.basename(pdfPath)}`;
     } catch (error) {
-      console.error('Error generating PDF binder:', error);
+      console.error('PDF generation error:', error);
       throw error;
+    } finally {
+      await page.close();
     }
   }
 
-  private addCoverPage(doc: PDFKit.PDFDocument, property: Property) {
-    // Header
-    doc.fontSize(28)
-       .font('Helvetica-Bold')
-       .fillColor('#0F62FE')
-       .text('PROPERTY INVESTMENT BINDER', 50, 100, { align: 'center' });
+  private async generateBinderHTML(property: any, contacts: any[], mapData: any): Promise<string> {
+    const contact = contacts[0] || {};
+    const currentDate = new Date().toLocaleDateString();
 
-    // Property Address
-    doc.fontSize(20)
-       .fillColor('#393939')
-       .text(property.address, 50, 160, { align: 'center' });
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Property Investment Binder - ${property.address}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2563eb;
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .header p {
+            color: #6b7280;
+            margin: 10px 0 0 0;
+            font-size: 1.2em;
+        }
+        .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+        .section h2 {
+            color: #1f2937;
+            border-left: 4px solid #2563eb;
+            padding-left: 15px;
+            margin-bottom: 15px;
+        }
+        .property-details {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #374151;
+        }
+        .detail-value {
+            color: #6b7280;
+        }
+        .financial-summary {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .financial-summary h3 {
+            color: #92400e;
+            margin-top: 0;
+        }
+        .opportunity-highlights {
+            background: #ecfdf5;
+            border: 1px solid #10b981;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .opportunity-highlights h3 {
+            color: #047857;
+            margin-top: 0;
+        }
+        .map-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .map-image {
+            max-width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+        }
+        .contact-info {
+            background: #eff6ff;
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .contact-info h3 {
+            color: #1e40af;
+            margin-top: 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 0.9em;
+        }
+        @media print {
+            body { margin: 0; }
+            .section { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Property Investment Binder</h1>
+        <p>Confidential Investment Analysis</p>
+        <p>Generated on ${currentDate}</p>
+    </div>
 
-    // Status Badge
-    const statusColor = this.getStatusColor(property.status);
-    doc.fontSize(14)
-       .fillColor(statusColor)
-       .text(property.status.toUpperCase().replace('_', ' '), 50, 200, { align: 'center' });
+    <div class="section">
+        <h2>Property Overview</h2>
+        <div class="property-details">
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Address:</span>
+                    <span class="detail-value">${property.address}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Property Type:</span>
+                    <span class="detail-value">${property.propertyType || 'Residential'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Current Owner:</span>
+                    <span class="detail-value">${property.ownerName || 'Unknown'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Status:</span>
+                    <span class="detail-value">${property.taxStatus || property.status}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Source:</span>
+                    <span class="detail-value">${property.source || 'Manual Entry'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Discovery Date:</span>
+                    <span class="detail-value">${new Date(property.createdAt).toLocaleDateString()}</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    // Priority Badge
-    const priorityColor = this.getPriorityColor(property.priority);
-    doc.fontSize(12)
-       .fillColor(priorityColor)
-       .text(`${property.priority.toUpperCase()} PRIORITY`, 50, 220, { align: 'center' });
+    ${property.lienAmount ? `
+    <div class="section">
+        <h2>Financial Information</h2>
+        <div class="financial-summary">
+            <h3>Outstanding Liens & Debts</h3>
+            <div class="detail-item">
+                <span class="detail-label">Primary Lien Amount:</span>
+                <span class="detail-value">$${property.lienAmount.toLocaleString()}</span>
+            </div>
+            ${property.auctionDate ? `
+            <div class="detail-item">
+                <span class="detail-label">Auction Date:</span>
+                <span class="detail-value">${new Date(property.auctionDate).toLocaleDateString()}</span>
+            </div>
+            ` : ''}
+        </div>
+    </div>
+    ` : ''}
 
-    // Key Stats Box
-    const boxY = 280;
-    doc.rect(100, boxY, 400, 200)
-       .strokeColor('#E0E0E0')
-       .stroke();
+    ${property.aiSummary ? `
+    <div class="section">
+        <h2>AI Investment Analysis</h2>
+        <div class="opportunity-highlights">
+            <h3>Investment Opportunity Summary</h3>
+            <p>${property.aiSummary}</p>
+        </div>
+    </div>
+    ` : ''}
 
-    doc.fontSize(16)
-       .fillColor('#393939')
-       .text('KEY INFORMATION', 120, boxY + 20);
+    ${mapData?.imageUrl ? `
+    <div class="section">
+        <h2>Property Location</h2>
+        <div class="map-container">
+            <img src="${mapData.imageUrl}" alt="Property Location Map" class="map-image" />
+            <p>Coordinates: ${mapData.latitude}, ${mapData.longitude}</p>
+        </div>
+    </div>
+    ` : ''}
 
-    doc.fontSize(12)
-       .text(`Estimated Value: $${property.estimatedValue?.toLocaleString() || 'N/A'}`, 120, boxY + 50)
-       .text(`Status: ${property.status.replace('_', ' ')}`, 120, boxY + 70)
-       .text(`Days Until Auction: ${property.daysUntilAuction || 'N/A'}`, 120, boxY + 90)
-       .text(`Amount Owed: $${property.amountOwed?.toLocaleString() || 'N/A'}`, 120, boxY + 110);
+    ${contact.name || contact.email ? `
+    <div class="section">
+        <h2>Owner Contact Information</h2>
+        <div class="contact-info">
+            <h3>Primary Contact</h3>
+            ${contact.name ? `<p><strong>Name:</strong> ${contact.name}</p>` : ''}
+            ${contact.email ? `<p><strong>Email:</strong> ${contact.email}</p>` : ''}
+            ${contact.phone ? `<p><strong>Phone:</strong> ${contact.phone}</p>` : ''}
+            ${contact.socialProfiles ? `<p><strong>Social Profiles:</strong> Found</p>` : ''}
+        </div>
+    </div>
+    ` : ''}
 
-    // Generated Date
-    doc.fontSize(10)
-       .fillColor('#8D8D8D')
-       .text(`Generated on ${new Date().toLocaleDateString()}`, 50, 750, { align: 'center' });
+    <div class="section">
+        <h2>Investment Strategy Recommendations</h2>
+        <div class="opportunity-highlights">
+            <h3>Recommended Approach</h3>
+            <ul>
+                <li>Initial outreach within 48 hours</li>
+                <li>Schedule property inspection if owner is interested</li>
+                <li>Prepare cash offer based on property condition</li>
+                <li>Negotiate flexible closing terms</li>
+                <li>Consider alternative solutions (loan modification, short sale)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Next Steps</h2>
+        <div class="property-details">
+            <h3>Immediate Actions Required:</h3>
+            <ol>
+                <li>Contact property owner via personalized email/letter</li>
+                <li>Research comparable sales in the area</li>
+                <li>Verify property condition and title status</li>
+                <li>Prepare initial offer parameters</li>
+                <li>Schedule follow-up contact in 1 week</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>This document contains confidential information for investment analysis purposes only.</p>
+        <p>Hawaii Investment Team • (808) 555-0123 • info@hawaiiinvestments.com</p>
+    </div>
+</body>
+</html>`;
   }
 
-  private addPropertyDetailsPage(doc: PDFKit.PDFDocument, property: Property, contact?: any) {
-    doc.fontSize(20)
-       .fillColor('#393939')
-       .text('Property Details', 50, 50);
-
-    let yPos = 100;
-
-    // Property Information Table
-    this.addTableRow(doc, 'Address:', property.address, yPos);
-    yPos += 30;
-    
-    this.addTableRow(doc, 'City:', `${property.city}, ${property.state} ${property.zipCode}`, yPos);
-    yPos += 30;
-    
-    this.addTableRow(doc, 'Property Type:', property.propertyType || 'N/A', yPos);
-    yPos += 30;
-    
-    if (property.bedrooms || property.bathrooms) {
-      this.addTableRow(doc, 'Bed/Bath:', `${property.bedrooms || 'N/A'}BR / ${property.bathrooms || 'N/A'}BA`, yPos);
-      yPos += 30;
+  async closeBrowser() {
+    if (this.browser) {
+      await this.browser.close();
+      this.browser = null;
     }
-    
-    if (property.squareFeet) {
-      this.addTableRow(doc, 'Square Feet:', property.squareFeet.toLocaleString(), yPos);
-      yPos += 30;
-    }
-    
-    if (property.yearBuilt) {
-      this.addTableRow(doc, 'Year Built:', property.yearBuilt.toString(), yPos);
-      yPos += 30;
-    }
-
-    yPos += 40;
-
-    // Financial Information
-    doc.fontSize(16)
-       .fillColor('#393939')
-       .text('Financial Information', 50, yPos);
-    yPos += 40;
-
-    this.addTableRow(doc, 'Estimated Value:', `$${property.estimatedValue?.toLocaleString() || 'N/A'}`, yPos);
-    yPos += 30;
-    
-    if (property.amountOwed) {
-      this.addTableRow(doc, 'Amount Owed:', `$${property.amountOwed.toLocaleString()}`, yPos);
-      yPos += 30;
-    }
-    
-    if (property.auctionDate) {
-      this.addTableRow(doc, 'Auction Date:', property.auctionDate, yPos);
-      yPos += 30;
-    }
-
-    // AI Summary
-    if (property.aiSummary && yPos < 600) {
-      yPos += 40;
-      doc.fontSize(16)
-         .fillColor('#393939')
-         .text('AI Analysis', 50, yPos);
-      
-      yPos += 30;
-      doc.fontSize(11)
-         .fillColor('#393939')
-         .text(property.aiSummary, 50, yPos, { width: 500, align: 'justify' });
-    }
-  }
-
-  private addMarketAnalysisPage(doc: PDFKit.PDFDocument, property: Property) {
-    doc.fontSize(20)
-       .fillColor('#393939')
-       .text('Market Analysis', 50, 50);
-
-    let yPos = 100;
-
-    // Opportunity Assessment
-    doc.fontSize(16)
-       .text('Investment Opportunity', 50, yPos);
-    yPos += 30;
-
-    const opportunityText = this.generateOpportunityAssessment(property);
-    doc.fontSize(11)
-       .text(opportunityText, 50, yPos, { width: 500, align: 'justify' });
-    yPos += 100;
-
-    // Risk Assessment
-    doc.fontSize(16)
-       .fillColor('#393939')
-       .text('Risk Assessment', 50, yPos);
-    yPos += 30;
-
-    const riskText = this.generateRiskAssessment(property);
-    doc.fontSize(11)
-       .text(riskText, 50, yPos, { width: 500, align: 'justify' });
-    yPos += 100;
-
-    // Recommended Action
-    doc.fontSize(16)
-       .fillColor('#393939')
-       .text('Recommended Action', 50, yPos);
-    yPos += 30;
-
-    const actionText = this.generateActionRecommendation(property);
-    doc.fontSize(11)
-       .fillColor('#0F62FE')
-       .text(actionText, 50, yPos, { width: 500, align: 'justify' });
-  }
-
-  private addContactPage(doc: PDFKit.PDFDocument, contact: any, property: Property) {
-    doc.fontSize(20)
-       .fillColor('#393939')
-       .text('Owner Information', 50, 50);
-
-    let yPos = 100;
-
-    if (contact.name) {
-      this.addTableRow(doc, 'Owner Name:', contact.name, yPos);
-      yPos += 30;
-    }
-
-    if (contact.email) {
-      this.addTableRow(doc, 'Email:', contact.email, yPos);
-      yPos += 30;
-    }
-
-    if (contact.phone) {
-      this.addTableRow(doc, 'Phone:', contact.phone, yPos);
-      yPos += 30;
-    }
-
-    if (contact.isLLC) {
-      this.addTableRow(doc, 'Entity Type:', 'LLC/Corporation', yPos);
-      yPos += 30;
-    }
-
-    this.addTableRow(doc, 'Contact Score:', `${contact.contactScore || 0}% Complete`, yPos);
-    yPos += 30;
-
-    if (contact.linkedinUrl) {
-      this.addTableRow(doc, 'LinkedIn:', contact.linkedinUrl, yPos);
-      yPos += 30;
-    }
-
-    // Outreach Strategy
-    yPos += 40;
-    doc.fontSize(16)
-       .fillColor('#393939')
-       .text('Outreach Strategy', 50, yPos);
-    yPos += 30;
-
-    const strategyText = this.generateOutreachStrategy(contact, property);
-    doc.fontSize(11)
-       .text(strategyText, 50, yPos, { width: 500, align: 'justify' });
-  }
-
-  private addStrategyPage(doc: PDFKit.PDFDocument, property: Property) {
-    doc.fontSize(20)
-       .fillColor('#393939')
-       .text('Strategy & Notes', 50, 50);
-
-    let yPos = 100;
-
-    // Timeline
-    doc.fontSize(16)
-       .text('Timeline & Deadlines', 50, yPos);
-    yPos += 30;
-
-    if (property.auctionDate) {
-      const daysUntil = property.daysUntilAuction || 0;
-      doc.fontSize(12)
-         .fillColor(daysUntil <= 7 ? '#DA1E28' : '#F1C21B')
-         .text(`⚠ Auction in ${daysUntil} days (${property.auctionDate})`, 50, yPos);
-      yPos += 25;
-    }
-
-    doc.fontSize(11)
-       .fillColor('#393939')
-       .text('• Initial contact: Within 24-48 hours', 50, yPos);
-    yPos += 20;
-    doc.text('• Follow-up: 3-5 days if no response', 50, yPos);
-    yPos += 20;
-    doc.text('• Property evaluation: Schedule within 1 week', 50, yPos);
-    yPos += 40;
-
-    // Notes Section
-    doc.fontSize(16)
-       .text('Notes & Comments', 50, yPos);
-    yPos += 30;
-
-    // Empty lines for manual notes
-    for (let i = 0; i < 15; i++) {
-      doc.moveTo(50, yPos)
-         .lineTo(550, yPos)
-         .strokeColor('#E0E0E0')
-         .stroke();
-      yPos += 25;
-    }
-  }
-
-  private addTableRow(doc: PDFKit.PDFDocument, label: string, value: string, yPos: number) {
-    doc.fontSize(12)
-       .fillColor('#8D8D8D')
-       .text(label, 50, yPos, { width: 150 });
-    
-    doc.fontSize(12)
-       .fillColor('#393939')
-       .text(value, 200, yPos, { width: 350 });
-  }
-
-  private getStatusColor(status: string): string {
-    switch (status) {
-      case 'foreclosure': return '#DA1E28';
-      case 'tax_delinquent': return '#F1C21B';
-      case 'auction': return '#DA1E28';
-      default: return '#393939';
-    }
-  }
-
-  private getPriorityColor(priority: string): string {
-    switch (priority) {
-      case 'high': return '#DA1E28';
-      case 'medium': return '#F1C21B';
-      case 'low': return '#24A148';
-      default: return '#393939';
-    }
-  }
-
-  private generateOpportunityAssessment(property: Property): string {
-    const value = property.estimatedValue || 0;
-    const owed = property.amountOwed || 0;
-    const equity = value - owed;
-    
-    return `This property presents a ${property.priority} priority investment opportunity. With an estimated value of $${value.toLocaleString()} and approximately $${owed.toLocaleString()} owed, the potential equity position is $${equity.toLocaleString()}. The ${property.status.replace('_', ' ')} status indicates motivated seller circumstances, potentially allowing for favorable negotiation terms.`;
-  }
-
-  private generateRiskAssessment(property: Property): string {
-    let risks = [];
-    
-    if (property.daysUntilAuction && property.daysUntilAuction <= 7) {
-      risks.push('Extremely tight timeline for negotiation');
-    }
-    
-    if (property.status === 'foreclosure') {
-      risks.push('Legal proceedings in progress');
-    }
-    
-    if (!property.estimatedValue) {
-      risks.push('Property valuation needs verification');
-    }
-    
-    return risks.length > 0 
-      ? `Key risks include: ${risks.join(', ')}. Proper due diligence and quick action are essential.`
-      : 'Standard investment risks apply. Recommend property inspection and title review.';
-  }
-
-  private generateActionRecommendation(property: Property): string {
-    if (property.daysUntilAuction && property.daysUntilAuction <= 7) {
-      return 'URGENT: Contact owner immediately. This is a time-sensitive opportunity requiring immediate action.';
-    } else if (property.priority === 'high') {
-      return 'High priority contact. Reach out within 24-48 hours with cash offer proposal.';
-    } else {
-      return 'Standard follow-up recommended. Contact within one week to assess interest level.';
-    }
-  }
-
-  private generateOutreachStrategy(contact: any, property: Property): string {
-    let strategy = [];
-    
-    if (contact.email && contact.phone) {
-      strategy.push('Multi-channel approach: Initial email followed by phone call');
-    } else if (contact.email) {
-      strategy.push('Email outreach with follow-up sequence');
-    } else if (contact.phone) {
-      strategy.push('Direct phone contact approach');
-    } else {
-      strategy.push('Door-to-door contact may be necessary');
-    }
-    
-    if (contact.isLLC) {
-      strategy.push('Business entity requires professional business proposal');
-    } else {
-      strategy.push('Personal approach emphasizing help and solutions');
-    }
-    
-    return strategy.join('. ') + '.';
   }
 }
 

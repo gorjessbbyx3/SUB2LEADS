@@ -1,209 +1,173 @@
-import { MailService } from '@sendgrid/mail';
-import { storage } from "../storage";
-import { aiService } from "./aiService";
-import type { Lead } from "@shared/schema";
+import sgMail from '@sendgrid/mail';
+import { storage } from '../storage';
+import { aiService } from './aiService';
 
-const mailService = new MailService();
+sgMail.setApiKey(process.env.SENDGRID_API_KEY || 'your-sendgrid-key-here');
 
-if (process.env.SENDGRID_API_KEY) {
-  mailService.setApiKey(process.env.SENDGRID_API_KEY);
+interface EmailResult {
+  success: boolean;
+  messageId?: string;
+  error?: string;
 }
 
 class EmailService {
-  async sendEmail(lead: Lead, templateId?: number, customMessage?: string) {
+  async sendEmail(lead: any, templateId: string, customMessage?: string): Promise<EmailResult> {
     try {
-      const contact = await storage.getContact(lead.contactId);
+      // Get property and contact details
       const property = await storage.getProperty(lead.propertyId);
-      
-      if (!contact?.email || !property) {
-        throw new Error('Missing contact email or property data');
+      const contacts = await storage.getContactsByProperty(lead.propertyId);
+      const contact = contacts[0]; // Use first contact
+
+      if (!property || !contact || !contact.email) {
+        throw new Error('Missing property or contact information');
       }
 
-      let emailContent = customMessage;
-      let subject = 'Property Solution Options';
+      // Generate AI email content
+      const emailContent = await aiService.generateEmail(property, contact, templateId, customMessage);
 
-      if (!emailContent) {
-        // Generate AI-powered email content
-        emailContent = await aiService.generateOutreachTemplate(lead, 'email');
-        
-        // Extract subject line if AI provided one
-        const lines = emailContent.split('\n');
-        const subjectLine = lines.find(line => line.toLowerCase().startsWith('subject:'));
-        if (subjectLine) {
-          subject = subjectLine.replace(/^subject:\s*/i, '');
-          emailContent = lines.filter(line => !line.toLowerCase().startsWith('subject:')).join('\n');
-        }
-      }
+      // Extract subject and body
+      const lines = emailContent.split('\n');
+      const subjectLine = lines.find(line => line.toLowerCase().includes('subject:'));
+      const subject = subjectLine 
+        ? subjectLine.replace(/subject:\s*/i, '').trim()
+        : `Regarding Your Property at ${property.address}`;
 
-      const emailParams = {
+      const body = emailContent.replace(subjectLine || '', '').trim();
+
+      const msg = {
         to: contact.email,
-        from: process.env.FROM_EMAIL || 'noreply@hawaiicrm.com',
+        from: {
+          email: process.env.FROM_EMAIL || 'noreply@hawaiicrm.com',
+          name: 'Hawaii Investment Team'
+        },
         subject,
-        html: this.generateEmailHTML(emailContent, property, contact),
-        text: emailContent,
+        html: this.formatEmailHTML(body, property, contact),
+        text: body,
+        trackingSettings: {
+          clickTracking: { enable: true },
+          openTracking: { enable: true },
+          subscriptionTracking: { enable: false },
+        },
+        customArgs: {
+          leadId: lead.id.toString(),
+          propertyId: property.id.toString(),
+          templateId,
+        },
       };
 
-      const success = await this.sendEmailViaSendGrid(emailParams);
+      const response = await sgMail.send(msg);
 
-      if (success) {
-        // Record outreach history
-        await storage.createOutreachHistory({
-          leadId: lead.id,
-          type: 'email',
-          status: 'sent',
-          content: emailContent,
-        });
-
-        // Update lead
-        await storage.updateLead(lead.id, {
-          lastContactDate: new Date(),
-          emailsSent: (lead.emailsSent || 0) + 1,
-        });
-
-        return { success: true, message: 'Email sent successfully' };
-      } else {
-        throw new Error('Failed to send email');
-      }
-    } catch (error) {
-      console.error('Email service error:', error);
-      
-      // Record failed attempt
-      await storage.createOutreachHistory({
+      // Log email sent
+      await storage.createEmailLog({
         leadId: lead.id,
-        type: 'email',
-        status: 'failed',
-        content: customMessage || 'Email send failed',
+        propertyId: property.id,
+        contactId: contact.id,
+        subject,
+        content: body,
+        status: 'sent',
+        templateId,
+        sendgridMessageId: response[0].headers['x-message-id'],
       });
 
-      return { success: false, message: error.message };
-    }
-  }
-
-  private async sendEmailViaSendGrid(params: {
-    to: string;
-    from: string;
-    subject: string;
-    text?: string;
-    html?: string;
-  }): Promise<boolean> {
-    try {
-      if (!process.env.SENDGRID_API_KEY) {
-        console.log('SendGrid not configured, simulating email send');
-        // Simulate email sending delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return true;
-      }
-
-      await mailService.send({
-        to: params.to,
-        from: params.from,
-        subject: params.subject,
-        text: params.text,
-        html: params.html,
+      // Update lead status
+      await storage.updateLead(lead.id, {
+        status: 'contacted',
+        lastContactDate: new Date(),
       });
-      
-      return true;
+
+      return {
+        success: true,
+        messageId: response[0].headers['x-message-id'],
+      };
+
     } catch (error) {
-      console.error('SendGrid email error:', error);
-      return false;
+      console.error('Email sending error:', error);
+
+      // Log failed email
+      await storage.createEmailLog({
+        leadId: lead.id,
+        propertyId: lead.propertyId,
+        subject: 'Failed to send',
+        content: error.message,
+        status: 'failed',
+        templateId,
+      });
+
+      return {
+        success: false,
+        error: error.message,
+      };
     }
   }
 
-  private generateEmailHTML(content: string, property: any, contact: any): string {
+  private formatEmailHTML(body: string, property: any, contact: any): string {
+    const htmlBody = body
+      .replace(/\n/g, '<br>')
+      .replace('{address}', property.address)
+      .replace('{ownerName}', contact.name || 'Property Owner')
+      .replace('{agentName}', 'Hawaii Investment Team')
+      .replace('{agentPhone}', '(808) 555-0123')
+      .replace('{agentEmail}', 'info@hawaiiinvestments.com');
+
     return `
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Property Solution Options</title>
+    <title>Hawaii Investment Opportunity</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4;">
-        <tr>
-            <td align="center" style="padding: 40px 0;">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <!-- Header -->
-                    <tr>
-                        <td style="background-color: #0F62FE; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-                            <h1 style="margin: 0; font-size: 24px;">Hawaii Real Estate Solutions</h1>
-                        </td>
-                    </tr>
-                    
-                    <!-- Content -->
-                    <tr>
-                        <td style="padding: 30px;">
-                            <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.5; color: #333;">
-                                Dear ${contact.name},
-                            </p>
-                            
-                            <div style="margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-left: 4px solid #0F62FE; border-radius: 4px;">
-                                <h3 style="margin: 0 0 10px 0; color: #0F62FE;">Property: ${property.address}</h3>
-                                <p style="margin: 0; color: #666; font-size: 14px;">We understand you may be facing challenges with this property.</p>
-                            </div>
-                            
-                            <div style="margin: 20px 0; font-size: 16px; line-height: 1.6; color: #333;">
-                                ${content.replace(/\n/g, '<br>')}
-                            </div>
-                            
-                            <div style="margin: 30px 0; text-align: center;">
-                                <a href="tel:+18085551234" style="display: inline-block; background-color: #0F62FE; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                                    Call Us: (808) 555-1234
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    
-                    <!-- Footer -->
-                    <tr>
-                        <td style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #e9ecef;">
-                            <p style="margin: 0; font-size: 12px; color: #666;">
-                                This email was sent regarding your property at ${property.address}.<br>
-                                If you no longer wish to receive these emails, please reply with "STOP".
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <h2 style="color: #2563eb; margin: 0;">Hawaii Investment Team</h2>
+        <p style="margin: 5px 0; color: #6b7280;">Professional Real Estate Solutions</p>
+    </div>
+
+    <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
+        ${htmlBody}
+    </div>
+
+    <div style="margin-top: 20px; padding: 15px; background: #f3f4f6; border-radius: 8px; font-size: 12px; color: #6b7280;">
+        <p>This email was sent regarding the property at ${property.address}.</p>
+        <p>If you no longer wish to receive these emails, please reply with "UNSUBSCRIBE".</p>
+    </div>
 </body>
 </html>`;
   }
 
-  async sendBulkEmail(leadIds: number[], templateId?: number) {
-    const results = [];
-    
-    for (const leadId of leadIds) {
-      try {
-        const lead = await storage.getLead(leadId);
-        if (lead) {
-          const result = await this.sendEmail(lead, templateId);
-          results.push({ leadId, ...result });
-          
-          // Add delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      } catch (error) {
-        results.push({ leadId, success: false, message: error.message });
-      }
-    }
-    
-    return results;
-  }
+  async handleWebhook(eventData: any) {
+    try {
+      const { event, leadId, propertyId } = eventData;
 
-  async createEmailTemplate(name: string, subject: string, template: string) {
-    return await storage.createOutreachCampaign({
-      name,
-      type: 'email',
-      subject,
-      template,
-    });
+      if (leadId) {
+        await storage.createEmailEvent({
+          leadId: parseInt(leadId),
+          event,
+          timestamp: new Date(),
+          data: eventData,
+        });
+
+        // Update lead based on event
+        if (event === 'open') {
+          await storage.updateLead(parseInt(leadId), {
+            emailOpened: true,
+            lastEmailOpenDate: new Date(),
+          });
+        } else if (event === 'click') {
+          await storage.updateLead(parseInt(leadId), {
+            emailClicked: true,
+            lastEmailClickDate: new Date(),
+            status: 'engaged',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Webhook handling error:', error);
+    }
   }
 
   async getEmailTemplates() {
-    const campaigns = await storage.getOutreachCampaigns();
-    return campaigns.filter(c => c.type === 'email');
+    return aiService.getEmailTemplates();
   }
 }
 

@@ -127,7 +127,7 @@ export class DatabaseStorage implements IStorage {
     offset?: number;
   }): Promise<Property[]> {
     let query = db.select().from(properties);
-    
+
     if (filters?.status) {
       query = query.where(eq(properties.status, filters.status)) as any;
     }
@@ -174,7 +174,7 @@ export class DatabaseStorage implements IStorage {
   }> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const sevenDaysFromNow = new Date();
     sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
 
@@ -239,7 +239,7 @@ export class DatabaseStorage implements IStorage {
     offset?: number;
   }): Promise<Lead[]> {
     let query = db.select().from(leads);
-    
+
     const conditions = [];
     if (filters?.status) conditions.push(eq(leads.status, filters.status));
     if (filters?.priority) conditions.push(eq(leads.priority, filters.priority));
@@ -290,17 +290,17 @@ export class DatabaseStorage implements IStorage {
       .select({ count: count() })
       .from(leads)
       .where(and(eq(leads.userId, userId), eq(leads.status, 'to_contact')));
-    
+
     const [inConversationResult] = await db
       .select({ count: count() })
       .from(leads)
       .where(and(eq(leads.userId, userId), eq(leads.status, 'in_conversation')));
-    
+
     const [appointmentSetResult] = await db
       .select({ count: count() })
       .from(leads)
       .where(and(eq(leads.userId, userId), eq(leads.status, 'appointment_set')));
-    
+
     const [followUpResult] = await db
       .select({ count: count() })
       .from(leads)

@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   Calendar
 } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Properties() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
@@ -30,7 +31,7 @@ export default function Properties() {
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
 
-  const { data: properties = [], isLoading } = useQuery({
+  const { data: properties = [], isLoading, refetch } = useQuery({
     queryKey: ["/api/properties"],
     queryFn: () => fetch("/api/properties?limit=100").then(res => res.json()),
   });
@@ -60,10 +61,10 @@ export default function Properties() {
       const matchesSearch = searchTerm === "" || 
         property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
         property.city.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       const matchesStatus = statusFilter === "all" || property.status === statusFilter;
       const matchesPriority = priorityFilter === "all" || property.priority === priorityFilter;
-      
+
       return matchesSearch && matchesStatus && matchesPriority;
     })
     .sort((a: any, b: any) => {
@@ -84,7 +85,7 @@ export default function Properties() {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
-      
+
       <main className="flex-1 ml-64 overflow-y-auto">
         <Header 
           title="Properties" 
@@ -94,7 +95,7 @@ export default function Properties() {
             onClick: () => runScrapingMutation.mutate('star_advertiser')
           }}
         />
-        
+
         <div className="p-6 space-y-6">
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -113,7 +114,7 @@ export default function Properties() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -129,7 +130,7 @@ export default function Properties() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -145,7 +146,7 @@ export default function Properties() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -197,7 +198,7 @@ export default function Properties() {
                     className="pl-10"
                   />
                 </div>
-                
+
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Filter by Status" />
@@ -209,7 +210,7 @@ export default function Properties() {
                     <SelectItem value="auction">Auction</SelectItem>
                   </SelectContent>
                 </Select>
-                
+
                 <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Priority" />
@@ -221,7 +222,7 @@ export default function Properties() {
                     <SelectItem value="low">Low</SelectItem>
                   </SelectContent>
                 </Select>
-                
+
                 <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Sort by" />
@@ -269,11 +270,50 @@ export default function Properties() {
               ) : filteredAndSortedProperties.length > 0 ? (
                 <div className="grid grid-cols-1 gap-4">
                   {filteredAndSortedProperties.map((property: any) => (
-                    <PropertyCard
-                      key={property.id}
-                      property={property}
-                      onClick={() => handlePropertyClick(property.id)}
-                    />
+                    <Card key={property.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                      <Link href={`/properties/${property.id}`}>
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start mb-3">
+                            <h3 className="font-semibold text-gray-900 hover:text-blue-600">
+                              {property.address}
+                            </h3>
+                            <div className="flex gap-1">
+                              <Badge variant={property.status === "new" ? "default" : "secondary"}>
+                                {property.status}
+                              </Badge>
+                              <Badge variant={property.priority === "high" ? "destructive" : "outline"}>
+                                {property.priority}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2 text-sm text-gray-600">
+                            <div className="flex items-center">
+                              <MapPin className="h-4 w-4 mr-2" />
+                              {property.propertyType} • {property.source}
+                            </div>
+
+                            {property.lienAmount && (
+                              <div className="flex items-center">
+                                <DollarSign className="h-4 w-4 mr-2" />
+                                ${property.lienAmount.toLocaleString()}
+                              </div>
+                            )}
+
+                            <div className="flex items-center">
+                              <Calendar className="h-4 w-4 mr-2" />
+                              {new Date(property.createdAt).toLocaleDateString()}
+                            </div>
+
+                            {property.ownerName && (
+                              <div className="flex items-center">
+                                <span className="text-xs text-gray-500">Owner: {property.ownerName}</span>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Link>
+                    </Card>
                   ))}
                 </div>
               ) : (

@@ -10,7 +10,8 @@ import {
   decimal,
   boolean,
   uuid,
-  date
+  date,
+  json
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -143,6 +144,7 @@ export const scrapingJobs = pgTable("scraping_jobs", {
   lastRunAt: timestamp("last_run_at"),
   nextRunAt: timestamp("next_run_at"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // AI interactions and chat history
@@ -234,9 +236,7 @@ export type InsertScrapingJob = typeof scrapingJobs.$inferInsert;
 
 export type AIInteraction = typeof aiInteractions.$inferSelect;
 export type InsertAIInteraction = typeof aiInteractions.$inferInsert;
-
-export type PDFBinder = typeof pdfBinders.$inferSelect;
-export type InsertPDFBinder = typeof pdfBinders.$inferInsert;
+export type AIInteraction = typeof aiInteractions.$inferSelect;
 
 // Zod schemas
 export const insertPropertySchema = createInsertSchema(properties);
@@ -244,3 +244,52 @@ export const insertContactSchema = createInsertSchema(contacts);
 export const insertLeadSchema = createInsertSchema(leads);
 export const insertOutreachCampaignSchema = createInsertSchema(outreachCampaigns);
 export const insertAIInteractionSchema = createInsertSchema(aiInteractions);
+export const selectAIInteractionSchema = createSelectSchema(aiInteractions);
+export type InsertAIInteraction = z.infer<typeof insertAIInteractionSchema>;
+export type AIInteraction = z.infer<typeof selectAIInteractionSchema>;
+
+// Scraping Jobs table
+export const scrapingJobs2 = pgTable("scraping_jobs2", {
+  id: serial("id").primaryKey(),
+  source: varchar("source", { length: 100 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull().default("pending"),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+  propertiesFound: integer("properties_found").default(0),
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Email Logs table
+export const emailLogs = pgTable("email_logs", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").references(() => leads.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  contactId: integer("contact_id").references(() => contacts.id),
+  subject: varchar("subject", { length: 255 }),
+  content: text("content"),
+  status: varchar("status", { length: 50 }).notNull(),
+  templateId: varchar("template_id", { length: 100 }),
+  sendgridMessageId: varchar("sendgrid_message_id", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Email Events table
+export const emailEvents = pgTable("email_events", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").references(() => leads.id),
+  event: varchar("event", { length: 50 }).notNull(),
+  timestamp: timestamp("timestamp").defaultNow(),
+  data: json("data"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertScrapingJobSchema = createInsertSchema(scrapingJobs2);
+export const selectScrapingJobSchema = createSelectSchema(scrapingJobs2);
+
+export const insertEmailLogSchema = createInsertSchema(emailLogs);
+export const selectEmailLogSchema = createSelectSchema(emailLogs);
+
+export const insertEmailEventSchema = createInsertSchema(emailEvents);
+export const selectEmailEventSchema = createSelectSchema(emailEvents);
