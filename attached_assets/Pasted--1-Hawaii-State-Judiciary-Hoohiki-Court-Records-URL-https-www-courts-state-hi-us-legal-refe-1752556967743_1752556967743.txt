@@ -1,0 +1,96 @@
+✅ 1. Hawaii State Judiciary – Hoohiki (Court Records)
+URL: https://www.courts.state.hi.us/legal_references/records/hoohiki
+Data Available:
+
+Foreclosure filings (civil court records)
+
+Case dates, parties involved, and judgments
+Scraping Feasibility:
+
+Uses a search form → you can automate search by keyword (like “foreclosure”) using Selenium
+
+You'll need to simulate form interaction and pagination
+
+Not always structured data, so some parsing required
+
+✅ 2. Hawaii State Department of Taxation – Tax Delinquent List
+URL: https://files.hawaii.gov/tax/news/announce/announcements.html
+Data Available:
+
+Periodic PDFs or documents listing individuals/businesses with delinquent taxes
+
+Property tax, GE tax, income tax lists
+Scraping Feasibility:
+
+Data is in PDFs (e.g., "Delinquent Taxpayer List") → Use pdfminer.six or PyMuPDF to extract text
+
+Then parse names/addresses from the documents
+
+Example PDF: 2023 Taxpayer List (PDF)
+
+✅ 3. Honolulu City Real Property Assessment
+URL: https://www.realpropertyhonolulu.com/
+Data Available:
+
+Property search by address, parcel ID, or owner name
+
+Shows: ownership, tax amounts, history
+Scraping Feasibility:
+
+Publicly accessible via search page
+
+No direct export — you’ll need to automate the search with Selenium
+
+For known delinquent properties, this is good for enrichment after scraping names from PDFs or notices
+
+✅ 4. Oahu Real Property Tax Payments & Delinquencies
+URL: https://www.honolulu.gov/budget/property-tax.html
+Data Available:
+
+May link to delinquency notices or spreadsheets released periodically
+
+Directs users to a payment portal, but doesn’t always expose full delinquency info online
+Scraping Feasibility:
+
+You’d scrape linked PDFs or Excel files — check monthly or quarterly
+
+✅ 5. Public Notice Ads (StarAdvertiser Notices)
+URL: https://www.staradvertiser.com/legal-notices/
+Data Available:
+
+Legal foreclosure notices, probate notices, auctions
+Scraping Feasibility:
+
+100% scrape-able HTML
+
+Pages list:
+
+Property address
+
+Auction time/place
+
+Owner/legal case details
+
+Use BeautifulSoup to loop through pages and extract details
+
+⭐ Recommended Starting Point for Your App
+If you want fast, clean, structured data to scrape and enrich, start with:
+
+StarAdvertiser Legal Notices → for daily foreclosure/auction listings
+
+https://www.staradvertiser.com/legal-notices/
+
+Easy to parse, updated regularly
+
+Delinquent Taxpayer PDF List
+
+https://files.hawaii.gov/tax/news/announce/ann23-05_tax_delinquent_list.pdf
+
+Use PyMuPDF or pdfplumber to extract owners/addresses
+
+Use scraped names and addresses to look up owner info using:
+
+Google search + BeautifulSoup
+
+PeopleDataLabs / FullContact / Pipl (API)
+

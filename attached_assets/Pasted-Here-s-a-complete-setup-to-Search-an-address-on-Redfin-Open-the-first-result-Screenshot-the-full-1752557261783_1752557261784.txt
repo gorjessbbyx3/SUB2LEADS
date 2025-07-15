@@ -1,0 +1,111 @@
+Here’s a complete setup to:
+
+Search an address on Redfin
+
+Open the first result
+
+Screenshot the full listing page or just a section (like main photo + price)
+
+Save the screenshot as an image
+
+🧰 Requirements
+First, install dependencies:
+
+bash
+Copy
+Edit
+pip install selenium webdriver-manager pillow
+You also need Chrome and the ChromeDriver (handled by webdriver-manager).
+
+🧠 Redfin Screenshot Script (with Fallback for Zillow)
+python
+Copy
+Edit
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+from PIL import Image
+import time
+import os
+
+def capture_redfin_screenshot(address, output_file="redfin_screenshot.png", wait=6):
+    # Set up headless Chrome
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--window-size=1920,1080")
+
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
+
+    try:
+        # Format the search URL
+        query = address.replace(" ", "+")
+        search_url = f"https://www.redfin.com/stingray/do/location-autocomplete?location={query}&v=2"
+
+        # Get location data (first match)
+        driver.get(f"https://www.redfin.com/")
+        time.sleep(1)
+        search_box = driver.find_element(By.ID, "search-box-input")
+        search_box.send_keys(address)
+        time.sleep(1)
+        search_box.submit()
+        time.sleep(wait)
+
+        # Screenshot the full page
+        driver.save_screenshot(output_file)
+        print(f"📸 Saved Redfin screenshot to {output_file}")
+
+        # Optional: crop screenshot (Pillow)
+        # image = Image.open(output_file)
+        # cropped = image.crop((left, top, right, bottom))
+        # cropped.save("cropped_redfin.png")
+
+    except Exception as e:
+        print("❌ Error capturing Redfin screenshot:", str(e))
+
+    finally:
+        driver.quit()
+
+# 🔍 Example
+address = "530 S King St, Honolulu, HI"
+capture_redfin_screenshot(address, "king_st_redfin.png")
+🔁 Optional Zillow Fallback (if Redfin fails)
+If the address isn’t listed on Redfin, add Zillow fallback logic like this:
+
+python
+Copy
+Edit
+def capture_zillow_screenshot(address, output_file="zillow_screenshot.png", wait=6):
+    from urllib.parse import quote
+
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--window-size=1920,1080")
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
+
+    try:
+        search_url = f"https://www.zillow.com/homes/{quote(address)}_rb/"
+        driver.get(search_url)
+        time.sleep(wait)
+        driver.save_screenshot(output_file)
+        print(f"📸 Saved Zillow screenshot to {output_file}")
+    except Exception as e:
+        print("❌ Error capturing Zillow screenshot:", str(e))
+    finally:
+        driver.quit()
+📁 Output
+You’ll get a .png file per property you search. These can be:
+
+Inserted into your presentation binder
+
+Saved with each CRM entry
+
+Shared with buyers
+
+🚀 Next Ideas
+Automatically generate binder PDFs with screenshots embedded
+
+Loop over a list of addresses
+
+Add cropping to isolate just the listing info
+

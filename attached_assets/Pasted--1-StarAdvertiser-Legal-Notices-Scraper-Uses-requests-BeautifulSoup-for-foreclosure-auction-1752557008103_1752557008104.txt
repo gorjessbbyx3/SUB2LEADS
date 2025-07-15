@@ -1,0 +1,94 @@
+✅ 1. StarAdvertiser Legal Notices Scraper
+(Uses requests + BeautifulSoup — for foreclosure & auction notices)
+
+python
+Copy
+Edit
+import requests
+from bs4 import BeautifulSoup
+
+def scrape_star_advertiser_legal_notices(pages=3):
+    base_url = "https://www.staradvertiser.com/legal-notices/page/"
+    all_listings = []
+
+    for page in range(1, pages + 1):
+        print(f"Scraping page {page}...")
+        url = f"{base_url}{page}/"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        articles = soup.find_all("div", class_="legal-notice-entry")
+
+        for article in articles:
+            title = article.find("h3").get_text(strip=True)
+            date = article.find("span", class_="legal-notice-date").get_text(strip=True)
+            content = article.find("div", class_="legal-notice-content").get_text(strip=True)
+
+            all_listings.append({
+                "title": title,
+                "date": date,
+                "content": content
+            })
+
+    return all_listings
+
+# Run scraper
+listings = scrape_star_advertiser_legal_notices(pages=2)
+
+# Preview result
+for item in listings[:2]:
+    print("\n---")
+    print("Title:", item["title"])
+    print("Date:", item["date"])
+    print("Content:", item["content"][:300], "...")  # Preview content
+✅ 2. Hawaii Delinquent Taxpayer PDF Parser
+(Uses PyMuPDF to extract and parse names/addresses from the PDF)
+
+python
+Copy
+Edit
+import fitz  # PyMuPDF
+import re
+
+def extract_data_from_tax_pdf(pdf_path):
+    doc = fitz.open(pdf_path)
+    all_text = ""
+
+    for page in doc:
+        all_text += page.get_text()
+
+    # Basic example regex for name + address parsing (simplified)
+    taxpayer_entries = re.findall(r"([A-Z][A-Z\s,.'-]+)\s+(\d{1,5} [^\n,]+)", all_text)
+
+    structured_data = [{"name": name.strip(), "address": addr.strip()} for name, addr in taxpayer_entries]
+    return structured_data
+
+# Run on sample PDF
+pdf_path = "honolulu_tax_delinquent_list.pdf"  # Download and rename locally
+results = extract_data_from_tax_pdf(pdf_path)
+
+# Preview results
+for r in results[:5]:
+    print(r)
+🛠 How to Use in Replit
+Create a new Python Replit
+
+Install dependencies:
+
+nginx
+Copy
+Edit
+pip install beautifulsoup4 requests pymupdf
+Upload the tax PDF (honolulu_tax_delinquent_list.pdf)
+
+Example: https://files.hawaii.gov/tax/news/announce/ann23-05_tax_delinquent_list.pdf
+
+🔄 Next Steps You Can Add
+Filter only foreclosure or auction notices from the StarAdvertiser content
+
+Match scraped names from the PDF against public real estate records (enrichment)
+
+Auto-save results to CSV or database
+
+Use AI to summarize each listing
+

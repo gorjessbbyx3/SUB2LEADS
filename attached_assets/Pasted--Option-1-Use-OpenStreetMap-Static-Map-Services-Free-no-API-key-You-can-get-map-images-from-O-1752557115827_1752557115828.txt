@@ -1,0 +1,113 @@
+✅ Option 1: Use OpenStreetMap + Static Map Services (Free, no API key)
+You can get map images from OpenStreetMap or services that mirror it, like:
+
+🗺️ 1A. StaticMapLite (self-hosted)
+Free, open-source tool to generate static map images from OSM data
+
+You run it on your own server or locally
+
+GitHub: https://github.com/stephanstapel/staticmaplite
+
+✅ Pros:
+
+No API key required
+
+You can fully customize styling, zoom, etc.
+
+Legal to use
+
+❌ Cons:
+
+Requires minimal setup (PHP, server, or local dev)
+
+🗺️ 1B. OSM Static Map Mirror Services (pre-hosted)
+Some open services let you directly pull map images via URL.
+
+Example:
+
+bash
+Copy
+Edit
+https://staticmap.openstreetmap.de/staticmap.php?center=21.3069,-157.8583&zoom=17&size=600x400
+You can use Python like this:
+
+python
+Copy
+Edit
+import requests
+
+def fetch_osm_static_map(lat, lon, filename="osm_map.jpg", zoom=17, size="600x400"):
+    url = f"https://staticmap.openstreetmap.de/staticmap.php?center={lat},{lon}&zoom={zoom}&size={size}"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        with open(filename, "wb") as f:
+            f.write(response.content)
+        print(f"🗺️ Saved OSM map image to {filename}")
+    else:
+        print("❌ Failed to fetch map image:", response.text)
+
+# Example coords (Honolulu)
+fetch_osm_static_map(21.3069, -157.8583, filename="honolulu_osm.jpg")
+🔁 You can convert addresses to lat/lon using free geocoding (see below).
+
+✅ Option 2: Free Geocoding (Convert address → lat/lon)
+You can convert addresses to coordinates using:
+
+🆓 Nominatim (OpenStreetMap Geocoder)
+bash
+Copy
+Edit
+https://nominatim.openstreetmap.org/search?q=530+S+King+St+Honolulu&format=json
+Sample Python wrapper:
+
+python
+Copy
+Edit
+import requests
+
+def geocode_address_osm(address):
+    url = f"https://nominatim.openstreetmap.org/search?q={requests.utils.quote(address)}&format=json"
+    response = requests.get(url, headers={"User-Agent": "YourApp/1.0"})
+
+    if response.status_code == 200 and response.json():
+        location = response.json()[0]
+        return float(location['lat']), float(location['lon'])
+    else:
+        print("❌ Failed to geocode address.")
+        return None, None
+
+# Example use:
+address = "530 S King St, Honolulu, HI"
+lat, lon = geocode_address_osm(address)
+print("Lat/Lon:", lat, lon)
+Then feed lat/lon into the OSM static map URL from above.
+
+✅ Option 3: Screenshot Maps from Websites (Headless Browser)
+If you want street view-style images or full property pages, you can:
+
+Use Selenium + headless Chrome to:
+
+Search address on Google Maps or Redfin
+
+Zoom/crop
+
+Screenshot the browser window
+
+This avoids APIs completely, but:
+
+It's slow, but fully visual
+
+May break if page structure changes
+
+Google may block you if you abuse it
+
+If you're interested, I can build a full Selenium-based screenshotter too.
+
+Summary: API-Free Options
+Option	Source	What You Get	API Key Needed?	Recommended?
+OpenStreetMap Static URL	staticmap.openstreetmap.de	📍 Map image	❌ No	✅ Yes
+OSM Geocoder (Nominatim)	nominatim.openstreetmap.org	📌 Lat/Lon from address	❌ No	✅ Yes
+Screenshot via Selenium	Google/Redfin/Zillow	📸 Full browser view	❌ No	⚠️ Limited use
+StaticMapLite	Your own server	📍 Fully custom map tiles	❌ No	✅ if advanced
+

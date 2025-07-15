@@ -1,0 +1,200 @@
+I want to build a full-stack web application with the following features and workflows. Please treat this as a complete project with frontend, backend, automation, and AI integration.
+
+🏠 Purpose
+To help distressed homeowners in Honolulu (or Hawaii generally) connect with buyers/investors by identifying properties in trouble (tax delinquency, foreclosure, or auction), gathering contact details for the owners, and offering help through outreach and a CRM workflow.
+
+🧱 Key Modules & Features
+1. 🕸️ Web Scraper Module
+Goal: Automatically scrape data from Honolulu Star-Advertiser or public government notice websites that post:
+
+Tax delinquency notices
+
+Foreclosure warnings
+
+Property auctions
+
+Workflow:
+
+Use BeautifulSoup or Selenium (if dynamic) to scrape data.
+
+Handle pagination and date filtering.
+
+Parse fields like:
+
+Property address
+
+Owner name (if available)
+
+Amount owed or status (e.g., “30 days delinquent” or “auction in 10 days”)
+
+Auction date or foreclosure stage
+
+Output: Store all records in a PostgreSQL or MongoDB database.
+
+Runs: Scheduled daily or weekly using CRON job or Replit Scheduled Task.
+
+2. 🧠 AI-Powered Contact Finder
+Goal: Automatically find contact details and social media profiles of the homeowners using AI or people search APIs.
+
+Workflow:
+
+For each new property added, run a background task (Celery or async job).
+
+Input: Owner name and address.
+
+Tools/APIs:
+
+Use PeopleDataLabs, FullContact, or Pipl APIs.
+
+Use Google/Bing Search + BeautifulSoup to scrape possible LinkedIn/Facebook profiles.
+
+Extract:
+
+Phone number
+
+Email address
+
+Social media profiles (LinkedIn, Facebook)
+
+Business ties (if property owned under LLC)
+
+Note: Store all results in the database, linked to the property.
+
+3. 📊 Prioritization Engine
+Goal: Automatically sort leads by urgency.
+
+Rules:
+
+Auction in <7 days = 🔴 high priority
+
+Foreclosure notice served = 🟠 medium priority
+
+Just delinquent = 🟢 low priority
+
+Extra Factors:
+
+Value of the property (optional via Zillow API)
+
+How many contact details were found (completeness score)
+
+Owner is a business (LLC) = different category
+
+4. 💬 AI Chatbot for Outreach
+Goal: Let homeowners interact with an AI chatbot that explains how we can help them sell their property, answer questions, and schedule a call.
+
+Workflow:
+
+Add a chatbot (powered by OpenAI GPT-4 or Replit Ghostwriter AI) on your website.
+
+Train it with:
+
+FAQ: "How do you help?", "Who buys my home?", "How fast can you close?"
+
+Responses tailored to distressed homeowners.
+
+Capture:
+
+Name, phone, email
+
+Preferred time to speak
+
+Level of interest (hot, warm, cold)
+
+Tech Stack:
+
+Use LangChain + OpenAI
+
+Optional: Integrate with Twilio or WhatsApp Business API for SMS/chatbot texting
+
+5. 🗂️ CRM Dashboard
+Goal: Manage all leads in one place like a mini real estate CRM.
+
+Views:
+
+Kanban-style board (To Contact, In Conversation, Appointment Set, Follow-up)
+
+Table/List view sortable by:
+
+Urgency
+
+Location
+
+Contact score
+
+Date added
+
+Functions:
+
+Add notes to each lead
+
+Add reminders or next steps
+
+Tag leads (e.g. "Hot", "Needs call", "LLC owned")
+
+Filter by auction dates
+
+Built with:
+
+Frontend: React.js + TailwindCSS
+
+Backend: FastAPI / Node.js / Flask
+
+DB: PostgreSQL / MongoDB
+
+6. 📨 Outreach Templates & Automation
+Goal: Help you reach out to leads via email or SMS quickly.
+
+Features:
+
+Email templates (pre-written)
+
+SMS message templates
+
+One-click “Send Intro Email”
+
+Auto-reminders if no reply in 3 days
+
+Optional Integrations:
+
+SendGrid for email
+
+Twilio for SMS
+
+Zapier or Make.com for advanced automations
+
+7. 📅 Optional: Calendar Booking
+Use Calendly or custom booking page for homeowners to schedule a call.
+
+Integrated into chatbot and outreach messages.
+
+🛠️ Deployment
+Stack Recommendation:
+
+Frontend: React + Tailwind
+
+Backend: Flask or FastAPI (Python preferred for AI/scraping tasks)
+
+Scraping: BeautifulSoup / Selenium
+
+AI: OpenAI API + LangChain
+
+DB: PostgreSQL or MongoDB
+
+Hosting: Replit, Render, or Vercel + Supabase
+
+Authentication (if needed): Auth0 or Supabase Auth
+
+✅ Project Summary
+Build an AI-enhanced real estate lead generation and outreach tool that:
+
+🕸 Scrapes public records for distressed homes
+
+🧠 Uses AI to enrich contacts and data
+
+🔥 Prioritizes leads based on urgency
+
+💬 Chats with sellers via AI assistant
+
+🗂 Manages leads like a mini CRM
+
+📩 Sends personalized outreach messages

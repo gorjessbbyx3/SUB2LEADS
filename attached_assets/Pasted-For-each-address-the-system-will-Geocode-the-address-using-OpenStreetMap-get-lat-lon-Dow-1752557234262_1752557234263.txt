@@ -1,0 +1,159 @@
+For each address, the system will:
+
+✅ Geocode the address using OpenStreetMap (get lat/lon)
+
+🗺️ Download a map image (from OSM – no API needed)
+
+🏠 Screenshot the Redfin or Zillow listing using Selenium
+
+💬 Auto-generate a short property summary using OpenAI (optional)
+
+📄 Generate a professional PDF binder with:
+
+Property address
+
+Screenshot of the listing
+
+Static map image
+
+Summary (if enabled)
+
+[Optional] Owner/contact info if available
+
+🛠️ Requirements
+Install dependencies:
+
+bash
+Copy
+Edit
+pip install selenium webdriver-manager pillow requests fpdf openai
+🧠 Main Script: generate_property_pdf.py
+python
+Copy
+Edit
+import os
+import requests
+import time
+from PIL import Image
+from fpdf import FPDF
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+from urllib.parse import quote
+import openai
+
+# Optional: set your OpenAI key
+# openai.api_key = "your_openai_api_key"
+
+def geocode_address(address):
+    url = f"https://nominatim.openstreetmap.org/search?q={quote(address)}&format=json"
+    response = requests.get(url, headers={"User-Agent": "BinderBot/1.0"})
+    if response.status_code == 200 and response.json():
+        location = response.json()[0]
+        return float(location['lat']), float(location['lon'])
+    return None, None
+
+def fetch_osm_static_map(lat, lon, filename="map.jpg", zoom=17, size="600x400"):
+    url = f"https://staticmap.openstreetmap.de/staticmap.php?center={lat},{lon}&zoom={zoom}&size={size}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        with open(filename, "wb") as f:
+            f.write(response.content)
+        print("🗺️ Map image saved.")
+    else:
+        print("❌ Map download failed.")
+
+def capture_redfin_screenshot(address, filename="listing.png", wait=6):
+    opts = Options()
+    opts.add_argument("--headless")
+    opts.add_argument("--window-size=1920,1080")
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=opts)
+
+    try:
+        driver.get("https://www.redfin.com")
+        time.sleep(2)
+        search_box = driver.find_element(By.ID, "search-box-input")
+        search_box.send_keys(address)
+        time.sleep(1)
+        search_box.submit()
+        time.sleep(wait)
+        driver.save_screenshot(filename)
+        print("🏠 Redfin screenshot saved.")
+    except Exception as e:
+        print("❌ Redfin error:", str(e))
+    finally:
+        driver.quit()
+
+def summarize_property(address):
+    prompt = f"Summarize the investment potential of this Honolulu property: {address}. Include reasons why it may be a good buy or sell."
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=150
+        )
+        return response['choices'][0]['message']['content']
+    except Exception as e:
+        print("⚠️ AI summary failed:", e)
+        return "Summary unavailable."
+
+def generate_pdf(address, map_file, screenshot_file, summary, output_pdf):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, f"Property Binder: {address}", ln=True)
+
+    if os.path.exists(map_file):
+        pdf.image(map_file, x=10, y=25, w=90)
+    if os.path.exists(screenshot_file):
+        pdf.image(screenshot_file, x=110, y=25, w=90)
+
+    pdf.set_xy(10, 130)
+    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 10, summary)
+
+    pdf.output(output_pdf)
+    print(f"📄 PDF created: {output_pdf}")
+
+# 🔁 Main runner
+def create_property_binder(address):
+    lat, lon = geocode_address(address)
+    if not lat:
+        print("❌ Could not geocode address.")
+        return
+
+    map_file = "map.jpg"
+    redfin_file = "listing.png"
+    pdf_file = f"binder_{address.replace(' ', '_')}.pdf"
+
+    fetch_osm_static_map(lat, lon, map_file)
+    capture_redfin_screenshot(address, redfin_file)
+    summary = summarize_property(address)
+    generate_pdf(address, map_file, redfin_file, summary, pdf_file)
+
+# 🔍 Try with an address
+create_property_binder("530 S King St, Honolulu, HI")
+✅ Output:
+A beautifully generated PDF file like:
+
+Copy
+Edit
+binder_530_S_King_St,_Honolulu,_HI.pdf
+Contains:
+
+Redfin listing screenshot
+
+Map of the location
+
+AI-generated summary
+
+🧠 Bonus Ideas You Can Add:
+Owner lookup (whitepages, public records)
+
+Include Redfin/Zillow scraped price & beds/baths
+
+Add QR code to Google Maps or contact form
+
+Batch process many addresses
+
