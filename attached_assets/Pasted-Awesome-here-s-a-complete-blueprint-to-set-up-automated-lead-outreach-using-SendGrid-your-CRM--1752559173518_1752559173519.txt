@@ -1,0 +1,162 @@
+Awesome — here's a complete blueprint to set up automated lead outreach using SendGrid + your CRM + AI + property PDF attachments — all within your Sub2Leads application on Replit.
+
+✅ GOAL:
+When a lead is scraped (or added manually), your system should:
+
+🔍 Gather property & owner details.
+
+🧠 Use AI to personalize an email pitch.
+
+📎 Attach a property presentation PDF (binder).
+
+📤 Send it via SendGrid.
+
+🧾 Record status in your CRM (e.g., “Email sent”, “PDF generated”).
+
+🛠️ STEP-BY-STEP BUILD PLAN
+🧩 1. Set Up Email Utility (SendGrid)
+File: utils/sendEmail.js
+js
+Copy
+Edit
+import sgMail from '@sendgrid/mail';
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+export async function sendEmail({ to, subject, html, attachmentBase64, attachmentName }) {
+  const msg = {
+    to,
+    from: 'your_verified_sender@example.com',
+    subject,
+    html,
+    attachments: attachmentBase64
+      ? [{
+          content: attachmentBase64,
+          filename: attachmentName || 'property-details.pdf',
+          type: 'application/pdf',
+          disposition: 'attachment',
+        }]
+      : [],
+  };
+
+  await sgMail.send(msg);
+}
+📄 2. Generate PDF Binder
+You can use Puppeteer (for browser-based PDF generation).
+
+Install:
+bash
+Copy
+Edit
+npm install puppeteer
+File: utils/generatePdf.js
+js
+Copy
+Edit
+import puppeteer from 'puppeteer';
+
+export async function generatePropertyPdf(property) {
+  const html = `
+    <html><body>
+      <h1>Property Binder: ${property.address}</h1>
+      <p>Owner: ${property.ownerName}</p>
+      <p>Status: ${property.status}</p>
+      <img src="${property.imageUrl}" width="300"/>
+    </body></html>
+  `;
+
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+  await page.setContent(html);
+  const buffer = await page.pdf({ format: 'A4' });
+  await browser.close();
+
+  return buffer.toString('base64');
+}
+🧠 3. AI Email Writer
+File: utils/writeEmail.js
+js
+Copy
+Edit
+import OpenAI from 'openai';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+export async function writeEmailIntro(property) {
+  const prompt = `
+Write a friendly, short email to the owner of a property at ${property.address}. 
+The home is at risk of foreclosure. I want to help them by connecting them with a buyer or creative financing investor. 
+Sign off as Sub2Leads.
+
+Include:
+- A compassionate tone
+- Mention that we can close quickly
+- Invitation to book a call
+`;
+
+  const res = await openai.chat.completions.create({
+    messages: [{ role: "user", content: prompt }],
+    model: "gpt-4",
+  });
+
+  return res.choices[0].message.content;
+}
+📬 4. Send Full Email (PDF + AI-generated content)
+API Route: pages/api/sendLeadEmail.js
+js
+Copy
+Edit
+import { sendEmail } from '../../utils/sendEmail';
+import { writeEmailIntro } from '../../utils/writeEmail';
+import { generatePropertyPdf } from '../../utils/generatePdf';
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+
+  const property = req.body.property; // { email, address, ownerName, status, imageUrl }
+
+  try {
+    const html = await writeEmailIntro(property);
+    const pdf = await generatePropertyPdf(property);
+
+    await sendEmail({
+      to: property.email,
+      subject: `About your property at ${property.address}`,
+      html,
+      attachmentBase64: pdf,
+      attachmentName: `Property_${property.address.replace(/ /g, "_")}.pdf`
+    });
+
+    // Log email status to CRM (pseudo code)
+    // await db.updateLeadStatus(property.id, "Email Sent");
+
+    res.status(200).json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to send lead email' });
+  }
+}
+🧠 5. Trigger It from CRM UI
+Inside your dashboard component (frontend):
+ts
+Copy
+Edit
+async function handleSendEmail(lead) {
+  const res = await fetch('/api/sendLeadEmail', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ property: lead }),
+  });
+
+  const data = await res.json();
+  if (data.success) {
+    alert('✅ Email sent!');
+  } else {
+    alert('❌ Failed to send email.');
+  }
+}
+Add this to a button:
+
+jsx
+Copy
+Edit
+<Button onClick={() => handleSendEmail(lead)}>Send AI Email + Binder</Button>

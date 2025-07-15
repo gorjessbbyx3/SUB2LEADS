@@ -1,0 +1,41 @@
+🧾 Sub2Leads Feature Completion Checklist
+Goal of Sub2Leads: Scrape distressed property data (e.g., foreclosure, tax delinquent), enrich it with AI, and allow investors to reach out to homeowners using CRM + outreach tools.
+
+🏗️ CORE FEATURES (INCOMPLETE / NEED WORK)
+Feature	Status	What Needs to Be Done
+🔍 Property Scraping (e.g., Honolulu Star-Advertiser)	❌ Not implemented	Scraper needs to extract addresses, owner names, property type, lien/tax status.
+🏡 Property Listing Cards	⚠️ UI present	Real data not fully populated from backend or scraper.
+📂 Property Details Page	❌ Missing	Each property should have a detailed view with history, notes, attachments, and lead timeline.
+📋 Lead Intake Form / Manual Entry	⚠️ Partial	UI may exist, but no clear backend connection or validation.
+🧠 AI Email Generator (OpenAI)	❌ Not wired	Needs OpenAI prompt logic + route to generate personalized emails based on property details.
+📤 Email Sender (SendGrid)	❌ Not connected	Send button is present but lacks full backend route to send real emails.
+📎 PDF Property Binder Generator	❌ Missing	Needs Puppeteer or @react-pdf/renderer to generate and attach property overview PDF.
+🧾 Lead Timeline / CRM Log	❌ Missing	There’s no tracking of past actions (e.g., email sent, follow-up scheduled, etc.) on each lead.
+📬 Follow-Up Automation	❌ Missing	Email sequences or scheduled follow-up not implemented.
+🗂 Status Tagging	❌ Missing	Leads should be tagged as "New", "Contacted", "In Negotiation", "Sold", etc.
+📅 Follow-Up Scheduler (Calendar Link)	❌ Not implemented	Include links to Calendly or in-app scheduling in email messages.
+🔍 Filter/Search Leads	⚠️ UI present	Doesn’t work dynamically — filter/search logic needs to connect with actual lead data.
+🧠 Contact Info Enrichment (AI or Web Lookup)	❌ Missing	No logic to search social media / email / phone from scraped name + address.
+🛠️ AI Assistant / Chatbot	❌ Placeholder only	No working chatbot or assistant yet for helping user or talking to seller leads.
+
+🧩 UI/UX & FRONTEND ISSUES
+Area	Issue
+Dashboard Layout	Some sections are placeholder cards, not pulling live data.
+Buttons	Many buttons (e.g. "Send Email", "View PDF", "Chat") have no backend actions linked.
+Form Validation	Lacks proper error handling and field validation in inputs.
+Toast/Notifications	Should show success/failure feedback when actions are triggered.
+Dark Mode / Responsive UI	May not be fully responsive for mobile/tablet users.
+Loading Spinners	Missing on network actions like sending emails, generating AI content, or scraping.
+
+🔐 SECURITY & BACKEND ISSUES
+Feature	Issue
+API Secrets	Should be added via Replit secrets (e.g., SENDGRID_API_KEY, OPENAI_API_KEY) — not hardcoded.
+Authentication / Access Control	No user login or session logic present — means anyone can use the system without restriction.
+Rate Limiting / Abuse Prevention	No protection for repeated email scraping, AI abuse, etc.
+
+🔧 SYSTEM SETUP & DEPLOYMENT
+Task	Status
+✅ Setup Replit Secrets (SENDGRID_API_KEY, OPENAI_API_KEY)	Needed
+🚀 Deployment to production (Replit, Vercel, etc.)	Not yet done
+🧪 Testing (unit/integration)	No automated test coverage yet
+📦 Database Integration (for leads)	Optional but recommended: Supabase, Firebase, or Replit DB
