@@ -26,7 +26,15 @@ class AIService {
     }
   }
 
-  async processChat(message: string, context?: { contextId?: string; contextType?: string }) {
+  async processChat(message: string, context?: { contextId?: string; contextType?: string }, userId?: string) {
+    // Input validation
+    if (!message || message.trim().length === 0) {
+      return {
+        response: 'Please provide a message to process.',
+        suggestions: ['Ask about property analysis', 'Get help with lead management', 'Request market insights']
+      };
+    }
+
     if (!this.openai) {
       return { 
         response: this.getFallbackResponse('chat'),
@@ -35,18 +43,26 @@ class AIService {
     }
 
     try {
-      // Build context from the database if provided
+      // Validate context exists in database if provided
       let contextData = '';
       if (context?.contextType === 'property' && context.contextId) {
         const property = await storage.getProperty(parseInt(context.contextId));
-        if (property) {
-          contextData = `\nProperty Context: ${property.address}, Status: ${property.status}, Priority: ${property.priority}`;
+        if (!property) {
+          return {
+            response: 'The referenced property could not be found. Please check the property ID.',
+            suggestions: ['Search for properties', 'View property list', 'Create new property']
+          };
         }
+        contextData = `\nProperty Context: ${property.address}, Status: ${property.status}, Priority: ${property.priority}`;
       } else if (context?.contextType === 'lead' && context.contextId) {
         const lead = await storage.getLead(parseInt(context.contextId));
-        if (lead) {
-          contextData = `\nLead Context: Status: ${lead.status}, Priority: ${lead.priority}`;
+        if (!lead) {
+          return {
+            response: 'The referenced lead could not be found. Please check the lead ID.',
+            suggestions: ['Search for leads', 'View lead pipeline', 'Create new lead']
+          };
         }
+        contextData = `\nLead Context: Status: ${lead.status}, Priority: ${lead.priority}`;
       }
 
       const systemPrompt = `You are an AI assistant for a Hawaii real estate investment CRM focused on distressed properties. You help with:
@@ -58,35 +74,53 @@ class AIService {
       Keep responses concise and actionable.${contextData}`;
 
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-4o",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: message }
         ],
         max_tokens: 500,
         temperature: 0.7,
+        timeout: 30000, // 30 second timeout
       });
 
       const response = completion.choices[0].message.content || 'Sorry, I could not generate a response.';
 
-      // Store AI interaction
-      await storage.createAIInteraction({
-        userId: 'system', // Would be actual user ID in real implementation
-        message,
-        response,
-        contextType: context?.contextType || null,
-        contextId: context?.contextId || null,
-      });
+      // Only store interaction if userId is provided (don't store duplicate in routes)
+      if (userId) {
+        await storage.createAIInteraction({
+          userId,
+          type: 'chat',
+          prompt: message,
+          response,
+          contextType: context?.contextType || null,
+          contextId: context?.contextId || null,
+        });
+      }
 
       return {
         response,
         suggestions: this.generateSuggestions(message, context),
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('OpenAI API error:', error);
+      
+      // Handle specific error types
+      if (error.code === 'rate_limit_exceeded') {
+        return {
+          response: 'I\'m currently experiencing high demand. Please try again in a moment.',
+          suggestions: ['Wait a moment and try again', 'Try a shorter message']
+        };
+      } else if (error.code === 'insufficient_quota') {
+        return {
+          response: 'The AI service quota has been exceeded. Please contact your administrator.',
+          suggestions: ['Contact administrator', 'Try again later']
+        };
+      }
+      
       return {
         response: 'I apologize, but I encountered an error processing your request. Please try again.',
-        suggestions: ['Try rephrasing your question', 'Check if the OpenAI service is available']
+        suggestions: ['Try rephrasing your question', 'Check if the AI service is available']
       };
     }
   }
@@ -115,10 +149,11 @@ Create an email that:
 Format: Include "Subject: [subject line]" at the top, then the email body.`;
 
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 400,
         temperature: 0.7,
+        timeout: 30000,
       });
 
       return completion.choices[0].message.content || this.getFallbackResponse('email');
@@ -152,10 +187,11 @@ Provide a concise investment analysis covering:
 Keep it under 150 words.`;
 
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 300,
-        temperature: 0.5,
+        temperature: 0.7,
+        timeout: 30000,
       });
 
       return completion.choices[0].message.content || this.getFallbackResponse('summary');
@@ -187,10 +223,11 @@ Requirements:
 - Clear call to action`;
 
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         max_tokens: templateType === 'email' ? 300 : 100,
         temperature: 0.7,
+        timeout: 30000,
       });
 
       return completion.choices[0].message.content || '';
@@ -219,10 +256,11 @@ Consider:
 Keep it under 200 words and actionable.`;
 
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 350,
-        temperature: 0.6,
+        temperature: 0.7,
+        timeout: 30000,
       });
 
       return completion.choices[0].message.content || 'Market analysis unavailable at this time.';

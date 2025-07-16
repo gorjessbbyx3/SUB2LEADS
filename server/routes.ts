@@ -210,22 +210,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { message, contextId, contextType } = req.body;
 
-      const result = await aiService.processChat(message, { contextId, contextType });
+      // Input validation
+      if (!message || typeof message !== 'string' || message.trim().length === 0) {
+        return res.status(400).json({ 
+          message: "Message is required and must be a non-empty string" 
+        });
+      }
 
-      // Save interaction
-      await storage.createAIInteraction({
-        userId,
-        type: 'chat',
-        prompt: message,
-        response: result.response,
-        contextId,
-        contextType,
-      });
+      if (contextId && !Number.isInteger(parseInt(contextId))) {
+        return res.status(400).json({ 
+          message: "Context ID must be a valid integer" 
+        });
+      }
+
+      if (contextType && !['property', 'lead', 'contact'].includes(contextType)) {
+        return res.status(400).json({ 
+          message: "Context type must be one of: property, lead, contact" 
+        });
+      }
+
+      // Pass userId to processChat to handle storage there, avoiding duplication
+      const result = await aiService.processChat(
+        message.trim(), 
+        { contextId, contextType }, 
+        userId
+      );
 
       res.json(result);
     } catch (error) {
       console.error("Error processing chat:", error);
-      res.status(500).json({ message: "Failed to process chat" });
+      res.status(500).json({ 
+        message: "Failed to process chat request",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
@@ -234,15 +251,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { propertyId } = req.body;
 
-      const property = await storage.getProperty(propertyId);
+      if (!propertyId || !Number.isInteger(parseInt(propertyId))) {
+        return res.status(400).json({ message: "Valid property ID is required" });
+      }
+
+      const property = await storage.getProperty(parseInt(propertyId));
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
+      }
+
+      // Check if summary already exists and is recent (within 24 hours)
+      if (property.aiSummary && property.updatedAt) {
+        const lastUpdate = new Date(property.updatedAt);
+        const hoursSinceUpdate = (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60);
+        
+        if (hoursSinceUpdate < 24) {
+          return res.json({ summary: property.aiSummary, cached: true });
+        }
       }
 
       const summary = await aiService.generatePropertySummary(property);
 
       // Update property with summary
-      await storage.updateProperty(propertyId, { aiSummary: summary });
+      await storage.updateProperty(parseInt(propertyId), { aiSummary: summary });
 
       // Save interaction
       await storage.createAIInteraction({
@@ -254,10 +285,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contextType: 'property',
       });
 
-      res.json({ summary });
+      res.json({ summary, cached: false });
     } catch (error) {
       console.error("Error generating property summary:", error);
-      res.status(500).json({ message: "Failed to generate property summary" });
+      res.status(500).json({ 
+        message: "Failed to generate property summary",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
