@@ -237,7 +237,7 @@ export async function registerRoutes(app: Express) {
     try {
       const propertyId = parseInt(req.params.id);
       const property = await storage.getProperty(propertyId);
-      
+
       if (!property) {
         return res.status(404).json({ error: "Property not found" });
       }
@@ -264,14 +264,14 @@ export async function registerRoutes(app: Express) {
     try {
       const propertyId = parseInt(req.params.id);
       const property = await storage.getProperty(propertyId);
-      
+
       if (!property) {
         return res.status(404).json({ error: "Property not found" });
       }
 
       const user = req.user as any;
       const investors = await storage.getInvestors(user?.claims?.sub, { limit: 100 });
-      
+
       const analysis = await grokService.analyzeInvestorMatch(property, investors);
       res.json({ analysis });
     } catch (error) {
@@ -285,7 +285,7 @@ export async function registerRoutes(app: Express) {
       const user = req.user as any;
       const properties = await storage.getProperties({ limit: 1000 });
       const leads = await storage.getLeads({ userId: user?.claims?.sub, limit: 1000 });
-      
+
       const analysis = await grokService.analyzeDealFlow(properties, leads);
       res.json({ analysis });
     } catch (error) {
@@ -421,7 +421,7 @@ export async function registerRoutes(app: Express) {
   app.post("/api/scraping/start", isAuthenticated, rateLimit(300000, 3), async (req, res) => {
     try {
       const { source } = req.body;
-      
+
       // Trigger Inngest workflow for comprehensive scraping
       await inngest.send({
         name: "property/scrape.scheduled",
@@ -503,7 +503,7 @@ export async function registerRoutes(app: Express) {
   app.post('/api/wholesaler-listings/import', isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      
+
       // Mock wholesale listings data - replace with actual API calls
       const wholesaleListings = [
         {
@@ -621,7 +621,7 @@ export async function registerRoutes(app: Express) {
   app.get('/api/wholesaler-listings', isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      
+
       // Get all leads with wholesale properties
       const allLeads = await storage.getLeads({ 
         userId: user?.claims?.sub,
@@ -634,10 +634,10 @@ export async function registerRoutes(app: Express) {
         const property = await storage.getProperty(lead.propertyId);
         if (property && property.status === 'wholesale') {
           const contact = await storage.getContact(lead.contactId);
-          
+
           // Get potential investor matches for this lead
           const matches = await matchingService.findMatchesForLead(lead.id);
-          
+
           wholesaleLeads.push({
             id: lead.id,
             propertyId: property.id,
@@ -680,12 +680,12 @@ export async function registerRoutes(app: Express) {
   app.get('/api/wholesaler-listings/stats', isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      
+
       // Get all wholesale leads
       const allLeads = await storage.getLeads({ userId: user?.claims?.sub, limit: 100 });
       const wholesaleLeads = [];
       let totalMatches = 0;
-      
+
       for (const lead of allLeads) {
         const property = await storage.getProperty(lead.propertyId);
         if (property && property.status === 'wholesale') {
@@ -719,7 +719,7 @@ export async function registerRoutes(app: Express) {
     try {
       const leadId = parseInt(req.params.leadId);
       const matches = await matchingService.findMatchesForLead(leadId);
-      
+
       res.json({
         leadId,
         matches: matches.map(match => ({
@@ -830,7 +830,7 @@ export async function registerRoutes(app: Express) {
 
           // Determine strategies
           const strategies = [];
-          if (investorData.strategy?.toLowerCase().includes('buy & hold')) {
+          if (investorData.strategy?.toLowerCase().includes('buy &hold')) {
             strategies.push('Buy & Hold');
           } else if (investorData.strategy?.toLowerCase().includes('fix & flip')) {
             strategies.push('Fix & Flip');
@@ -1038,6 +1038,12 @@ export async function registerRoutes(app: Express) {
 
   // Start scheduler
   schedulerService.start();
+  import { serve } from 'inngest/express';
+import { inngest } from './inngest';
+import { helloWorld } from './inngest/functions';
+
+  // Add the Inngest serve handler
+  app.use("/api/inngest", serve({ client: inngest, functions: [helloWorld] }));
 
   return server;
 }
