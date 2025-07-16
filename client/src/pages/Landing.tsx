@@ -3,14 +3,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Home, TrendingUp, Users, Zap } from "lucide-react";
 
 export default function Landing() {
+  console.log('Landing page is rendering');
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white" style={{backgroundColor: '#f8fafc', minHeight: '100vh', padding: '20px'}}>
+      {/* Debugging element */}
+      <div style={{color: 'red', fontSize: '24px', fontWeight: 'bold', marginBottom: '20px'}}>
+        🎯 Landing Page Loaded Successfully!
+      </div>
       <div className="container mx-auto px-4 py-16">
         {/* Header */}
         <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold text-gray-900 mb-6">
+          <h1 className="text-5xl font-bold text-gray-900 mb-6" style={{color: '#1f2937', fontSize: '3rem', fontWeight: 'bold'}}>
             Hawaii Real Estate
-            <span className="text-blue-600"> Lead Generation CRM</span>
+            <span className="text-blue-600" style={{color: '#2563eb'}}> Lead Generation CRM</span>
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
             Identify distressed properties, enrich contact data with AI, and convert leads into deals. 
