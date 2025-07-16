@@ -631,6 +631,32 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
+
+  async deleteAIInteraction(id: number): Promise<void> {
+    await db.delete(aiInteractions).where(eq(aiInteractions.id, id));
+  }
+
+  async getOutreachCampaigns() {
+    // Return mock campaigns for now - replace with real DB query when outreach table is created
+    return [
+      {
+        id: 1,
+        name: "Foreclosure Outreach",
+        template: "Hi {ownerName}, I noticed your property at {address} may be going through foreclosure..."
+      },
+      {
+        id: 2, 
+        name: "Cash Offer Template",
+        template: "Hello {ownerName}, I'm interested in purchasing your property at {address}..."
+      }
+    ];
+  }
+
+  async createOutreachHistory(data: any) {
+    // Mock implementation - replace with real DB insert when outreach_history table is created
+    console.log('Outreach history created:', data);
+    return { id: Date.now(), ...data };
+  }
 }
 
 export const storage = new DatabaseStorage();

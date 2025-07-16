@@ -114,6 +114,8 @@ function AppContent() {
               <Route path="/leads" component={LeadManagement} />
               <Route path="/investors" component={Investors} />
               <Route path="/matching" component={Matching} />
+              <Route path="/outreach" component={Outreach} />
+              <Route path="/data-scraper" component={DataScraper} />
               <Route path="/reports" component={Reports} />
               <Route component={NotFound} />
             </Switch>

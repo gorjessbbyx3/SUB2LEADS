@@ -222,6 +222,34 @@ export async function registerRoutes(app: Express) {
     }
   });
 
+  // Outreach Settings routes
+  app.get("/api/outreach/settings", isAuthenticated, async (req, res) => {
+    try {
+      // Return default settings for now
+      const defaultSettings = {
+        fromEmail: '',
+        fromName: '',
+        subject: 'Investment Opportunity - {address}',
+        template: 'Hi {ownerName},\n\nI hope this message finds you well. I noticed your property at {address} and wanted to reach out regarding a potential investment opportunity.\n\nBest regards',
+        enabled: false
+      };
+      res.json(defaultSettings);
+    } catch (error) {
+      console.error("Error fetching outreach settings:", error);
+      res.status(500).json({ error: "Failed to fetch outreach settings" });
+    }
+  });
+
+  app.post("/api/outreach/settings", isAuthenticated, async (req, res) => {
+    try {
+      // For now, just return success
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating outreach settings:", error);
+      res.status(500).json({ error: "Failed to update outreach settings" });
+    }
+  });
+
   // Matching routes
   app.get("/api/matching/all", isAuthenticated, async (req, res) => {
     try {

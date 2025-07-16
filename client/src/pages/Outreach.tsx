@@ -1,271 +1,174 @@
-
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Mail, Send, Users, TrendingUp } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
-
-interface OutreachCampaign {
-  id: number;
-  name: string;
-  type: string;
-  subject?: string;
-  template: string;
-  isActive: boolean;
-  createdAt: string;
-}
-
-interface Lead {
-  id: number;
-  property: {
-    address: string;
-  };
-  contact: {
-    name: string;
-    email?: string;
-  };
-  status: string;
-  priority: string;
-}
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/hooks/use-toast';
+import { Mail, Settings, Send, Users } from 'lucide-react';
+import { apiRequest } from '@/lib/authUtils';
+import { Sidebar } from '@/components/Sidebar';
+import { Header } from '@/components/Header';
 
 export default function Outreach() {
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
-  const [customMessage, setCustomMessage] = useState("");
-  const [selectedLeads, setSelectedLeads] = useState<number[]>([]);
+  const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isEnabled, setIsEnabled] = useState(true);
 
-  const { data: campaigns = [] } = useQuery({
-    queryKey: ['/api/outreach/campaigns'],
-    queryFn: async () => {
-      const res = await apiRequest('GET', '/api/outreach/campaigns');
-      return res.json();
-    },
+  const { data: settings = {} } = useQuery({
+    queryKey: ['outreach-settings'],
+    queryFn: () => apiRequest('GET', '/api/outreach/settings'),
   });
 
-  const { data: leads = [] } = useQuery({
-    queryKey: ['/api/leads'],
-    queryFn: async () => {
-      const res = await apiRequest('GET', '/api/leads');
-      return res.json();
-    },
-  });
-
-  const sendEmailMutation = useMutation({
-    mutationFn: async ({ leadId, templateId, message }: { leadId: number; templateId: string; message: string }) => {
-      const res = await apiRequest('POST', '/api/outreach/email', {
-        leadId,
-        templateId,
-        customMessage: message,
-      });
-      return res.json();
-    },
+  const updateSettingsMutation = useMutation({
+    mutationFn: (data: any) => apiRequest('POST', '/api/outreach/settings', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
-      setSelectedLeads([]);
-      setCustomMessage("");
+      toast({
+        title: 'Settings updated',
+        description: 'Outreach settings have been saved successfully.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['outreach-settings'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update settings',
+        variant: 'destructive',
+      });
     },
   });
 
-  const handleSendEmails = () => {
-    selectedLeads.forEach(leadId => {
-      sendEmailMutation.mutate({
-        leadId,
-        templateId: selectedTemplate,
-        message: customMessage,
-      });
-    });
-  };
-
-  const toggleLeadSelection = (leadId: number) => {
-    setSelectedLeads(prev => 
-      prev.includes(leadId) 
-        ? prev.filter(id => id !== leadId)
-        : [...prev, leadId]
-    );
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const data = Object.fromEntries(formData.entries());
+    data.enabled = isEnabled;
+    updateSettingsMutation.mutate(data);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Outreach Management</h1>
-        <Button>
-          <Mail className="mr-2 h-4 w-4" />
-          New Campaign
-        </Button>
-      </div>
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Campaigns</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{campaigns.filter((c: OutreachCampaign) => c.isActive).length}</div>
-          </CardContent>
-        </Card>
+      <main className="flex-1 ml-64 overflow-y-auto">
+        <Header
+          title="Outreach Settings"
+          subtitle="Configure automated email campaigns and outreach settings"
+        />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{leads.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Selected Leads</CardTitle>
-            <Send className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{selectedLeads.length}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="campaigns" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="campaigns">Email Campaigns</TabsTrigger>
-          <TabsTrigger value="send">Send Emails</TabsTrigger>
-          <TabsTrigger value="history">Outreach History</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="campaigns" className="space-y-4">
+        <div className="p-6 space-y-6">
+          {/* Email Configuration */}
           <Card>
             <CardHeader>
-              <CardTitle>Email Templates</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Email Configuration
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {campaigns.map((campaign: OutreachCampaign) => (
-                <div key={campaign.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold">{campaign.name}</h3>
-                      <Badge variant={campaign.isActive ? "default" : "secondary"}>
-                        {campaign.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                      <Badge variant="outline">{campaign.type}</Badge>
-                    </div>
-                    {campaign.subject && (
-                      <p className="text-sm text-muted-foreground mb-2">Subject: {campaign.subject}</p>
-                    )}
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {campaign.template.substring(0, 100)}...
-                    </p>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="fromEmail">From Email</Label>
+                    <Input
+                      id="fromEmail"
+                      name="fromEmail"
+                      type="email"
+                      defaultValue={settings.fromEmail || ''}
+                      placeholder="your@email.com"
+                    />
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">Edit</Button>
-                    <Button variant="outline" size="sm">Preview</Button>
+                  <div>
+                    <Label htmlFor="fromName">From Name</Label>
+                    <Input
+                      id="fromName"
+                      name="fromName"
+                      defaultValue={settings.fromName || ''}
+                      placeholder="Your Name"
+                    />
                   </div>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="send" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Select Template & Customize</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select email template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {campaigns
-                      .filter((c: OutreachCampaign) => c.isActive)
-                      .map((campaign: OutreachCampaign) => (
-                        <SelectItem key={campaign.id} value={campaign.id.toString()}>
-                          {campaign.name}
-                        </SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
 
                 <div>
-                  <label className="text-sm font-medium">Custom Message (Optional)</label>
-                  <Textarea
-                    placeholder="Add a personal touch to your message..."
-                    value={customMessage}
-                    onChange={(e) => setCustomMessage(e.target.value)}
-                    className="mt-1"
+                  <Label htmlFor="subject">Default Subject</Label>
+                  <Input
+                    id="subject"
+                    name="subject"
+                    defaultValue={settings.subject || ''}
+                    placeholder="Investment Opportunity - {address}"
                   />
                 </div>
 
-                <Button 
-                  onClick={handleSendEmails}
-                  disabled={!selectedTemplate || selectedLeads.length === 0 || sendEmailMutation.isPending}
-                  className="w-full"
-                >
-                  <Send className="mr-2 h-4 w-4" />
-                  Send to {selectedLeads.length} Lead{selectedLeads.length !== 1 ? 's' : ''}
+                <div>
+                  <Label htmlFor="template">Email Template</Label>
+                  <Textarea
+                    id="template"
+                    name="template"
+                    rows={8}
+                    defaultValue={settings.template || ''}
+                    placeholder="Hi {ownerName},&#10;&#10;I hope this message finds you well. I noticed your property at {address} and wanted to reach out regarding a potential investment opportunity..."
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="enabled"
+                    checked={isEnabled}
+                    onCheckedChange={setIsEnabled}
+                  />
+                  <Label htmlFor="enabled">Enable automatic outreach</Label>
+                </div>
+
+                <Button type="submit" disabled={updateSettingsMutation.isPending}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  {updateSettingsMutation.isPending ? 'Saving...' : 'Save Settings'}
                 </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Campaign Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">Emails Sent</p>
+                    <p className="text-2xl font-bold text-gray-900">247</p>
+                  </div>
+                  <Send className="h-8 w-8 text-blue-500" />
+                </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Select Leads ({selectedLeads.length} selected)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {leads.map((lead: Lead) => (
-                    <div 
-                      key={lead.id}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                        selectedLeads.includes(lead.id) 
-                          ? 'border-primary bg-primary/5' 
-                          : 'hover:bg-muted/50'
-                      }`}
-                      onClick={() => toggleLeadSelection(lead.id)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{lead.contact.name}</p>
-                          <p className="text-sm text-muted-foreground">{lead.property.address}</p>
-                          {lead.contact.email && (
-                            <p className="text-xs text-muted-foreground">{lead.contact.email}</p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <Badge variant="outline" className="mb-1">
-                            {lead.status.replace('_', ' ')}
-                          </Badge>
-                          <p className="text-xs text-muted-foreground">{lead.priority}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">Responses</p>
+                    <p className="text-2xl font-bold text-green-600">23</p>
+                  </div>
+                  <Mail className="h-8 w-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">Response Rate</p>
+                    <p className="text-2xl font-bold text-blue-600">9.3%</p>
+                  </div>
+                  <Users className="h-8 w-8 text-blue-500" />
                 </div>
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-
-        <TabsContent value="history" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Outreach History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Outreach history will be displayed here.</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </main>
     </div>
   );
 }

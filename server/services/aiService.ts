@@ -70,7 +70,7 @@ class AIService {
       - Lead management and follow-up strategies
       - Market insights for Hawaii real estate
       - Contact outreach recommendations
-      
+
       Keep responses concise and actionable.${contextData}`;
 
       const completion = await this.openai.chat.completions.create({
@@ -104,7 +104,7 @@ class AIService {
       };
     } catch (error: any) {
       console.error('OpenAI API error:', error);
-      
+
       // Handle specific error types
       if (error.code === 'rate_limit_exceeded') {
         return {
@@ -117,7 +117,7 @@ class AIService {
           suggestions: ['Contact administrator', 'Try again later']
         };
       }
-      
+
       return {
         response: 'I apologize, but I encountered an error processing your request. Please try again.',
         suggestions: ['Try rephrasing your question', 'Check if the AI service is available']
@@ -323,10 +323,24 @@ Best regards`
 
   async getEmailTemplates() {
     return [
-      { id: 'foreclosure', name: 'Foreclosure Outreach', description: 'For properties facing foreclosure' },
-      { id: 'tax_lien', name: 'Tax Lien Notice', description: 'For tax delinquent properties' },
-      { id: 'general', name: 'General Inquiry', description: 'General property inquiry' },
-      { id: 'follow_up', name: 'Follow Up', description: 'Follow up with previous contacts' },
+      {
+        id: "foreclosure",
+        name: "Foreclosure Outreach",
+        subject: "We Can Help With Your Property Situation",
+        template: "Hi {ownerName}, I noticed your property at {address} may be going through foreclosure. We specialize in helping homeowners in difficult situations. Would you be open to discussing options?"
+      },
+      {
+        id: "cash_offer", 
+        name: "Cash Offer Template",
+        subject: "Cash Offer for {address}",
+        template: "Hello {ownerName}, I'm interested in purchasing your property at {address} with a cash offer. No repairs needed, quick closing. Are you interested in hearing more?"
+      },
+      {
+        id: "pre_foreclosure",
+        name: "Pre-Foreclosure Help",
+        subject: "Stop Foreclosure - We Can Help",
+        template: "Hi {ownerName}, I understand you may be facing foreclosure on {address}. We help homeowners avoid foreclosure through quick cash purchases. Can we schedule a brief call?"
+      }
     ];
   }
 }
