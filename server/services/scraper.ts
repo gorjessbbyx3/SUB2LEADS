@@ -36,11 +36,15 @@ class ScraperService {
         case 'hawaii_judiciary':
           properties = await this.scrapeHawaiiJudiciary();
           break;
+        case 'ehawaii_mfdr':
+          properties = await this.scrapeEHawaiiMFDR();
+          break;
         case 'all':
           const starProps = await this.scrapeStarAdvertiser();
           const taxProps = await this.scrapeHonoluluTax();
           const judiciaryProps = await this.scrapeHawaiiJudiciary();
-          properties = [...starProps, ...taxProps, ...judiciaryProps];
+          const mfdrProps = await this.scrapeEHawaiiMFDR();
+          properties = [...starProps, ...taxProps, ...judiciaryProps, ...mfdrProps];
           break;
         default:
           throw new Error(`Unknown scraping source: ${source}`);
@@ -210,6 +214,25 @@ class ScraperService {
     }
   }
 
+  private async scrapeEHawaiiMFDR(): Promise<any[]> {
+    console.log('Scraping eHawaii MFDR foreclosure notices...');
+
+    try {
+      const properties = await this.runPythonScraper('ehawaii_mfdr_scraper.py');
+      return properties.map(prop => ({
+        ...prop,
+        priority: this.calculatePriority(prop),
+        estimatedValue: prop.estimated_value || this.estimatePropertyValue(prop.address),
+        status: prop.status || 'mfdr_notice',
+        source: 'ehawaii_mfdr',
+      }));
+    } catch (error) {
+      console.error('eHawaii MFDR scraping failed:', error);
+      // Return empty array instead of mock data to maintain data integrity
+      return [];
+    }
+  }
+
   private calculatePriority(property: any): string {
     const amountOwed = property.amount_owed || property.amountOwed || 0;
     const estimatedValue = property.estimated_value || property.estimatedValue || 0;
@@ -356,6 +379,13 @@ class ScraperService {
       results.push({ source: 'hawaii_judiciary', ...judiciaryResult });
     } catch (error: any) {
       results.push({ source: 'hawaii_judiciary', success: false, message: error.message, propertiesFound: 0 });
+    }
+
+    try {
+      const mfdrResult = await this.startScraping('ehawaii_mfdr');
+      results.push({ source: 'ehawaii_mfdr', ...mfdrResult });
+    } catch (error: any) {
+      results.push({ source: 'ehawaii_mfdr', success: false, message: error.message, propertiesFound: 0 });
     }
 
     const totalProperties = results.reduce((sum, result) => sum + (result.propertiesFound || 0), 0);
