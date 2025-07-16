@@ -222,6 +222,68 @@ export async function registerRoutes(app: Express) {
     }
   });
 
+  // Matching routes
+  app.get("/api/matching/all", isAuthenticated, async (req, res) => {
+    try {
+      const matches = await matchingService.getAllMatches();
+      res.json(matches);
+    } catch (error) {
+      console.error("Error fetching matches:", error);
+      res.status(500).json({ error: "Failed to fetch matches" });
+    }
+  });
+
+  app.get("/api/matching/stats", isAuthenticated, async (req, res) => {
+    try {
+      const stats = await matchingService.getMatchingStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching matching stats:", error);
+      res.status(500).json({ error: "Failed to fetch matching stats" });
+    }
+  });
+
+  // Outreach routes
+  app.get("/api/outreach/campaigns", isAuthenticated, async (req, res) => {
+    try {
+      const campaigns = await storage.getOutreachCampaigns();
+      res.json(campaigns);
+    } catch (error) {
+      console.error("Error fetching campaigns:", error);
+      res.status(500).json({ error: "Failed to fetch campaigns" });
+    }
+  });
+
+  app.post("/api/outreach/email", isAuthenticated, async (req, res) => {
+    try {
+      const { leadId, templateId, customMessage } = req.body;
+      
+      // Get the lead and template
+      const lead = await storage.getLead(leadId);
+      const campaigns = await storage.getOutreachCampaigns();
+      const template = campaigns.find(c => c.id === parseInt(templateId));
+      
+      if (!lead || !template) {
+        return res.status(404).json({ error: "Lead or template not found" });
+      }
+
+      // Create outreach history record
+      await storage.createOutreachHistory({
+        leadId,
+        campaignId: parseInt(templateId),
+        type: 'email',
+        status: 'sent',
+        content: customMessage || template.template,
+        sentAt: new Date(),
+      });
+
+      res.json({ success: true, message: "Email sent successfully" });
+    } catch (error) {
+      console.error("Error sending email:", error);
+      res.status(500).json({ error: "Failed to send email" });
+    }
+  });
+
   // Scraping routes
   app.post("/api/scraping/start", isAuthenticated, async (req, res) => {
     try {

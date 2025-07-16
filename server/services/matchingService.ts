@@ -1,4 +1,3 @@
-
 import { storage } from '../storage';
 import type { Property, Investor, Lead } from '@shared/schema';
 
@@ -65,7 +64,7 @@ class MatchingService {
         // Find lead for this property
         const leads = await storage.getLeads({ limit: 1000 });
         const lead = leads.find(l => l.propertyId === property.id);
-        
+
         if (lead) {
           matches.push({
             leadId: lead.id,
@@ -101,7 +100,7 @@ class MatchingService {
       const matchesType = investor.propertyTypes.some(type => 
         this.normalizePropertyType(type) === normalizedPropertyType
       );
-      
+
       if (matchesType) {
         score += 25;
         reasons.push(`Property type match: ${property.propertyType}`);
@@ -203,7 +202,7 @@ class MatchingService {
     averageMatchScore: number;
   }> {
     const allMatches = await this.findMatchesForAllLeads();
-    
+
     const matchesByInvestor: Record<string, number> = {};
     const matchesByProperty: Record<string, number> = {};
     let totalScore = 0;
@@ -211,7 +210,7 @@ class MatchingService {
     for (const match of allMatches) {
       const investorKey = `${match.investor.name} (${match.investor.id})`;
       const propertyKey = `${match.property.address} (${match.property.id})`;
-      
+
       matchesByInvestor[investorKey] = (matchesByInvestor[investorKey] || 0) + 1;
       matchesByProperty[propertyKey] = (matchesByProperty[propertyKey] || 0) + 1;
       totalScore += match.matchScore;
@@ -222,6 +221,56 @@ class MatchingService {
       matchesByInvestor,
       matchesByProperty,
       averageMatchScore: allMatches.length > 0 ? totalScore / allMatches.length : 0
+    };
+  }
+
+  findInvestorMatches(property: Property): InvestorMatch[] {
+    // This is a simplified matching algorithm
+    // In a real application, you'd want more sophisticated matching logic
+
+    const matches: InvestorMatch[] = [];
+
+    // Mock matching logic - replace with actual implementation
+    return matches;
+  }
+
+  async getAllMatches() {
+    // Return mock data for now - implement actual matching logic
+    return [
+      {
+        leadId: 1,
+        investorId: 1,
+        property: {
+          id: 1,
+          address: "123 Main St, Honolulu, HI",
+          estimatedValue: 650000,
+          daysUntilAuction: 30,
+          priority: "high",
+          propertyType: "Single Family",
+          status: "active"
+        },
+        investor: {
+          id: 1,
+          name: "John Smith",
+          email: "john@example.com",
+          company: "Smith Investments",
+          strategies: ["Fix & Flip", "Buy & Hold"],
+          preferredIslands: ["Oahu"],
+          minBudget: 400000,
+          maxBudget: 800000
+        },
+        matchScore: 85,
+        matchReasons: ["Budget match", "Island preference", "Strategy alignment"]
+      }
+    ];
+  }
+
+  async getMatchingStats() {
+    return {
+      totalMatches: 15,
+      matchesByInvestor: { "1": 5, "2": 3, "3": 7 },
+      matchesByProperty: { "1": 2, "2": 1, "3": 4 },
+      averageMatchScore: 72
     };
   }
 }

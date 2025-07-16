@@ -278,7 +278,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Lead operations
-  async getLeads(filters?: {
+  async getLead(id: number): Promise<Lead | null> {
+    const result = await db
+      .select()
+      .from(leads)
+      .leftJoin(properties, eq(leads.propertyId, properties.id))
+      .leftJoin(contacts, eq(leads.contactId, contacts.id))
+      .where(eq(leads.id, id))
+      .limit(1);
+
+    if (result.length === 0) return null;
+
+    const lead = result[0];
+    return {
+      id: lead.leads.id,
+      propertyId: lead.leads.propertyId,
+      contactId: lead.leads.contactId,
+      userId: lead.leads.userId,
+      status: lead.leads.status,
+      priority: lead.leads.priority,
+      notes: lead.leads.notes,
+      createdAt: lead.leads.createdAt,
+      updatedAt: lead.leads.updatedAt,
+      property: lead.properties,
+      contact: lead.contacts
+    };
+  }
+
+  async getLeads(filters: {
     status?: string;
     priority?: string;
     userId?: string;
@@ -306,11 +333,6 @@ export class DatabaseStorage implements IStorage {
     }
 
     return await query;
-  }
-
-  async getLead(id: number): Promise<Lead | undefined> {
-    const [lead] = await db.select().from(leads).where(eq(leads.id, id));
-    return lead;
   }
 
   async createLead(lead: InsertLead): Promise<Lead> {
