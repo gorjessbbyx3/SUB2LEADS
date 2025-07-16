@@ -18,25 +18,39 @@ function ErrorBoundary({ children, fallback }: { children: React.ReactNode; fall
   const [hasError, setHasError] = React.useState(false);
 
   React.useEffect(() => {
-    const errorHandler = (error: any, info: any) => {
-      console.error("Caught an error: ", error, info);
+    const errorHandler = (event: ErrorEvent) => {
+      console.error("Caught an error: ", event.error, event);
+      setHasError(true);
+    };
+
+    const rejectionHandler = (event: PromiseRejectionEvent) => {
+      console.error("Unhandled promise rejection: ", event.reason);
+      event.preventDefault(); // Prevent default browser behavior
       setHasError(true);
     };
 
     window.addEventListener('error', errorHandler);
-    window.addEventListener('unhandledrejection', errorHandler);
+    window.addEventListener('unhandledrejection', rejectionHandler);
 
     return () => {
       window.removeEventListener('error', errorHandler);
-      window.removeEventListener('unhandledrejection', errorHandler);
+      window.removeEventListener('unhandledrejection', rejectionHandler);
     };
   }, []);
 
   if (hasError) {
-    return fallback;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h1>
+          <p className="text-gray-600 mb-4">Please refresh the page to try again.</p>
+          <Button onClick={() => window.location.reload()}>Refresh Page</Button>
+        </div>
+      </div>
+    );
   }
 
-  return children;
+  return <>{children}</>;
 }
 
 

@@ -2,23 +2,11 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Play, 
-  Pause, 
-  RefreshCw, 
-  Download, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle,
-  Search,
-  Database,
-  FileText,
-  Calendar
-} from "lucide-react";
-import { apiRequest } from '@/lib/queryClient';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { FileText, Database, Search, Play, RefreshCw, Clock, CheckCircle, XCircle, Download } from 'lucide-react';
+import { apiRequest } from '@/lib/authUtils';
 import {Sidebar} from '@/components/Sidebar';
 import {Header} from '@/components/Header';
 import { useToast } from '@/hooks/use-toast';
