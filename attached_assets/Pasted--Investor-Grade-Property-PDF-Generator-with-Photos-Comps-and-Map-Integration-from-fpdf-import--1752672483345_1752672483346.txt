@@ -1,0 +1,103 @@
+# Investor-Grade Property PDF Generator with Photos, Comps, and Map Integration
+
+from fpdf import FPDF
+import os
+
+class InvestorPresentationPDF(FPDF):
+    def header(self):
+        self.set_font("Helvetica", "B", 20)
+        self.set_text_color(0, 102, 204)
+        self.cell(0, 10, "Property Foreclosure Opportunity", align='C')
+        self.ln(10)
+
+    def add_cover_page(self, data):
+        self.set_font("Helvetica", "B", 16)
+        self.set_text_color(0)
+        self.cell(0, 10, data.get("Address", ""), ln=True, align='C')
+        self.ln(10)
+        if "Hero Image" in data and os.path.exists(data["Hero Image"]):
+            self.image(data["Hero Image"], w=180)
+            self.ln(10)
+        self.set_font("Helvetica", "", 12)
+        self.cell(0, 10, f"Presented by: {data.get('Presenter', 'Sub2Leads')}", ln=True, align='C')
+        self.add_page()
+
+    def add_deal_summary(self, data):
+        self.set_font("Helvetica", "B", 14)
+        self.cell(0, 10, "🔍 Deal Snapshot", ln=True)
+        self.set_font("Helvetica", "", 12)
+        fields = [
+            ("Island", data.get("Island")),
+            ("TMK", data.get("TMK")),
+            ("Auction Date", data.get("Auction Date")),
+            ("Property Type", data.get("Property Type")),
+            ("Occupancy", data.get("Occupancy")),
+            ("Estimated ARV", data.get("ARV")),
+            ("Estimated Rehab", data.get("Rehab")),
+            ("Opening Bid", data.get("Opening Bid")),
+            ("Estimated Spread", data.get("Spread"))
+        ]
+        for label, value in fields:
+            if value:
+                self.cell(0, 10, f"{label}: {value}", ln=True)
+        self.add_page()
+
+    def add_property_photos(self, images):
+        self.set_font("Helvetica", "B", 14)
+        self.cell(0, 10, "📸 Property Photos", ln=True)
+        self.ln(5)
+        for img in images:
+            if os.path.exists(img):
+                self.image(img, w=180)
+                self.ln(10)
+        self.add_page()
+
+    def add_comps_table(self, comps):
+        self.set_font("Helvetica", "B", 14)
+        self.cell(0, 10, "📊 Comparable Sales", ln=True)
+        self.ln(5)
+        self.set_font("Helvetica", "B", 12)
+        self.cell(70, 10, "Address", border=1)
+        self.cell(40, 10, "Sold Price", border=1)
+        self.cell(30, 10, "Date", border=1)
+        self.cell(40, 10, "Distance", border=1, ln=True)
+        self.set_font("Helvetica", "", 12)
+        for comp in comps:
+            self.cell(70, 10, comp["address"], border=1)
+            self.cell(40, 10, comp["price"], border=1)
+            self.cell(30, 10, comp["date"], border=1)
+            self.cell(40, 10, comp["distance"], border=1, ln=True)
+        self.add_page()
+
+    def add_map_image(self, map_path):
+        self.set_font("Helvetica", "B", 14)
+        self.cell(0, 10, "🗺️ Location Map", ln=True)
+        if os.path.exists(map_path):
+            self.image(map_path, w=180)
+        self.add_page()
+
+    def add_exit_strategy(self, strategy):
+        self.set_font("Helvetica", "B", 14)
+        self.cell(0, 10, "💼 Exit Strategy", ln=True)
+        self.set_font("Helvetica", "", 12)
+        self.multi_cell(0, 10, strategy)
+        self.ln(10)
+
+
+def generate_investor_pdf(data, filename="investor_presentation.pdf"):
+    pdf = InvestorPresentationPDF()
+    pdf.add_cover_page(data)
+    pdf.add_deal_summary(data)
+    if "Photos" in data:
+        pdf.add_property_photos(data["Photos"])
+    if "Comps" in data:
+        pdf.add_comps_table(data["Comps"])
+    if "Map" in data and os.path.exists(data["Map"]):
+        pdf.add_map_image(data["Map"])
+    if "Strategy" in data:
+        pdf.add_exit_strategy(data["Strategy"])
+    pdf.output(filename)
+    return filename
+
+# Example usage with your CRM data:
+# generate_investor_pdf(data) when "Generate Presentation" is clicked

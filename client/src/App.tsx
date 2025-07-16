@@ -15,6 +15,7 @@ import Outreach from '@/pages/Outreach';
 import DataScraper from '@/pages/DataScraper';
 import Reports from "./pages/Reports";
 import NotFound from "./pages/not-found";
+import Landing from './pages/Landing';
 import { Button } from '@/components/ui/button';
 
 const queryClient = new QueryClient({

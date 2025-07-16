@@ -38,8 +38,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const properties = await storage.getProperties({
         status,
         priority,
-        limit: limit ? parseInt(limit) : undefined,
-        offset: offset ? parseInt(offset) : undefined,
+        limit: limit ? (isNaN(parseInt(limit)) ? undefined : parseInt(limit)) : undefined,
+        offset: offset ? (isNaN(parseInt(offset)) ? undefined : parseInt(offset)) : undefined,
       });
       res.json(properties);
     } catch (error) {
@@ -121,8 +121,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status,
         priority,
         userId,
-        limit: limit ? parseInt(limit) : undefined,
-        offset: offset ? parseInt(offset) : undefined,
+        limit: limit ? (isNaN(parseInt(limit)) ? undefined : parseInt(limit)) : undefined,
+        offset: offset ? (isNaN(parseInt(offset)) ? undefined : parseInt(offset)) : undefined,
       });
       res.json(leads);
     } catch (error) {
@@ -819,5 +819,3 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   return httpServer;
 }
-```
-This code adds an enhanced PDF generation endpoint, creating professional investor presentations for properties.

@@ -208,6 +208,18 @@ FROM_EMAIL=... (optional, defaults provided)
 ### Application Status
 Application is fully functional and running on port 5000 with proper data integrity, error handling, and type safety throughout the codebase.
 
+**Important:** This is a Hawaii Real Estate CRM application, not an AI development assistant. The repository description may be outdated or incorrect. The application serves a comprehensive bird dog CRM system for real estate professionals.
+
+### Authentication Configuration
+The application uses Replit Auth with OpenID Connect. Required environment variables:
+- `REPL_ID` (✓ configured)
+- `REPLIT_DOMAINS` (✓ configured)  
+- `SESSION_SECRET` (✓ configured)
+- `DATABASE_URL` (✓ configured)
+- `ISSUER_URL` (missing - defaults to https://replit.com/oidc)
+
+401/403 errors are expected for unauthenticated users - this is normal behavior.
+
 ### Recent Enhancements (January 16, 2025)
 - ✓ Fixed blank screen issue by adding proper CSS styling for body, html, and #root elements
 - ✓ Application now displays correctly with Hawaii Real Estate CRM login page
