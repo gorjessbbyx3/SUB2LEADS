@@ -35,6 +35,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, gte, lte, count, sql } from "drizzle-orm";
+import { arrayContains } from './utils';
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -159,7 +160,8 @@ export class DatabaseStorage implements IStorage {
     limit?: number;
     offset?: number;
   }): Promise<Property[]> {
-    let query = db.select({
+    try {
+      let query = db.select({
           id: properties.id,
           address: properties.address,
           propertyType: properties.propertyType,
@@ -174,24 +176,30 @@ export class DatabaseStorage implements IStorage {
           updatedAt: properties.updatedAt
         }).from(properties);
 
-    if (filters?.status) {
-      query = query.where(eq(properties.status, filters.status)) as any;
-    }
-    if (filters?.priority) {
-      query = query.where(eq(properties.priority, filters.priority)) as any;
-    }
+      if (filters?.status) {
+        query = query.where(eq(properties.status, filters.status)) as any;
+      }
 
-    query = query.orderBy(desc(properties.createdAt)) as any;
+      if (filters?.priority) {
+        query = query.where(eq(properties.priority, filters.priority)) as any;
+      }
 
-    if (filters?.limit) {
-      query = query.limit(filters.limit) as any;
-    }
-    if (filters?.offset) { {
-      query = query.offset(filters.offset) as any;
-    }
-    }
+      query = query.orderBy(desc(properties.createdAt)) as any;
 
-    return await query;
+      if (filters?.limit) {
+        query = query.limit(filters.limit) as any;
+      }
+
+      if (filters?.offset) {
+        query = query.offset(filters.offset) as any;
+      }
+
+      const result = await query;
+      return result || [];
+    } catch (error) {
+      console.error('Error in getProperties:', error);
+      return [];
+    }
   }
 
   async getProperty(id: number): Promise<Property | undefined> {
@@ -305,34 +313,40 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getLeads(filters: {
+  async getLeads(filters?: {
     status?: string;
     priority?: string;
     userId?: string;
     limit?: number;
     offset?: number;
   }): Promise<Lead[]> {
-    let query = db.select().from(leads);
+    try {
+      let query = db.select().from(leads);
 
-    const conditions = [];
-    if (filters?.status) conditions.push(eq(leads.status, filters.status));
-    if (filters?.priority) conditions.push(eq(leads.priority, filters.priority));
-    if (filters?.userId) conditions.push(eq(leads.userId, filters.userId));
+      const conditions = [];
+      if (filters?.status) conditions.push(eq(leads.status, filters.status));
+      if (filters?.priority) conditions.push(eq(leads.priority, filters.priority));
+      if (filters?.userId) conditions.push(eq(leads.userId, filters.userId));
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as any;
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
+      }
+
+      query = query.orderBy(desc(leads.createdAt)) as any;
+
+      if (filters?.limit) {
+        query = query.limit(filters.limit) as any;
+      }
+      if (filters?.offset) {
+        query = query.offset(filters.offset) as any;
+      }
+
+      const result = await query;
+      return result || [];
+    } catch (error) {
+      console.error('Error in getLeads:', error);
+      return [];
     }
-
-    query = query.orderBy(desc(leads.createdAt)) as any;
-
-    if (filters?.limit) {
-      query = query.limit(filters.limit) as any;
-    }
-    if (filters?.offset) {
-      query = query.offset(filters.offset) as any;
-    }
-
-    return await query;
   }
 
   async createLead(lead: InsertLead): Promise<Lead> {
@@ -523,35 +537,41 @@ export class DatabaseStorage implements IStorage {
     limit?: number;
     offset?: number;
   }): Promise<Investor[]> {
-    const conditions = [eq(investors.userId, userId)];
+    try {
+      const conditions = [eq(investors.userId, userId)];
 
-    if (filters?.island && filters.island !== 'all') {
-      conditions.push(sql`${investors.preferredIslands} @> ${[filters.island]}`);
+      if (filters?.island && filters.island !== 'all') {
+        conditions.push(sql`${investors.preferredIslands} @> ${[filters.island]}`);
+      }
+
+      if (filters?.strategy && filters.strategy !== 'all') {
+        conditions.push(sql`${investors.strategies} @> ${[filters.strategy]}`);
+      }
+
+      if (filters?.priority && filters.priority !== 'all') {
+        conditions.push(eq(investors.priority, filters.priority));
+      }
+
+      let query = db
+        .select()
+        .from(investors)
+        .where(and(...conditions))
+        .orderBy(desc(investors.createdAt));
+
+      if (filters?.limit) {
+        query = query.limit(filters.limit);
+      }
+
+      if (filters?.offset) {
+        query = query.offset(filters.offset);
+      }
+
+      const result = await query;
+      return result || [];
+    } catch (error) {
+      console.error('Error in getInvestors:', error);
+      return [];
     }
-
-    if (filters?.strategy && filters.strategy !== 'all') {
-      conditions.push(sql`${investors.strategies} @> ${[filters.strategy]}`);
-    }
-
-    if (filters?.priority && filters.priority !== 'all') {
-      conditions.push(eq(investors.priority, filters.priority));
-    }
-
-    let query = db
-      .select()
-      .from(investors)
-      .where(and(...conditions))
-      .orderBy(desc(investors.createdAt));
-
-    if (filters?.limit) {
-      query = query.limit(filters.limit);
-    }
-
-    if (filters?.offset) {
-      query = query.offset(filters.offset);
-    }
-
-    return await query;
   }
 
   async getInvestor(id: number): Promise<Investor | undefined> {
@@ -707,7 +727,7 @@ export class DatabaseStorage implements IStorage {
 
   async getLeadsPipeline(userId: string) {
     const allLeads = await this.getLeads({ userId, limit: 1000 });
-    
+
     const pipeline = {
       new: allLeads.filter(lead => lead.status === 'new'),
       contacted: allLeads.filter(lead => lead.status === 'contacted'),

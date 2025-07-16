@@ -57,7 +57,7 @@ export default function Properties() {
     setIsPropertyModalOpen(true);
   };
 
-  const filteredAndSortedProperties = properties
+  const filteredAndSortedProperties = (properties || [])
     .filter((property: any) => {
       const matchesSearch = searchTerm === "" || 
         property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||

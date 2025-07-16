@@ -9,6 +9,7 @@ import { scraperService } from './services/scraper';
 import { aiService } from './services/aiService';
 import { contactEnrichmentService } from './services/contactEnrichment';
 import { PropertyPDFGenerator } from './services/pdfGenerator';
+import { validateRequest, validateQuery, rateLimit } from './middleware/validation';
 import path from 'path';
 
 export async function registerRoutes(app: Express) {
@@ -199,7 +200,7 @@ export async function registerRoutes(app: Express) {
   });
 
   // AI Chat routes
-  app.post("/api/ai/chat", isAuthenticated, async (req, res) => {
+  app.post("/api/ai/chat", isAuthenticated, rateLimit(60000, 10), async (req, res) => {
     try {
       const user = req.user as any;
       const { message, context } = req.body;
@@ -340,7 +341,7 @@ export async function registerRoutes(app: Express) {
   });
 
   // Scraping routes
-  app.post("/api/scraping/start", isAuthenticated, async (req, res) => {
+  app.post("/api/scraping/start", isAuthenticated, rateLimit(300000, 3), async (req, res) => {
     try {
       const { source } = req.body;
       const job = await scraperService.startScraping(source);

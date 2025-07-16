@@ -240,7 +240,7 @@ class MatchingService {
       const properties = await storage.getProperties({ limit: 100 });
 
       // Get investors from database  
-      const investors = await storage.getInvestors();
+      const investors = await storage.getInvestors(undefined, { limit: 100 });
 
       if (!properties.length || !investors.length) {
         // Return mock data if no real data exists

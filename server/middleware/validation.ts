@@ -1,8 +1,7 @@
-
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 
-export const validateBody = (schema: z.ZodSchema) => {
+export const validateRequest = (schema: z.ZodSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       schema.parse(req.body);
@@ -19,23 +18,6 @@ export const validateBody = (schema: z.ZodSchema) => {
   };
 };
 
-export const validateParams = (schema: z.ZodSchema) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    try {
-      schema.parse(req.params);
-      next();
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({
-          error: 'Invalid parameters',
-          details: error.errors
-        });
-      }
-      next(error);
-    }
-  };
-};
-
 export const validateQuery = (schema: z.ZodSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -44,7 +26,7 @@ export const validateQuery = (schema: z.ZodSchema) => {
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({
-          error: 'Invalid query parameters',
+          error: 'Query validation failed',
           details: error.errors
         });
       }
@@ -54,28 +36,29 @@ export const validateQuery = (schema: z.ZodSchema) => {
 };
 
 // Rate limiting middleware
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+export const rateLimit = (windowMs: number, maxRequests: number) => {
+  const requests = new Map<string, { count: number; resetTime: number }>();
 
-export const rateLimit = (maxRequests: number, windowMs: number) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const clientId = req.ip || 'unknown';
     const now = Date.now();
-    
-    const record = rateLimitMap.get(ip);
-    
-    if (!record || now > record.resetTime) {
-      rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs });
+    const windowStart = now - windowMs;
+
+    const clientData = requests.get(clientId);
+
+    if (!clientData || clientData.resetTime < windowStart) {
+      requests.set(clientId, { count: 1, resetTime: now + windowMs });
       return next();
     }
-    
-    if (record.count >= maxRequests) {
+
+    if (clientData.count >= maxRequests) {
       return res.status(429).json({
         error: 'Too many requests',
-        retryAfter: Math.ceil((record.resetTime - now) / 1000)
+        retryAfter: Math.ceil((clientData.resetTime - now) / 1000)
       });
     }
-    
-    record.count++;
+
+    clientData.count++;
     next();
   };
 };
