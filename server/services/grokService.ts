@@ -200,36 +200,6 @@ Focus on actionable insights for improving deal flow.`;
       throw error;
     }
   }
-}
-
-export const grokService = new GrokService();
-import { xai } from '@ai-sdk/xai';
-import { generateText } from 'ai';
-
-export interface GrokAnalysisResponse {
-  score: number;
-  reason: string;
-  confidence: number;
-}
-
-class GrokService {
-  private model = xai('grok-beta');
-
-  async analyzeWithGrok(prompt: string, analysisType: string): Promise<string> {
-    try {
-      const { text } = await generateText({
-        model: this.model,
-        prompt,
-        maxTokens: 500,
-        temperature: 0.3,
-      });
-
-      return text;
-    } catch (error) {
-      console.error(`Grok ${analysisType} analysis failed:`, error);
-      throw error;
-    }
-  }
 
   async getLeadMotivationScore(lead: any): Promise<GrokAnalysisResponse> {
     const prompt = `
@@ -324,4 +294,11 @@ Output format (JSON):
   }
 }
 
+export interface GrokAnalysisResponse {
+  score: number;
+  reason: string;
+  confidence: number;
+}
+
+// Add the new methods to the existing GrokService class
 export const grokService = new GrokService();

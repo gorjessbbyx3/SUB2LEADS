@@ -11,7 +11,7 @@ import { grokService } from './services/grokService';
 import { contactEnrichmentService } from './services/contactEnrichment';
 import { PropertyPDFGenerator } from './services/pdfGenerator';
 import { validateRequest, validateQuery, rateLimit } from './middleware/validation';
-import { inngestHandler, inngest } from './inngest';
+import { inngest } from './inngest';
 import path from 'path';
 import { serve } from 'inngest/express';
 import { helloWorld, processLeadMatch, processWholesaleDeal, schedulePropertyScraping } from './inngest/functions';
@@ -32,8 +32,7 @@ export async function registerRoutes(app: Express) {
     });
   });
 
-  // Inngest webhook endpoint
-  app.use('/api/inngest', inngestHandler);
+  // Inngest webhook endpoint will be setup at the end of this function
 
   // API Routes - all protected by authentication
 
