@@ -1168,6 +1168,98 @@ export async function registerRoutes(app: Express) {
     }
   });
 
+  // Neighborhood Analysis endpoints
+  app.post('/api/neighborhoods/:zipCode/analyze', isAuthenticated, async (req, res) => {
+    try {
+      const zipCode = req.params.zipCode;
+      const { address } = req.body;
+
+      const { neighborhoodScorer } = await import('./services/neighborhoodScorer');
+      const analysis = await neighborhoodScorer.scoreNeighborhood(zipCode, address);
+
+      // Trigger Inngest workflow for neighborhood analysis
+      await inngest.send({
+        name: "neighborhood/analyze",
+        data: { zipCode, address }
+      });
+
+      res.json(analysis);
+    } catch (error) {
+      console.error('Neighborhood analysis error:', error);
+      res.status(500).json({ error: 'Failed to analyze neighborhood' });
+    }
+  });
+
+  app.get('/api/neighborhoods/top-investment-areas', isAuthenticated, async (req, res) => {
+    try {
+      // Return top investment neighborhoods (mocked for now)
+      const topAreas = [
+        { name: 'Waikiki', island: 'Oahu', score: 92, grade: 'A' },
+        { name: 'Lahaina', island: 'Maui', score: 89, grade: 'A' },
+        { name: 'Poipu', island: 'Kauai', score: 86, grade: 'A' },
+        { name: 'Kailua', island: 'Oahu', score: 84, grade: 'A' },
+        { name: 'Wailea', island: 'Maui', score: 82, grade: 'A' }
+      ];
+
+      res.json(topAreas);
+    } catch (error) {
+      console.error('Error fetching top investment areas:', error);
+      res.status(500).json({ error: 'Failed to fetch top investment areas' });
+    }
+  });
+
+  // Advanced AI Analysis Dashboard
+  app.get('/api/ai/dashboard-insights', isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const leads = await storage.getLeads({ userId: user?.claims?.sub, limit: 100 });
+      const properties = await storage.getProperties({ limit: 100 });
+
+      const insights = {
+        totalLeads: leads.length,
+        highMotivationLeads: leads.filter(l => (l as any).motivationScore >= 75).length,
+        avgMotivationScore: leads.reduce((sum, l) => sum + ((l as any).motivationScore || 50), 0) / leads.length,
+        totalProperties: properties.length,
+        highSTRProperties: properties.filter(p => (p as any).strScore >= 80).length,
+        avgSTRScore: properties.reduce((sum, p) => sum + ((p as any).strScore || 50), 0) / properties.length,
+        topPerformingIslands: [
+          { island: 'Maui', avgScore: 78, properties: properties.filter(p => p.address.includes('Maui')).length },
+          { island: 'Oahu', avgScore: 72, properties: properties.filter(p => p.address.includes('Honolulu')).length },
+          { island: 'Kauai', avgScore: 75, properties: properties.filter(p => p.address.includes('Kauai')).length }
+        ]
+      };
+
+      res.json(insights);
+    } catch (error) {
+      console.error('Error fetching AI insights:', error);
+      res.status(500).json({ error: 'Failed to fetch AI insights' });
+    }
+  });
+
+  // Trigger bulk AI analysis
+  app.post('/api/ai/analyze-all', isAuthenticated, async (req, res) => {
+    try {
+      const { analysisType } = req.body; // 'motivation', 'str', 'neighborhood'
+
+      if (analysisType === 'motivation') {
+        await inngest.send({
+          name: "lead/analyze.motivation.bulk",
+          data: { trigger: 'manual' }
+        });
+      } else if (analysisType === 'str') {
+        await inngest.send({
+          name: "property/analyze.str.bulk", 
+          data: { trigger: 'manual' }
+        });
+      }
+
+      res.json({ success: true, message: `${analysisType} analysis queued for all applicable records` });
+    } catch (error) {
+      console.error('Bulk analysis error:', error);
+      res.status(500).json({ error: 'Failed to queue bulk analysis' });
+    }
+  });
+
   // Add the Inngest serve handler with all functions
   const { 
     analyzeSellerMotivation, 
@@ -1175,7 +1267,13 @@ export async function registerRoutes(app: Express) {
     checkLeaseholdStatus, 
     smartFollowUp, 
     weeklyMotivationUpdate, 
-    advancedLeadScoring 
+    advancedLeadScoring,
+    analyzeNeighborhood,
+    urgentLeadFollowup,
+    hotLeadAlert,
+    sendFollowupEmail,
+    strHighScoreAlert,
+    dailyMarketAnalysis
   } = await import('./inngest/functions');
 
   app.use("/api/inngest", serve({ 
@@ -1190,7 +1288,13 @@ export async function registerRoutes(app: Express) {
       checkLeaseholdStatus,
       smartFollowUp,
       weeklyMotivationUpdate,
-      advancedLeadScoring
+      advancedLeadScoring,
+      analyzeNeighborhood,
+      urgentLeadFollowup,
+      hotLeadAlert,
+      sendFollowupEmail,
+      strHighScoreAlert,
+      dailyMarketAnalysis
     ] 
   }));
 

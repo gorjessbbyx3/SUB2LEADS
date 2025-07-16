@@ -24,7 +24,7 @@ export interface MotivationPrediction {
   nextAction: string;
 }
 
-export class MotivationPredictor {
+class MotivationPredictor {
   
   static async predictMotivation(leadId: string, factors: MotivationFactors): Promise<MotivationPrediction> {
     let score = 30; // Base score
@@ -162,6 +162,38 @@ Format: {"scoreAdjustment": number, "insight": "string"}`;
     }
   }
 }
+
+// Export the service
+export const motivationPredictor = {
+  predictSellerMotivation: async (leadId: number) => {
+    const lead = await storage.getLead(leadId);
+    if (!lead) throw new Error('Lead not found');
+    
+    // Extract factors from lead data
+    const factors: MotivationFactors = {
+      taxDelinquent: (lead as any).taxDelinquent || false,
+      timeOwned: (lead as any).timeOwned || 0,
+      absenteeOwner: (lead as any).absenteeOwner || false,
+      foreclosureHistory: lead.status === 'foreclosure',
+      propertyCondition: (lead as any).propertyCondition || 'fair',
+      neighborhood: (lead as any).neighborhood || 'Unknown',
+      island: (lead as any).island || 'Oahu',
+      marketActivity: 'warm' as const
+    };
+    
+    const prediction = await MotivationPredictor.predictMotivation(leadId.toString(), factors);
+    
+    // Update lead with motivation data
+    await storage.updateLead(leadId, {
+      motivationScore: prediction.score,
+      motivationReason: prediction.reason,
+      motivationLevel: prediction.level,
+      lastMotivationAnalysis: new Date().toISOString()
+    } as any);
+    
+    return prediction;
+  }
+};
 
 // Inngest function for automated motivation scoring
 export const motivationScoring = inngest.createFunction(

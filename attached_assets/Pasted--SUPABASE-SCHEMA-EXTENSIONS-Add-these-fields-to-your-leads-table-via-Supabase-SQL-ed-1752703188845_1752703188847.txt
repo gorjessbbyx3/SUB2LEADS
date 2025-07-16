@@ -1,0 +1,90 @@
+// --- SUPABASE SCHEMA EXTENSIONS ---
+// Add these fields to your `leads` table via Supabase SQL editor
+
+-- Add advanced AI + market intelligence fields
+alter table leads add column if not exists motivation_score numeric;
+alter table leads add column if not exists motivation_reason text;
+alter table leads add column if not exists leasehold_status text;
+alter table leads add column if not exists str_score numeric;
+alter table leads add column if not exists str_income_estimate numeric;
+alter table leads add column if not exists roi_estimate numeric;
+alter table leads add column if not exists investment_score numeric;
+alter table leads add column if not exists lead_score numeric;
+alter table leads add column if not exists last_xai_updated timestamp;
+
+-- Add interaction tracking table
+create table if not exists lead_interactions (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid references leads(id) on delete cascade,
+  channel text check (channel in ('email', 'sms', 'call')),
+  message text,
+  sentiment_score numeric,
+  created_at timestamp default now()
+);
+
+// --- INNGEST WORKFLOW: lead-scoring.ts ---
+import { Inngest } from "inngest";
+import { createClient } from "@supabase/supabase-js";
+import { getLeadScoreFromGrok } from "../lib/grok";
+
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_KEY!);
+const inngest = new Inngest({ name: "Sub2Leads Scorer" });
+
+export const leadScoring = inngest.createFunction(
+  { id: "score-lead", name: "AI Lead Scoring" },
+  { event: "lead/created" },
+  async ({ event }) => {
+    const lead = event.data;
+    const { score, reason } = await getLeadScoreFromGrok(lead);
+
+    await supabase.from("leads").update({
+      lead_score: score,
+      motivation_score: score,
+      motivation_reason: reason,
+      last_xai_updated: new Date().toISOString(),
+    }).eq("id", lead.id);
+
+    return { success: true, score };
+  }
+);
+
+// --- GROK PROMPT TEMPLATE: motivation-predictor.ts ---
+export function getLeadScoreFromGrok(lead) {
+  const prompt = `
+  Given the following property details, predict how motivated the seller is to sell:
+
+  Address: ${lead.address}
+  Time Owned: ${lead.years_owned} years
+  Tax Delinquent: ${lead.tax_delinquent ? "Yes" : "No"}
+  Owner Type: ${lead.owner_type}
+  Absentee Owner: ${lead.absentee ? "Yes" : "No"}
+  Foreclosure Notice: ${lead.foreclosure ? "Yes" : "No"}
+
+  Output a motivation score (0-100) and one-sentence reason.`;
+
+  // call Grok API (pseudo)
+  return grok.ask(prompt).then(res => {
+    const [scoreStr, ...reasonParts] = res.split("\n");
+    return {
+      score: parseFloat(scoreStr.match(/\d+/)[0]),
+      reason: reasonParts.join(" ").trim()
+    };
+  });
+}
+
+// --- RESEND AUTOMATION: notify-high-motivation.ts ---
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export async function notifyBuyerOfHotLead(lead, buyer) {
+  return resend.emails.send({
+    from: 'edifyhawaii@gmail.com',
+    to: buyer.email,
+    subject: `🔥 HOT Hawaii Lead: ${lead.address}`,
+    html: `<p>A new highly motivated seller has been detected at <strong>${lead.address}</strong>.</p>
+           <p><strong>Motivation Score:</strong> ${lead.motivation_score}</p>
+           <p><strong>Reason:</strong> ${lead.motivation_reason}</p>
+           <p><a href="https://app.sub2leads.com/leads/${lead.id}">View Lead in Dashboard →</a></p>`
+  });
+}

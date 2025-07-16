@@ -180,6 +180,26 @@ Focus on actionable insights for improving deal flow.`;
       return 'Error analyzing deal flow.';
     }
   }
+
+  async analyzeWithGrok(prompt: string, analysisType: string): Promise<string> {
+    if (!this.isConfigured) {
+      return `${analysisType} analysis unavailable - XAI_API_KEY required.`;
+    }
+
+    try {
+      const { text } = await generateText({
+        model: xai('grok-2-1212'),
+        prompt,
+        maxTokens: 300,
+        temperature: 0.3,
+      });
+
+      return text || 'Analysis unavailable.';
+    } catch (error) {
+      console.error(`Grok ${analysisType} error:`, error);
+      throw error;
+    }
+  }
 }
 
 export const grokService = new GrokService();

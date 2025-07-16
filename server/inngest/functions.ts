@@ -1,6 +1,8 @@
 import { inngest } from '../inngest';
 import { motivationPredictor } from '../services/motivationPredictor';
 import { strAnalyzer } from '../services/strAnalyzer';
+import { neighborhoodScorer } from '../services/neighborhoodScorer';
+import { resendService } from '../services/resendService';
 import { storage } from '../storage';
 import { emailService } from '../services/emailService';
 
@@ -236,5 +238,176 @@ export const advancedLeadScoring = inngest.createFunction(
     }
 
     return scoreData;
+  }
+);
+
+// NEW: Neighborhood Investment Scorer
+export const analyzeNeighborhood = inngest.createFunction(
+  { id: "analyze-neighborhood" },
+  { event: "neighborhood/analyze" },
+  async ({ event, step }) => {
+    const { zipCode, address } = event.data;
+
+    const analysis = await step.run("score-neighborhood", async () => {
+      return await neighborhoodScorer.scoreNeighborhood(zipCode, address);
+    });
+
+    // Store/update neighborhood score in database
+    await step.run("store-neighborhood-score", async () => {
+      // In a real implementation, you'd upsert to neighborhoods table
+      console.log('Neighborhood analysis completed:', analysis);
+    });
+
+    return analysis;
+  }
+);
+
+// NEW: Urgent Lead Follow-up
+export const urgentLeadFollowup = inngest.createFunction(
+  { id: "urgent-lead-followup" },
+  { event: "lead/urgent.followup" },
+  async ({ event, step }) => {
+    const { leadId, motivationScore } = event.data;
+
+    // Send immediate alert to team
+    await step.run("send-team-alert", async () => {
+      await resendService.sendMotivationAlert(leadId, motivationScore, 'Urgent follow-up required');
+    });
+
+    // Create high-priority task
+    await step.run("create-urgent-task", async () => {
+      await storage.createActivity({
+        leadId,
+        userId: 'system',
+        type: 'urgent_followup',
+        title: 'URGENT: High Motivation Lead',
+        description: `Lead scored ${motivationScore}/100 - Contact immediately`
+      });
+    });
+
+    return { leadId, alertSent: true };
+  }
+);
+
+// NEW: Hot Lead Alert System
+export const hotLeadAlert = inngest.createFunction(
+  { id: "hot-lead-alert" },
+  { event: "lead/hot.alert" },
+  async ({ event, step }) => {
+    const { leadId, score } = event.data;
+
+    const lead = await step.run("get-lead-details", async () => {
+      return await storage.getLead(leadId);
+    });
+
+    // Send email alert to team
+    await step.run("send-hot-lead-alert", async () => {
+      const property = await storage.getProperty(lead.propertyId);
+      await resendService.sendMotivationAlert(leadId, score, `Hot lead with ${score}/100 score`);
+    });
+
+    // Update lead priority
+    await step.run("update-lead-priority", async () => {
+      await storage.updateLead(leadId, {
+        priority: 'high',
+        urgencyLevel: score >= 90 ? 'critical' : 'high'
+      } as any);
+    });
+
+    return { leadId, score, alertSent: true };
+  }
+);
+
+// NEW: Send Follow-up Email
+export const sendFollowupEmail = inngest.createFunction(
+  { id: "send-followup-email" },
+  { event: "lead/send.followup" },
+  async ({ event, step }) => {
+    const { leadId, sequence } = event.data;
+
+    await step.run("send-email", async () => {
+      await resendService.sendFollowUpEmail(leadId, sequence);
+    });
+
+    // Update lead interaction count
+    await step.run("update-interaction-count", async () => {
+      const lead = await storage.getLead(leadId);
+      await storage.updateLead(leadId, {
+        interactionCount: (lead as any).interactionCount ? (lead as any).interactionCount + 1 : 1,
+        lastInteractionDate: new Date().toISOString()
+      } as any);
+    });
+
+    return { leadId, sequence, sent: true };
+  }
+);
+
+// NEW: STR High Score Alert
+export const strHighScoreAlert = inngest.createFunction(
+  { id: "str-high-score-alert" },
+  { event: "property/str.high-score" },
+  async ({ event, step }) => {
+    const { propertyId, strScore, projectedIncome } = event.data;
+
+    await step.run("send-str-alert", async () => {
+      await resendService.sendSTRAlert(propertyId, strScore, projectedIncome);
+    });
+
+    // Find and notify interested investors
+    await step.run("notify-str-investors", async () => {
+      const property = await storage.getProperty(propertyId);
+      const strInvestors = await storage.getInvestors('system', { 
+        strategy: 'Buy & Hold',
+        limit: 50 
+      });
+
+      for (const investor of strInvestors) {
+        if (investor.strategies?.includes('Buy & Hold') || investor.strategies?.includes('BRRRR')) {
+          await resendService.sendBuyerNotification(
+            investor.id, 
+            propertyId, 
+            85, 
+            ['High STR potential', 'Strong rental income projection']
+          );
+        }
+      }
+    });
+
+    return { propertyId, strScore, alertsSent: true };
+  }
+);
+
+// NEW: Daily Market Analysis
+export const dailyMarketAnalysis = inngest.createFunction(
+  { id: "daily-market-analysis" },
+  { cron: "0 8 * * *" }, // Daily at 8 AM
+  async ({ step }) => {
+    // Analyze top properties for STR potential
+    const properties = await step.run("get-active-properties", async () => {
+      return await storage.getProperties({ status: 'active', limit: 20 });
+    });
+
+    for (const property of properties) {
+      await step.run(`analyze-str-${property.id}`, async () => {
+        try {
+          const analysis = await strAnalyzer.analyzeProperty(property.id);
+          
+          if (analysis.score >= 85) {
+            await inngest.send({
+              name: "property/str.high-score",
+              data: { 
+                propertyId: property.id, 
+                strScore: analysis.score, 
+                projectedIncome: analysis.projectedAnnualIncome 
+              }
+            });
+          }
+        } catch (error) {
+          console.error(`STR analysis failed for property ${property.id}:`, error);
+        }
+      });
+    }
+
+    return { analyzed: properties.length };
   }
 );
