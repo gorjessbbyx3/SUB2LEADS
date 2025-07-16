@@ -1,0 +1,85 @@
+✅ IMPLEMENTATION PLAN
+1. Lead Submission Form
+Update your LeadForm.tsx or wherever you handle lead intake:
+
+tsx
+Copy
+Edit
+<label>Is the property under contract?</label>
+<select name="underContractStatus" required>
+  <option value="no">No</option>
+  <option value="yes">Yes – I have the contract</option>
+  <option value="unsure">Not sure</option>
+</select>
+
+<label>Upload Contract (if any)</label>
+<input type="file" name="contractUpload" accept=".pdf,.jpg,.png" />
+Make sure your backend (Flask or Firebase?) stores the field + uploads.
+
+2. Redfin/Zillow Scraper (Backend Script)
+In your backend (Flask?), add a scraper endpoint:
+
+python
+Copy
+Edit
+@app.route("/check_status", methods=["POST"])
+def check_property_status():
+    address = request.json.get("address")
+    redfin_status = scrape_redfin_status(address)
+    zillow_status = scrape_zillow_status(address)
+    return jsonify({
+        "redfin": redfin_status,
+        "zillow": zillow_status
+    })
+And then display the result on your frontend like:
+
+tsx
+Copy
+Edit
+<div>Status: 
+  {redfin === 'Pending' || zillow === 'Contingent' ? (
+    <span className="badge bg-yellow-500">⚠️ Likely Under Contract</span>
+  ) : (
+    <span className="badge bg-green-500">✅ Probably Available</span>
+  )}
+</div>
+3. Contract Upload Handling
+In your backend:
+
+Accept file uploads for .pdf, .jpg, .png
+
+Save to cloud storage (S3, Firebase, etc.)
+
+Store URL in the lead record
+
+On frontend:
+
+Show 📎 “Contract uploaded” badge
+
+Link to preview/download
+
+4. Hawaii Recorder Button
+Add to each lead's property detail page:
+
+tsx
+Copy
+Edit
+<a 
+  href={`https://boc.ehawaii.gov/docsearch/search.html?query=${encodeURIComponent(address)}`} 
+  target="_blank" 
+  rel="noopener noreferrer"
+  className="btn btn-outline"
+>
+  🔎 Search Hawaii Recorder
+</a>
+5. Lead Dashboard Enhancements
+In LeadCard.tsx or dashboard component:
+
+Add visual tags:
+
+tsx
+Copy
+Edit
+{lead.underContractStatus === 'yes' && <span className="badge bg-blue-500">🔒 Under Contract</span>}
+{lead.underContractStatus === 'no' && <span className="badge bg-green-600">🟢 Not Under Contract</span>}
+{lead.underContractStatus === 'unsure' && <span className="badge bg-gray-400">❓ Unknown</span>}
