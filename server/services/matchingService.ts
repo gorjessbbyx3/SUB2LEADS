@@ -234,35 +234,61 @@ class MatchingService {
     return matches;
   }
 
-  async getAllMatches() {
-    // Return mock data for now - implement actual matching logic
-    return [
-      {
-        leadId: 1,
-        investorId: 1,
-        property: {
-          id: 1,
-          address: "123 Main St, Honolulu, HI",
-          estimatedValue: 650000,
-          daysUntilAuction: 30,
-          priority: "high",
-          propertyType: "Single Family",
-          status: "active"
-        },
-        investor: {
-          id: 1,
-          name: "John Smith",
-          email: "john@example.com",
-          company: "Smith Investments",
-          strategies: ["Fix & Flip", "Buy & Hold"],
-          preferredIslands: ["Oahu"],
-          minBudget: 400000,
-          maxBudget: 800000
-        },
-        matchScore: 85,
-        matchReasons: ["Budget match", "Island preference", "Strategy alignment"]
+  async getAllMatches(): Promise<MatchResult[]> {
+    try {
+      // Get properties from database
+      const properties = await storage.getProperties({ limit: 100 });
+
+      // Get investors from database  
+      const investors = await storage.getInvestors();
+
+      const matches: MatchResult[] = [];
+
+      // Generate matches between properties and investors
+      for (const property of properties) {
+        for (const investor of investors) {
+          const matchScore = this.calculateMatchScore(property, investor);
+
+          if (matchScore >= 40) { // Only include matches with 40%+ score
+            const matchReasons = this.getMatchReasons(property, investor);
+
+            matches.push({
+              leadId: property.id,
+              investorId: investor.id,
+              property: {
+                id: property.id,
+                address: property.address,
+                estimatedValue: property.estimatedValue,
+                daysUntilAuction: property.daysUntilAuction,
+                priority: property.priority,
+                propertyType: property.propertyType,
+                status: property.status
+              },
+              investor: {
+                id: investor.id,
+                name: investor.name,
+                email: investor.email,
+                phone: investor.phone,
+                company: investor.company,
+                strategies: investor.strategies || [],
+                preferredIslands: investor.preferredIslands || [],
+                minBudget: investor.minBudget,
+                maxBudget: investor.maxBudget
+              },
+              matchScore,
+              matchReasons
+            });
+          }
+        }
       }
-    ];
+
+      // Sort by match score descending
+      return matches.sort((a, b) => b.matchScore - a.matchScore);
+
+    } catch (error) {
+      console.error('Error getting matches:', error);
+      return [];
+    }
   }
 
   async getMatchingStats() {
@@ -272,6 +298,58 @@ class MatchingService {
       matchesByProperty: { "1": 2, "2": 1, "3": 4 },
       averageMatchScore: 72
     };
+  }
+
+  private calculateMatchScore(property: Property, investor: Investor): number {
+    let score = 0;
+
+    if (investor.preferredIslands && investor.preferredIslands.includes(this.extractIsland(property.address))) {
+      score += 30;
+    }
+
+    if (investor.propertyTypes && investor.propertyTypes.includes(property.propertyType || '')) {
+      score += 25;
+    }
+
+    if (property.estimatedValue && investor.minBudget && property.estimatedValue >= investor.minBudget) {
+      score += 20;
+    }
+
+    if (property.estimatedValue && investor.maxBudget && property.estimatedValue <= investor.maxBudget) {
+      score += 20;
+    }
+
+    if (property.daysUntilAuction && property.daysUntilAuction <= 30) {
+      score += 15;
+    }
+
+    return score;
+  }
+
+  private getMatchReasons(property: Property, investor: Investor): string[] {
+    const reasons: string[] = [];
+
+    if (investor.preferredIslands && investor.preferredIslands.includes(this.extractIsland(property.address))) {
+      reasons.push("Location preference");
+    }
+
+    if (investor.propertyTypes && investor.propertyTypes.includes(property.propertyType || '')) {
+      reasons.push("Property type alignment");
+    }
+
+    if (property.estimatedValue && investor.minBudget && property.estimatedValue >= investor.minBudget) {
+      reasons.push("Minimum budget match");
+    }
+
+    if (property.estimatedValue && investor.maxBudget && property.estimatedValue <= investor.maxBudget) {
+      reasons.push("Maximum budget match");
+    }
+
+    if (property.daysUntilAuction && property.daysUntilAuction <= 30) {
+      reasons.push("Auction urgency");
+    }
+
+    return reasons;
   }
 }
 

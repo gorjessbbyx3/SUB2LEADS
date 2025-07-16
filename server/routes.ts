@@ -28,7 +28,7 @@ export async function registerRoutes(app: Express) {
   });
 
   // API Routes - all protected by authentication
-  
+
   // User routes
   app.get("/api/user", isAuthenticated, async (req, res) => {
     try {
@@ -36,7 +36,7 @@ export async function registerRoutes(app: Express) {
       if (!user?.claims?.sub) {
         return res.status(401).json({ error: "User not found" });
       }
-      
+
       const userData = await storage.getUser(user.claims.sub);
       res.json(userData);
     } catch (error) {
@@ -176,7 +176,7 @@ export async function registerRoutes(app: Express) {
     try {
       const user = req.user as any;
       const { message, context } = req.body;
-      
+
       if (!message) {
         return res.status(400).json({ error: "Message is required" });
       }
@@ -205,14 +205,14 @@ export async function registerRoutes(app: Express) {
     try {
       const propertyId = parseInt(req.params.id);
       const property = await storage.getProperty(propertyId);
-      
+
       if (!property) {
         return res.status(404).json({ error: "Property not found" });
       }
 
       const pdfGenerator = new PropertyPDFGenerator();
       const pdfBuffer = await pdfGenerator.generatePropertyPresentation(property, req.body);
-      
+
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="property-${propertyId}-presentation.pdf"`);
       res.send(pdfBuffer);
@@ -285,12 +285,12 @@ export async function registerRoutes(app: Express) {
   app.post("/api/outreach/email", isAuthenticated, async (req, res) => {
     try {
       const { leadId, templateId, customMessage } = req.body;
-      
+
       // Get the lead and template
       const lead = await storage.getLead(leadId);
       const campaigns = await storage.getOutreachCampaigns();
       const template = campaigns.find(c => c.id === parseInt(templateId));
-      
+
       if (!lead || !template) {
         return res.status(404).json({ error: "Lead or template not found" });
       }
@@ -331,6 +331,127 @@ export async function registerRoutes(app: Express) {
     } catch (error) {
       console.error("Error fetching scraping jobs:", error);
       res.status(500).json({ error: "Failed to fetch jobs" });
+    }
+  });
+
+  // AI Chat
+  app.post("/api/ai/chat", async (req, res) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { message, context } = req.body;
+      const response = await aiService.processQuery(message, context);
+
+      // Store the interaction
+      await storage.createAIInteraction({
+        userId: req.user.id,
+        query: message,
+        response: response.response,
+        suggestions: response.suggestions,
+        context: context || null
+      });
+
+      res.json(response);
+    } catch (error) {
+      console.error("AI chat error:", error);
+      res.status(500).json({ error: "Failed to process AI request" });
+    }
+  });
+
+  // MLS Routes
+  app.get("/api/mls/listings", async (req, res) => {
+    try {
+      // Return mock MLS data for now - replace with real MLS integration
+      res.json([
+        {
+          id: 1,
+          mlsNumber: "MLS123456",
+          address: "789 Luxury Lane, Kailua, HI 96734",
+          price: 1250000,
+          bedrooms: 4,
+          bathrooms: 3,
+          status: "active",
+          listDate: "2024-01-15",
+          daysOnMarket: 45
+        },
+        {
+          id: 2,
+          mlsNumber: "MLS123457", 
+          address: "456 Beach Blvd, Honolulu, HI 96815",
+          price: 875000,
+          bedrooms: 3,
+          bathrooms: 2,
+          status: "pending",
+          listDate: "2024-01-10",
+          daysOnMarket: 50
+        }
+      ]);
+    } catch (error) {
+      console.error("MLS listings error:", error);
+      res.status(500).json({ error: "Failed to fetch MLS listings" });
+    }
+  });
+
+  app.get("/api/mls/stats", async (req, res) => {
+    try {
+      res.json({
+        activeListings: 156,
+        averagePrice: 925000,
+        newThisWeek: 12,
+        avgDaysOnMarket: 47
+      });
+    } catch (error) {
+      console.error("MLS stats error:", error);
+      res.status(500).json({ error: "Failed to fetch MLS stats" });
+    }
+  });
+
+  // Foreclosure Routes
+  app.get("/api/foreclosures", async (req, res) => {
+    try {
+      const properties = await storage.getProperties({ status: 'foreclosure' });
+      res.json(properties);
+    } catch (error) {
+      console.error("Foreclosures error:", error);
+      res.status(500).json({ error: "Failed to fetch foreclosures" });
+    }
+  });
+
+  // Eviction Routes  
+  app.get("/api/evictions", async (req, res) => {
+    try {
+      // Return mock eviction data for now
+      res.json([
+        {
+          id: 1,
+          address: "123 Rental St, Honolulu, HI 96813",
+          tenantName: "John Doe",
+          caseNumber: "EV-2024-001",
+          status: "active",
+          priority: "high",
+          rentOwed: 8500,
+          hearingDate: "2024-02-15"
+        }
+      ]);
+    } catch (error) {
+      console.error("Evictions error:", error);
+      res.status(500).json({ error: "Failed to fetch evictions" });
+    }
+  });
+
+  app.get("/api/auctions/stats", async (req, res) => {
+    try {
+      res.json({
+        activeForeclosures: 23,
+        upcomingAuctions: 8,
+        evictionCases: 15,
+        highPriority: 6
+      });
+    } catch (error) {
+      console.error("Auction stats error:", error);
+      res.status(500).json({ error: "Failed to fetch auction stats" });
     }
   });
 

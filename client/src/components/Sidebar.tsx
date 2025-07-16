@@ -2,15 +2,16 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { 
   BarChart3, 
-  Users, 
+  Building,
   Home, 
-  Search, 
+  Users, 
+  Target, 
+  AlertTriangle,
   Mail, 
-  FileText, 
+  FileText,
   Settings,
   LogOut,
-  DollarSign,
-  Target
+  DollarSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +22,8 @@ const navigation = [
   { name: "Properties", href: "/properties", icon: Home },
   { name: "Investors", href: "/investors", icon: DollarSign },
   { name: "Matching", href: "/matching", icon: Target },
+  { name: "MLS", href: "/mls", icon: Building },
+  { name: "Evictions", href: "/evictions", icon: AlertTriangle },
   { name: "Data Scraper", href: "/scraper", icon: Search },
   { name: "Outreach", href: "/outreach", icon: Mail },
   { name: "Reports & Binders", href: "/reports", icon: FileText },
