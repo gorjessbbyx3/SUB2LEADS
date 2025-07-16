@@ -189,6 +189,39 @@ export async function registerRoutes(app: Express) {
     }
   });
 
+  // Email Templates routes
+  app.get("/api/email-templates", isAuthenticated, async (req, res) => {
+    try {
+      const templates = await aiService.getEmailTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching email templates:", error);
+      res.status(500).json({ error: "Failed to fetch email templates" });
+    }
+  });
+
+  // PDF Generation routes
+  app.post("/api/properties/:id/pdf", isAuthenticated, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      const property = await storage.getProperty(propertyId);
+      
+      if (!property) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      const pdfGenerator = new PropertyPDFGenerator();
+      const pdfBuffer = await pdfGenerator.generatePropertyPresentation(property, req.body);
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="property-${propertyId}-presentation.pdf"`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      res.status(500).json({ error: "Failed to generate PDF" });
+    }
+  });
+
   // Scraping routes
   app.post("/api/scraping/start", isAuthenticated, async (req, res) => {
     try {

@@ -44,7 +44,7 @@ export default function PropertyDetail() {
 
   const { data: emailTemplates = [] } = useQuery({
     queryKey: ['email-templates'],
-    queryFn: () => apiRequest('/api/email-templates'),
+    queryFn: () => apiRequest('GET', '/api/email-templates'),
   });
 
   const generateSummaryMutation = useMutation({

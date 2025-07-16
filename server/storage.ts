@@ -159,7 +159,20 @@ export class DatabaseStorage implements IStorage {
     limit?: number;
     offset?: number;
   }): Promise<Property[]> {
-    let query = db.select().from(properties);
+    let query = db.select({
+          id: properties.id,
+          address: properties.address,
+          propertyType: properties.propertyType,
+          status: properties.status,
+          priority: properties.priority,
+          estimatedValue: properties.estimatedValue,
+          lienAmount: properties.lienAmount,
+          aiSummary: properties.aiSummary,
+          underContractStatus: properties.underContractStatus,
+          contractUploadUrl: properties.contractUploadUrl,
+          createdAt: properties.createdAt,
+          updatedAt: properties.updatedAt
+        }).from(properties);
 
     if (filters?.status) {
       query = query.where(eq(properties.status, filters.status)) as any;
