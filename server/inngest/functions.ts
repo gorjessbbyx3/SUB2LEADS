@@ -482,27 +482,4 @@ export const dailyMarketAnalysis = inngest.createFunction(
 );
 
 // Import risk scoring functions
-import { scoreLeadRisk, batchRiskAssessment } from './riskScoringFunction';
-
-// Export all functions
-export {
-  helloWorld,
-  processLeadMatch,
-  processWholesaleDeal,
-  schedulePropertyScraping,
-  analyzeSellerMotivation,
-  processNewLead,
-  analyzePropertySTR,
-  checkLeaseholdStatus,
-  smartFollowUp,
-  weeklyMotivationUpdate,
-  advancedLeadScoring,
-  analyzeNeighborhood,
-  urgentLeadFollowup,
-  hotLeadAlert,
-  sendFollowupEmail,
-  strHighScoreAlert,
-  dailyMarketAnalysis,
-  scoreLeadRisk,
-  batchRiskAssessment
-};
+export { scoreLeadRisk, batchRiskAssessment } from './riskScoringFunction';

@@ -197,6 +197,107 @@ export async function registerRoutes(app: Express) {
     } catch (error) {
       console.error("Error fetching investor stats:", error);
       res.status(500).json({ error: "Failed to fetch stats" });
+
+
+  // Risk Assessment endpoints
+  app.post('/api/leads/:leadId/assess-risk', isAuthenticated, async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.leadId);
+      const lead = await storage.getLead(leadId);
+      
+      if (!lead) {
+        return res.status(404).json({ error: 'Lead not found' });
+      }
+
+      // Trigger risk assessment
+      await inngest.send({
+        name: "lead/assess.risk",
+        data: { leadId }
+      });
+
+      res.json({ success: true, message: 'Risk assessment queued' });
+    } catch (error) {
+      console.error('Risk assessment error:', error);
+      res.status(500).json({ error: 'Failed to queue risk assessment' });
+    }
+  });
+
+  app.post('/api/leads/batch-risk-assessment', isAuthenticated, async (req, res) => {
+    try {
+      const { leadIds } = req.body;
+      
+      if (!Array.isArray(leadIds) || leadIds.length === 0) {
+        return res.status(400).json({ error: 'Lead IDs array is required' });
+      }
+
+      // Trigger batch risk assessment
+      await inngest.send({
+        name: "lead/batch.risk.assessment",
+        data: { leadIds }
+      });
+
+      res.json({ 
+        success: true, 
+        message: `Batch risk assessment queued for ${leadIds.length} leads` 
+      });
+    } catch (error) {
+      console.error('Batch risk assessment error:', error);
+      res.status(500).json({ error: 'Failed to queue batch risk assessment' });
+    }
+  });
+
+  app.get('/api/leads/:leadId/risk-history', isAuthenticated, async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.leadId);
+      
+      // Get risk assessment history from database
+      const riskHistory = await db.query(`
+        SELECT * FROM risk_assessments 
+        WHERE lead_id = $1 
+        ORDER BY assessed_at DESC 
+        LIMIT 20
+      `, [leadId]);
+
+      res.json(riskHistory.rows);
+    } catch (error) {
+      console.error('Risk history error:', error);
+      res.status(500).json({ error: 'Failed to fetch risk history' });
+    }
+  });
+
+  app.get('/api/risk/dashboard', isAuthenticated, async (req, res) => {
+    try {
+      const riskStats = await db.query(`
+        SELECT 
+          natural_disaster_risk,
+          COUNT(*) as count,
+          AVG(risk_score) as avg_score
+        FROM leads 
+        WHERE natural_disaster_risk != 'Unknown'
+        GROUP BY natural_disaster_risk
+        ORDER BY count DESC
+      `);
+
+      const zoningStats = await db.query(`
+        SELECT 
+          development_zone_risk,
+          COUNT(*) as count
+        FROM leads 
+        WHERE development_zone_risk != 'None'
+        GROUP BY development_zone_risk
+        ORDER BY count DESC
+      `);
+
+      res.json({
+        naturalDisasterStats: riskStats.rows,
+        zoningStats: zoningStats.rows
+      });
+    } catch (error) {
+      console.error('Risk dashboard error:', error);
+      res.status(500).json({ error: 'Failed to fetch risk dashboard data' });
+    }
+  });
+
     }
   });
 
@@ -1272,7 +1373,9 @@ export async function registerRoutes(app: Express) {
     hotLeadAlert,
     sendFollowupEmail,
     strHighScoreAlert,
-    dailyMarketAnalysis
+    dailyMarketAnalysis,
+    scoreLeadRisk,
+    batchRiskAssessment
   } = await import('./inngest/functions');
 
   app.use("/api/inngest", serve({ 
@@ -1293,7 +1396,9 @@ export async function registerRoutes(app: Express) {
       hotLeadAlert,
       sendFollowupEmail,
       strHighScoreAlert,
-      dailyMarketAnalysis
+      dailyMarketAnalysis,
+      scoreLeadRisk,
+      batchRiskAssessment
     ] 
   }));
 
