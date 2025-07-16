@@ -1,18 +1,31 @@
-import { QueryClientProvider } from '@tanstack/react-query';
-import { Switch, Route } from "wouter";
+
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Router, Route, Switch } from 'wouter';
 import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider, useAuth } from '@/hooks/useAuth';
-import { queryClient } from '@/lib/queryClient';
-import Dashboard from "@/pages/Dashboard";
-import Properties from "@/pages/Properties";
-import PropertyDetail from "@/pages/PropertyDetail";
-import LeadManagement from "@/pages/LeadManagement";
-import DataScraper from "@/pages/DataScraper";
-import Outreach from "@/pages/Outreach";
-import Reports from "@/pages/Reports";
-import Landing from "@/pages/Landing";
-import NotFound from "@/pages/not-found";
-import React, { Suspense } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { Sidebar } from '@/components/Sidebar';
+import { Header } from '@/components/Header';
+import Dashboard from '@/pages/Dashboard';
+import Properties from '@/pages/Properties';
+import PropertyDetail from '@/pages/PropertyDetail';
+import LeadManagement from '@/pages/LeadManagement';
+import Outreach from '@/pages/Outreach';
+import DataScraper from '@/pages/DataScraper';
+import Reports from '@/pages/Reports';
+import Landing from '@/pages/Landing';
+import NotFound from '@/pages/not-found';
+import { Button } from '@/components/ui/button';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function ErrorBoundary({ children, fallback }: { children: React.ReactNode; fallback: React.ReactNode }) {
   const [hasError, setHasError] = React.useState(false);
@@ -25,7 +38,7 @@ function ErrorBoundary({ children, fallback }: { children: React.ReactNode; fall
 
     const rejectionHandler = (event: PromiseRejectionEvent) => {
       console.error("Unhandled promise rejection: ", event.reason);
-      event.preventDefault(); // Prevent default browser behavior
+      event.preventDefault();
       setHasError(true);
     };
 
@@ -53,65 +66,67 @@ function ErrorBoundary({ children, fallback }: { children: React.ReactNode; fall
   return <>{children}</>;
 }
 
+function AppContent() {
+  const { user, loading, error } = useAuth();
 
-function AppRoutes() {
-  const { isAuthenticated, isLoading, login } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Hawaii Real Estate CRM</h1>
-          <p className="text-gray-600 mb-6">Please login to access your CRM dashboard</p>
-          <button
-            onClick={login}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md"
-          >
-            Login with Replit
-          </button>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading Hawaii Real Estate CRM...</p>
         </div>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Authentication Error</h1>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>Try Again</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Landing />;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/dashboard" component={Dashboard} />
-        <Route path="/properties" component={Properties} />
-        <Route path="/properties/:id" component={PropertyDetail} />
-        <Route path="/leads" component={LeadManagement} />
-        <Route path="/scraper" component={DataScraper} />
-        <Route path="/outreach" component={Outreach} />
-        <Route path="/reports" component={Reports} />
-        <Route component={NotFound} />
-      </Switch>
+    <div className="flex h-screen bg-gray-100">
+      <Sidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
+          <Router>
+            <Switch>
+              <Route path="/" component={Dashboard} />
+              <Route path="/properties" component={Properties} />
+              <Route path="/properties/:id" component={PropertyDetail} />
+              <Route path="/leads" component={LeadManagement} />
+              <Route path="/outreach" component={Outreach} />
+              <Route path="/scraper" component={DataScraper} />
+              <Route path="/reports" component={Reports} />
+              <Route component={NotFound} />
+            </Switch>
+          </Router>
+        </main>
+      </div>
       <Toaster />
     </div>
   );
 }
 
-function App() {
+export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ErrorBoundary fallback={<p>Something went wrong.</p>}>
-          <Suspense fallback={<p>Loading app...</p>}>
-            <AppRoutes />
-          </Suspense>
-        </ErrorBoundary>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary fallback={<div>Something went wrong</div>}>
+      <QueryClientProvider client={queryClient}>
+        <AppContent />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
-
-export default App;

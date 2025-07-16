@@ -1,15 +1,14 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { FileText, Database, Search, Play, RefreshCw, Clock, CheckCircle, XCircle, Download } from 'lucide-react';
+import { FileText, Database, Search, Play, RefreshCw, Clock, CheckCircle, XCircle, Download, AlertCircle, Calendar } from 'lucide-react';
 import { apiRequest } from '@/lib/authUtils';
-import {Sidebar} from '@/components/Sidebar';
-import {Header} from '@/components/Header';
-import { useToast } from '@/hooks/use-toast';
+import { Sidebar } from '@/components/Sidebar';
+import { Header } from '@/components/Header';
 
 interface ScrapingJob {
   id: string;
@@ -35,7 +34,7 @@ export default function DataScraper() {
 
   const { data: scrapingStats } = useQuery({
     queryKey: ["/api/scraper/stats"],
-    queryFn: () => fetch("/api/scraper/stats").then(res => res.json()),
+    queryFn: () => apiRequest("/api/scraper/stats"),
   });
 
   const runScraperMutation = useMutation({
@@ -46,7 +45,7 @@ export default function DataScraper() {
     onMutate: (source) => {
       setActiveSource(source);
     },
-    onSuccess: (data, source) => {
+    onSuccess: (data: any, source) => {
       toast({
         title: 'Scraping completed!',
         description: `Found ${data.propertiesFound} properties from ${source}`,
@@ -72,7 +71,7 @@ export default function DataScraper() {
     onMutate: () => {
       setActiveSource('all');
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({
         title: 'All scrapers completed!',
         description: data.message,
@@ -125,7 +124,7 @@ export default function DataScraper() {
       case 'completed':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'failed':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+        return <XCircle className="h-4 w-4 text-red-500" />;
       default:
         return <Clock className="h-4 w-4 text-gray-500" />;
     }
@@ -149,8 +148,8 @@ export default function DataScraper() {
       <Sidebar />
 
       <main className="flex-1 ml-64 overflow-y-auto">
-        <Header 
-          title="Data Scraper" 
+        <Header
+          title="Data Scraper"
           subtitle="Automated property data collection from public sources"
         />
 
@@ -271,9 +270,9 @@ export default function DataScraper() {
                               <p className="text-gray-600">{source.description}</p>
                               <div className="flex items-center gap-4 text-sm text-gray-500">
                                 <span>Expected: {source.expectedResults}</span>
-                                <a 
-                                  href={source.url} 
-                                  target="_blank" 
+                                <a
+                                  href={source.url}
+                                  target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-blue-600 hover:underline"
                                 >
@@ -331,7 +330,7 @@ export default function DataScraper() {
                             <div>
                               <p className="font-medium capitalize">{job.source.replace('_', ' ')}</p>
                               <p className="text-sm text-gray-500">
-                                Started {new Date(job.startedAt).toLocaleString()}
+                                Started {new Date(job.startTime).toLocaleString()}
                               </p>
                             </div>
                           </div>
@@ -353,8 +352,8 @@ export default function DataScraper() {
                               )}
                             </div>
 
-                            <Badge 
-                              variant="outline" 
+                            <Badge
+                              variant="outline"
                               className={`${getStatusColor(job.status)} text-white border-none`}
                             >
                               {job.status}
