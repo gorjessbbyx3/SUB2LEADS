@@ -896,7 +896,17 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-
+  // MLS Routes
+  app.get("/api/mls/listings", async (req, res) => {
+    try {
+      // Return mock MLS data for now - replace with real MLS integration
+      res.json([
+        {
+          id: 1,
+          mlsNumber: "MLS123456",
+          address: "789 Luxury Lane, Kailua, HI 96734",
+          price: 1250000,
+          bedrooms: 4,
           bathrooms: 3,
           status: "active",
           listDate: "2024-01-15",
