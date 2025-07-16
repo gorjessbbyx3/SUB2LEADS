@@ -111,21 +111,33 @@ class ScraperService {
         isResolved = true;
         clearTimeout(timeout);
 
+        console.log(`Python script ${scriptName} completed with exit code ${code}`);
+        console.log(`Output: ${output.slice(0, 1000)}`);
+        if (errorOutput) {
+          console.log(`Error output: ${errorOutput.slice(0, 500)}`);
+        }
+
         if (code === 0) {
           try {
             // Try to parse JSON output from Python script
             const lines = output.trim().split('\n');
-            const jsonLine = lines.find(line => line.startsWith('[') || line.startsWith('{'));
+            const jsonLine = lines.find(line => {
+              const trimmed = line.trim();
+              return trimmed.startsWith('[') || trimmed.startsWith('{');
+            });
 
             if (jsonLine) {
               const data = JSON.parse(jsonLine);
-              resolve(Array.isArray(data) ? data : [data]);
+              const properties = Array.isArray(data) ? data : [data];
+              console.log(`Successfully parsed ${properties.length} properties from ${scriptName}`);
+              resolve(properties);
             } else {
-              console.warn(`No valid JSON output from ${scriptName}`);
+              console.warn(`No valid JSON output from ${scriptName}. Output was: ${output}`);
               resolve([]);
             }
           } catch (error) {
             console.warn(`Failed to parse JSON from ${scriptName}:`, error);
+            console.warn(`Raw output was: ${output}`);
             resolve([]);
           }
         } else {

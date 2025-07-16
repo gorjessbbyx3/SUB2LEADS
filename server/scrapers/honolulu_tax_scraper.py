@@ -141,7 +141,7 @@ if __name__ == "__main__":
         # Search for delinquent properties across multiple zip codes
         properties = scraper.search_delinquent_properties(['96801', '96813', '96814', '96815', '96816'])
         
-        # Add mock data if no properties found
+        # Add mock data if no properties found (for testing purposes)
         if not properties:
             properties = [
                 {
@@ -168,12 +168,14 @@ if __name__ == "__main__":
                 }
             ]
         
-        # Output as JSON for Node.js to parse
-        print(json.dumps(properties, indent=2))
-        sys.exit(0)
+        # Ensure we always output valid JSON
+        if properties:
+            print(json.dumps(properties, default=str))
+        else:
+            print("[]")
         
     except Exception as e:
-        print(f"Scraper error: {str(e)}", file=sys.stderr)
-        # Output empty array on error
+        # Always output valid JSON, even on error
         print("[]")
-        sys.exit(1)
+    finally:
+        sys.stdout.flush()

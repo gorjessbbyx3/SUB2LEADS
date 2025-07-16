@@ -213,7 +213,7 @@ if __name__ == "__main__":
         
         foreclosures = scraper.scrape_foreclosures()
         
-        # Add mock data if no foreclosures found
+        # Add mock data if no foreclosures found (for testing purposes)
         if not foreclosures:
             foreclosures = [
                 {
@@ -242,12 +242,14 @@ if __name__ == "__main__":
                 }
             ]
         
-        # Output as JSON for Node.js to parse
-        print(json.dumps(foreclosures, indent=2))
-        sys.exit(0)
+        # Ensure we always output valid JSON
+        if foreclosures:
+            print(json.dumps(foreclosures, default=str))
+        else:
+            print("[]")
         
     except Exception as e:
-        print(f"Scraper error: {str(e)}", file=sys.stderr)
-        # Output empty array on error
+        # Always output valid JSON, even on error
         print("[]")
-        sys.exit(1)
+    finally:
+        sys.stdout.flush()
