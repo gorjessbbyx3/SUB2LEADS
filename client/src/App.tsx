@@ -70,6 +70,9 @@ function ErrorBoundary({ children, fallback }: { children: React.ReactNode; fall
 function AppContent() {
   const { user, loading, error } = useAuth();
 
+  // Add debugging
+  console.log('AppContent render - user:', user, 'loading:', loading, 'error:', error);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">

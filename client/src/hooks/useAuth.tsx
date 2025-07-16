@@ -28,23 +28,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const checkAuth = async () => {
+    console.log('checkAuth: Starting authentication check...');
     try {
       const response = await fetch('/api/user');
+      console.log('checkAuth: Response status:', response.status);
+      
       if (response.ok) {
         const userData = await response.json();
+        console.log('checkAuth: User authenticated:', userData);
         setUser(userData);
         setError(null);
       } else if (response.status === 401) {
         // User is not authenticated, this is expected
+        console.log('checkAuth: User not authenticated (401), showing landing page');
         setUser(null);
         setError(null);
       } else {
+        console.log('checkAuth: Unexpected response status:', response.status);
         setError('Authentication check failed');
       }
     } catch (error) {
       console.error('Auth check failed:', error);
       setError('Authentication check failed');
     } finally {
+      console.log('checkAuth: Setting loading to false');
       setLoading(false);
     }
   };
