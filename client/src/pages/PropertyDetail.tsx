@@ -139,6 +139,55 @@ export default function PropertyDetail() {
     });
   };
 
+  const handleEmailClick = (contact: any) => {
+    if (!contact.email) {
+      console.error('No email address for contact');
+      return;
+    }
+
+    const subject = getEmailSubject(selectedTemplate);
+    const body = getEmailBody(selectedTemplate, property, contact);
+    const mailto = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    window.location.href = mailto;
+  };
+
+  const handleGeneratePDF = async () => {
+    try {
+      const response = await fetch(`/api/properties/${id}/pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          includePhotos: true,
+          includeMap: true,
+          includeComps: true,
+          includeMatches: true,
+          companyName: 'Sub2Leads Hawaii',
+          contactInfo: 'leads@sub2leads.com\n(808) 555-0123\nwww.sub2leads.com'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `property-${id}-presentation.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('PDF generation failed:', error);
+      alert('Failed to generate PDF. Please try again.');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-screen">

@@ -125,11 +125,11 @@ function AppContent() {
 export default function App() {
   return (
     <ErrorBoundary fallback={<div>Something went wrong</div>}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
+      <AuthProvider>
+        <QueryClientProvider client={queryClient}>
           <AppContent />
-        </AuthProvider>
-      </QueryClientProvider>
+        </QueryClientProvider>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

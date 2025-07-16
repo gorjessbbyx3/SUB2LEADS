@@ -1,933 +1,583 @@
-import puppeteer from 'puppeteer';
-import path from 'path';
-import fs from 'fs/promises';
-import { storage } from '../storage';
-import { mapService } from './mapService';
 import PDFDocument from 'pdfkit';
+import fs from 'fs';
+import path from 'path';
+import axios from 'axios';
 
-class PDFGeneratorService {
-  private browser: any = null;
+interface PropertyData {
+  id: number;
+  address: string;
+  tmk?: string;
+  island: string;
+  city?: string;
+  propertyType?: string;
+  auctionDate?: string;
+  status: string;
+  estimatedValue?: number;
+  amountOwed?: number;
+  notes?: string;
+  priority: string;
+}
 
-  async initBrowser() {
-    if (!this.browser) {
-      this.browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+interface ContactData {
+  name?: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+}
+
+interface BuyerMatch {
+  name: string;
+  strategy: string;
+  maxPrice?: number;
+  email?: string;
+}
+
+interface CompData {
+  address: string;
+  soldPrice: number;
+  soldDate: string;
+  distance: string;
+}
+
+interface PDFOptions {
+  includePhotos?: boolean;
+  includeMap?: boolean;
+  includeComps?: boolean;
+  includeMatches?: boolean;
+  companyName?: string;
+  contactInfo?: string;
+  logoPath?: string;
+}
+
+export class PropertyPDFGenerator {
+  private doc: PDFDocument;
+  private pageWidth: number = 612;
+  private pageHeight: number = 792;
+  private margin: number = 50;
+
+  constructor() {
+    this.doc = new PDFDocument({
+      size: 'LETTER',
+      margins: {
+        top: this.margin,
+        bottom: this.margin,
+        left: this.margin,
+        right: this.margin
+      }
+    });
+  }
+
+  async generatePropertyPDF(
+    property: PropertyData,
+    contact?: ContactData,
+    matches: BuyerMatch[] = [],
+    comps: CompData[] = [],
+    options: PDFOptions = {}
+  ): Promise<Buffer> {
+    const buffers: Buffer[] = [];
+
+    this.doc.on('data', buffers.push.bind(buffers));
+
+    return new Promise((resolve) => {
+      this.doc.on('end', () => {
+        const pdfData = Buffer.concat(buffers);
+        resolve(pdfData);
       });
-    }
-    return this.browser;
+
+      // Generate PDF content
+      this.createCoverPage(property, options);
+      this.createDealOverview(property, contact);
+
+      if (options.includePhotos) {
+        this.createPhotosPage(property);
+      }
+
+      if (options.includeMap) {
+        this.createLocationMap(property);
+      }
+
+      if (options.includeComps && comps.length > 0) {
+        this.createCompsPage(comps);
+      }
+
+      this.createStrategyPage(property, matches);
+      this.createContactPage(options);
+
+      this.doc.end();
+    });
   }
 
-  async generatePropertyBinder(property: any, userId: string): Promise<string> {
-    const browser = await this.initBrowser();
-    const page = await browser.newPage();
+  private createCoverPage(property: PropertyData, options: PDFOptions) {
+    // Header with logo space
+    if (options.logoPath && fs.existsSync(options.logoPath)) {
+      this.doc.image(options.logoPath, this.margin, this.margin, { width: 100 });
+    }
 
-    try {
-      // Get additional data
-      const contacts = await storage.getContactsByProperty(property.id);
-      const mapData = await mapService.getPropertyMap(property);
-
-      // Generate HTML content
-      const htmlContent = await this.generateBinderHTML(property, contacts, mapData);
-
-      // Set page content
-      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-
-      // Generate PDF
-      const pdfPath = path.join(process.cwd(), 'pdfs', `property-${property.id}-${Date.now()}.pdf`);
-
-      // Ensure directory exists
-      await fs.mkdir(path.dirname(pdfPath), { recursive: true });
-
-      await page.pdf({
-        path: pdfPath,
-        format: 'A4',
-        printBackground: true,
-        margin: {
-          top: '20px',
-          right: '20px',
-          bottom: '20px',
-          left: '20px',
-        },
+    // Main title
+    this.doc
+      .fontSize(24)
+      .font('Helvetica-Bold')
+      .fillColor('#2563eb')
+      .text('PROPERTY FORECLOSURE DEAL', this.margin, 150, {
+        align: 'center',
+        width: this.pageWidth - 2 * this.margin
       });
 
-      return `/pdfs/${path.basename(pdfPath)}`;
-    } catch (error) {
-      console.error('PDF generation error:', error);
-      throw error;
-    } finally {
-      await page.close();
+    // Property address
+    this.doc
+      .fontSize(18)
+      .fillColor('#1f2937')
+      .text(property.address, this.margin, 200, {
+        align: 'center',
+        width: this.pageWidth - 2 * this.margin
+      });
+
+    // TMK if available
+    if (property.tmk) {
+      this.doc
+        .fontSize(14)
+        .fillColor('#6b7280')
+        .text(`TMK: ${property.tmk}`, this.margin, 230, {
+          align: 'center',
+          width: this.pageWidth - 2 * this.margin
+        });
     }
+
+    // Property photo placeholder
+    this.createPhotoPlaceholder(this.margin + 100, 280, 300, 200);
+
+    // Island and type info
+    this.doc
+      .fontSize(16)
+      .fillColor('#374151')
+      .text(`${property.island} • ${property.propertyType || 'Property'}`, this.margin, 520, {
+        align: 'center',
+        width: this.pageWidth - 2 * this.margin
+      });
+
+    // Company info
+    this.doc
+      .fontSize(14)
+      .fillColor('#6b7280')
+      .text(`Presented by: ${options.companyName || 'Sub2Leads | Hawaii Opportunities'}`, this.margin, 700, {
+        align: 'center',
+        width: this.pageWidth - 2 * this.margin
+      });
+
+    this.doc.addPage();
   }
 
-  private generateBinderHTML(property: any, contacts: any[], mapData: any): Promise<string> {
-    const equity = this.calculateEquity(property);
-    const roi = this.calculateROI(property);
-    const currentDate = new Date().toLocaleDateString();
-    const auctionDate = property.auctionDate ? new Date(property.auctionDate).toLocaleDateString() : 'TBD';
-    const estimatedRehab = this.estimateRepairs(property);
-    const spreadAmount = equity - estimatedRehab;
+  private createDealOverview(property: PropertyData, contact?: ContactData) {
+    this.addSectionHeader('DEAL OVERVIEW', '#dc2626');
 
-    return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Property Foreclosure Deal - ${property.address}</title>
-      <style>
-        @page { 
-          margin: 15mm; 
-          size: A4;
-        }
-        body { 
-          font-family: 'Arial', sans-serif; 
-          margin: 0; 
-          color: #333;
-          line-height: 1.5;
-          font-size: 11px;
-        }
-        
-        /* Cover Page Styles */
-        .cover-page {
-          text-align: center;
-          padding: 60px 40px;
-          background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-          color: white;
-          height: 100vh;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          page-break-after: always;
-        }
-        .cover-title {
-          font-size: 32px;
-          font-weight: bold;
-          margin-bottom: 20px;
-          text-transform: uppercase;
-          letter-spacing: 2px;
-        }
-        .cover-address {
-          font-size: 24px;
-          margin-bottom: 30px;
-          font-weight: 300;
-        }
-        .cover-details {
-          font-size: 16px;
-          margin: 20px 0;
-          opacity: 0.9;
-        }
-        .cover-logo {
-          margin-top: 40px;
-          font-size: 18px;
-          opacity: 0.8;
-        }
+    let yPos = 120;
+    const leftCol = this.margin;
+    const rightCol = this.pageWidth / 2 + 20;
 
-        /* Page Layout */
-        .page {
-          page-break-before: always;
-          padding: 30px;
-          min-height: 90vh;
-        }
-        
-        .page-header {
-          border-bottom: 3px solid #1e3a8a;
-          padding-bottom: 15px;
-          margin-bottom: 30px;
-        }
-        .page-title {
-          font-size: 22px;
-          font-weight: bold;
-          color: #1e3a8a;
-          margin: 0;
-        }
+    // Left column
+    this.addKeyValuePair('Island:', property.island, leftCol, yPos);
+    yPos += 30;
 
-        /* Deal Snapshot Styles */
-        .deal-snapshot {
-          background: #f8fafc;
-          border: 2px solid #e2e8f0;
-          border-radius: 12px;
-          padding: 25px;
-          margin: 20px 0;
-        }
-        .snapshot-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 20px;
-        }
-        .snapshot-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px 0;
-          border-bottom: 1px solid #e2e8f0;
-        }
-        .snapshot-label {
-          font-weight: bold;
-          color: #475569;
-        }
-        .snapshot-value {
-          font-size: 14px;
-          font-weight: bold;
-          color: #1e293b;
-        }
-        
-        /* Spread Highlight */
-        .spread-highlight {
-          background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-          color: white;
-          text-align: center;
-          padding: 20px;
-          border-radius: 10px;
-          margin: 20px 0;
-          font-size: 18px;
-          font-weight: bold;
-        }
-
-        /* Comps Table */
-        .comps-table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 20px 0;
-          background: white;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          border-radius: 8px;
-          overflow: hidden;
-        }
-        .comps-table th {
-          background: #1e3a8a;
-          color: white;
-          padding: 12px;
-          text-align: left;
-          font-weight: bold;
-        }
-        .comps-table td {
-          padding: 12px;
-          border-bottom: 1px solid #e2e8f0;
-        }
-        .comps-table tr:hover {
-          background: #f8fafc;
-        }
-
-        /* Strategy Section */
-        .strategy-box {
-          background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
-          color: white;
-          padding: 25px;
-          border-radius: 10px;
-          margin: 20px 0;
-        }
-        .strategy-title {
-          font-size: 18px;
-          font-weight: bold;
-          margin-bottom: 15px;
-        }
-        .strategy-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 15px;
-          margin-top: 15px;
-        }
-        .strategy-item {
-          background: rgba(255,255,255,0.15);
-          padding: 12px;
-          border-radius: 6px;
-          text-align: center;
-        }
-
-        /* Buyer Matching */
-        .buyer-match {
-          background: #fef3c7;
-          border: 2px solid #f59e0b;
-          border-radius: 8px;
-          padding: 20px;
-          margin: 20px 0;
-        }
-        .buyer-match h3 {
-          color: #92400e;
-          margin-top: 0;
-        }
-        .buyer-list {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 15px;
-          margin-top: 15px;
-        }
-        .buyer-card {
-          background: white;
-          border: 1px solid #f59e0b;
-          padding: 15px;
-          border-radius: 6px;
-        }
-        .buyer-name {
-          font-weight: bold;
-          color: #92400e;
-        }
-
-        /* Map Placeholder */
-        .map-container {
-          border: 2px dashed #cbd5e1;
-          border-radius: 8px;
-          padding: 40px;
-          text-align: center;
-          background: #f8fafc;
-          margin: 20px 0;
-          color: #64748b;
-        }
-
-        /* Contact CTA */
-        .contact-cta {
-          background: #dc2626;
-          color: white;
-          padding: 25px;
-          border-radius: 10px;
-          text-align: center;
-          margin: 30px 0;
-          font-size: 16px;
-          font-weight: bold;
-        }
-        .cta-phone {
-          font-size: 20px;
-          margin: 10px 0;
-        }
-
-        /* Footer */
-        .page-footer {
-          position: fixed;
-          bottom: 15mm;
-          left: 15mm;
-          right: 15mm;
-          text-align: center;
-          font-size: 10px;
-          color: #64748b;
-          border-top: 1px solid #e2e8f0;
-          padding-top: 10px;
-        }
-
-        @media print {
-          .page { break-inside: avoid; }
-          .deal-snapshot { break-inside: avoid; }
-          .strategy-box { break-inside: avoid; }
-        }
-      </style>
-    </head>
-    <body>
-        .header { 
-          text-align: center; 
-          margin-bottom: 40px; 
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 30px;
-          border-radius: 10px;
-        }
-        .logo { 
-          font-size: 24px; 
-          font-weight: bold; 
-          margin-bottom: 10px;
-        }
-        .property-title { 
-          font-size: 28px; 
-          margin: 15px 0; 
-          font-weight: bold;
-        }
-        .date { opacity: 0.9; }
-
-        .summary-cards {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 20px;
-          margin: 30px 0;
-        }
-        .card {
-          background: white;
-          border: 1px solid #e0e0e0;
-          border-radius: 8px;
-          padding: 20px;
-          text-align: center;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .card-value {
-          font-size: 24px;
-          font-weight: bold;
-          color: #667eea;
-          margin-bottom: 5px;
-        }
-        .card-label {
-          color: #666;
-          font-size: 14px;
-        }
-
-        .section { 
-          margin-bottom: 40px; 
-          background: white;
-          border-radius: 8px;
-          overflow: hidden;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-        .section-header {
-          background: #f8f9fa;
-          padding: 20px;
-          border-bottom: 1px solid #e0e0e0;
-        }
-        .section-content {
-          padding: 30px;
-        }
-        h2 { 
-          color: #2c3e50; 
-          margin: 0;
-          font-size: 20px;
-        }
-
-        .property-details table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 20px;
-        }
-        .property-details td {
-          padding: 12px;
-          border-bottom: 1px solid #eee;
-        }
-        .property-details td:first-child {
-          font-weight: bold;
-          background: #f8f9fa;
-          width: 200px;
-        }
-
-        .financial-highlight {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 25px;
-          border-radius: 8px;
-          margin: 20px 0;
-        }
-        .financial-highlight h3 {
-          margin-top: 0;
-          color: white;
-        }
-        .financial-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 20px;
-          margin-top: 15px;
-        }
-        .financial-item {
-          background: rgba(255,255,255,0.1);
-          padding: 15px;
-          border-radius: 5px;
-        }
-
-        .map-placeholder {
-          width: 100%;
-          height: 300px;
-          background: #f0f0f0;
-          border: 2px dashed #ccc;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #666;
-          border-radius: 8px;
-          margin: 20px 0;
-        }
-
-        .contact-summary {
-          background: #e8f4fd;
-          border: 1px solid #b3d9ff;
-          padding: 20px;
-          border-radius: 8px;
-          margin: 20px 0;
-        }
-
-        .action-items {
-          background: #fff3cd;
-          border: 1px solid #ffeaa7;
-          padding: 20px;
-          border-radius: 8px;
-        }
-        .action-items ul {
-          margin: 10px 0;
-          padding-left: 20px;
-        }
-
-        .footer {
-          text-align: center;
-          margin-top: 50px;
-          padding: 20px;
-          color: #666;
-          border-top: 1px solid #eee;
-        }
-
-        @media print {
-          .section { break-inside: avoid; }
-          .summary-cards { break-inside: avoid; }
-        }
-      </style>
-    </head>
-    <body>
-      <!-- Cover Page -->
-      <div class="cover-page">
-        <div class="cover-title">🏠 Property Foreclosure Deal</div>
-        <div class="cover-address">${property.address}</div>
-        <div class="cover-details">
-          TMK: ${property.tmk || 'TBD'} | ${this.extractIsland(property.address)} | ${property.propertyType || 'SFR'}
-        </div>
-        <div class="cover-details">
-          Auction Date: ${auctionDate}
-        </div>
-        <div class="cover-details">
-          Status: ${property.status?.toUpperCase() || 'ACTIVE'}
-        </div>
-        <div class="cover-logo">
-          Presented by: Sub2Leads | Hawaii Opportunities<br>
-          Report Generated: ${currentDate}
-        </div>
-      </div>
-
-      <!-- Executive Summary Page -->
-      <div class="page">
-        <div class="page-header">
-          <h1 class="page-title">📋 Executive Summary</h1>
-        </div>
-        
-        <div class="deal-snapshot">
-          <div class="snapshot-grid">
-            <div class="snapshot-item">
-              <span class="snapshot-label">🏝️ Island:</span>
-              <span class="snapshot-value">${this.extractIsland(property.address)}</span>
-            </div>
-            <div class="snapshot-item">
-              <span class="snapshot-label">🏠 Property Type:</span>
-              <span class="snapshot-value">${property.propertyType || 'SFR'}</span>
-            </div>
-            <div class="snapshot-item">
-              <span class="snapshot-label">📅 Auction Date:</span>
-              <span class="snapshot-value">${auctionDate}</span>
-            </div>
-            <div class="snapshot-item">
-              <span class="snapshot-label">⏰ Days Until Auction:</span>
-              <span class="snapshot-value">${property.daysUntilAuction || 'TBD'}</span>
-            </div>
-            <div class="snapshot-item">
-              <span class="snapshot-label">💰 Estimated ARV:</span>
-              <span class="snapshot-value">$${property.estimatedValue?.toLocaleString() || '---'}</span>
-            </div>
-            <div class="snapshot-item">
-              <span class="snapshot-label">🔧 Estimated Rehab:</span>
-              <span class="snapshot-value">$${estimatedRehab.toLocaleString()}</span>
-            </div>
-            <div class="snapshot-item">
-              <span class="snapshot-label">💵 Total Debt:</span>
-              <span class="snapshot-value">$${property.amountOwed?.toLocaleString() || 'TBD'}</span>
-            </div>
-            <div class="snapshot-item">
-              <span class="snapshot-label">🎯 Max Offer (70% Rule):</span>
-              <span class="snapshot-value">$${this.calculateMaxOffer(property).toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="spread-highlight">
-          🔥 Potential Spread: $${spreadAmount > 0 ? spreadAmount.toLocaleString() : 'TBD'}
-        </div>
-
-        <div style="margin-top: 30px;">
-          <h3>🎯 Quick Investment Highlights:</h3>
-          <ul style="font-size: 12px; line-height: 1.8;">
-            <li><strong>Location:</strong> ${property.address}, ${this.extractIsland(property.address)}</li>
-            <li><strong>Urgency:</strong> ${property.daysUntilAuction ? property.daysUntilAuction + ' days until auction' : 'Active foreclosure'}</li>
-            <li><strong>Property Details:</strong> ${property.bedrooms || '?'} bed / ${property.bathrooms || '?'} bath, ${property.squareFeet?.toLocaleString() || '?'} sq ft</li>
-            <li><strong>Built:</strong> ${property.yearBuilt || 'Unknown'}</li>
-            <li><strong>Priority Level:</strong> ${property.priority?.toUpperCase() || 'MEDIUM'}</li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Comparable Sales Page -->
-      <div class="page">
-        <div class="page-header">
-          <h1 class="page-title">📊 Comparable Sales Analysis</h1>
-        </div>
-        
-        <table class="comps-table">
-          <thead>
-            <tr>
-              <th>Address</th>
-              <th>Sold Price</th>
-              <th>Sale Date</th>
-              <th>Distance</th>
-              <th>Bed/Bath</th>
-              <th>Sq Ft</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${this.generateComparableHtml(property)}
-          </tbody>
-        </table>
-
-        <div style="margin-top: 30px;">
-          <h3>📈 Market Analysis:</h3>
-          <ul style="font-size: 12px; line-height: 1.8;">
-            <li><strong>Average Price per Sq Ft:</strong> $${this.calculatePricePerSqFt(property)}</li>
-            <li><strong>Market Trend:</strong> ${this.getMarketTrend(property)}</li>
-            <li><strong>Days on Market (Average):</strong> 45-60 days for similar properties</li>
-            <li><strong>Market Confidence:</strong> High - Hawaii real estate remains stable</li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Location & Map Page -->
-      <div class="page">
-        <div class="page-header">
-          <h1 class="page-title">📍 Location Analysis</h1>
-        </div>
-        
-        <div class="map-container">
-          📍 Property Location Map<br>
-          <strong>${property.address}</strong><br>
-          <small>Satellite and street view would be displayed here</small>
-        </div>
-
-        <div style="margin-top: 30px;">
-          <h3>🏘️ Neighborhood Highlights:</h3>
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 15px;">
-            <div>
-              <h4>🎯 Investment Factors:</h4>
-              <ul style="font-size: 11px; line-height: 1.6;">
-                <li>Close to major highways</li>
-                <li>Established residential area</li>
-                <li>Strong rental demand</li>
-                <li>Tourist area proximity</li>
-              </ul>
-            </div>
-            <div>
-              <h4>🏫 Nearby Amenities:</h4>
-              <ul style="font-size: 11px; line-height: 1.6;">
-                <li>Schools within 2 miles</li>
-                <li>Shopping centers nearby</li>
-                <li>Beach access</li>
-                <li>Public transportation</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-header">
-          <h2>💰 Financial Analysis</h2>
-        </div>
-        <div class="section-content">
-          <div class="financial-highlight">
-            <h3>Investment Opportunity Summary</h3>
-            <div class="financial-grid">
-              <div class="financial-item">
-                <strong>Market Value:</strong><br>
-                $${property.estimatedValue?.toLocaleString() || 'TBD'}
-              </div>
-              <div class="financial-item">
-                <strong>Total Debt:</strong><br>
-                $${property.amountOwed?.toLocaleString() || 'TBD'}
-              </div>
-              <div class="financial-item">
-                <strong>Gross Equity:</strong><br>
-                $${equity.toLocaleString()}
-              </div>
-              <div class="financial-item">
-                <strong>Potential ROI:</strong><br>
-                ${roi}%
-              </div>
-            </div>
-          </div>
-
-          <div style="margin-top: 30px;">
-            <h3>📊 Deal Analysis</h3>
-            <p><strong>Estimated Repair Costs:</strong> $${this.estimateRepairs(property).toLocaleString()} (10-15% of value)</p>
-            <p><strong>Net Equity After Repairs:</strong> $${(equity - this.estimateRepairs(property)).toLocaleString()}</p>
-            <p><strong>Recommended Max Offer:</strong> $${this.calculateMaxOffer(property).toLocaleString()} (70% of ARV - Repairs)</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-header">
-          <h2>📞 Contact Information</h2>
-        </div>
-        <div class="section-content">
-          <div class="contact-summary">
-            <h3>Property Owner Details</h3>
-            <p><strong>Contact Status:</strong> ${property.contacts?.[0] ? 'Contact Found' : 'Contact Search Needed'}</p>
-            <p><strong>Owner Name:</strong> ${property.contacts?.[0]?.name || 'To Be Determined'}</p>
-            <p><strong>Phone:</strong> ${property.contacts?.[0]?.phone || 'Not Available'}</p>
-            <p><strong>Email:</strong> ${property.contacts?.[0]?.email || 'Not Available'}</p>
-            <p><strong>Last Contact:</strong> ${property.contacts?.[0]?.lastEnriched ? new Date(property.contacts[0].lastEnriched).toLocaleDateString() : 'Never'}</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Strategy & Exit Plan Page -->
-      <div class="page">
-        <div class="page-header">
-          <h1 class="page-title">💼 Investment Strategy & Exit Plan</h1>
-        </div>
-        
-        <div class="strategy-box">
-          <div class="strategy-title">🎯 Recommended Strategy: ${this.getRecommendedStrategy(property)}</div>
-          <div class="strategy-grid">
-            <div class="strategy-item">
-              <strong>Hold ROI</strong><br>
-              ${this.calculateHoldROI(property)}% annually
-            </div>
-            <div class="strategy-item">
-              <strong>Flip Potential</strong><br>
-              $${this.calculateFlipProfit(property).toLocaleString()} profit
-            </div>
-            <div class="strategy-item">
-              <strong>LTV Opportunity</strong><br>
-              ${this.calculateLTV(property)}%
-            </div>
-          </div>
-        </div>
-
-        <div style="margin-top: 30px;">
-          <h3>📋 Exit Strategy Options:</h3>
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 15px;">
-            <div style="border: 2px solid #e2e8f0; padding: 15px; border-radius: 8px;">
-              <h4 style="color: #059669; margin-top: 0;">🔨 Fix & Flip</h4>
-              <p style="font-size: 11px;">Timeline: 4-6 months<br>
-              Est. Profit: $${this.calculateFlipProfit(property).toLocaleString()}<br>
-              Best for: Quick returns</p>
-            </div>
-            <div style="border: 2px solid #e2e8f0; padding: 15px; border-radius: 8px;">
-              <h4 style="color: #7c3aed; margin-top: 0;">🏠 BRRRR</h4>
-              <p style="font-size: 11px;">Timeline: 6-12 months<br>
-              Cash-on-Cash: ${this.calculateHoldROI(property)}%<br>
-              Best for: Portfolio building</p>
-            </div>
-            <div style="border: 2px solid #e2e8f0; padding: 15px; border-radius: 8px;">
-              <h4 style="color: #dc2626; margin-top: 0;">💰 Buy & Hold</h4>
-              <p style="font-size: 11px;">Timeline: Long-term<br>
-              Monthly CF: $${this.calculateMonthlyCashFlow(property).toLocaleString()}<br>
-              Best for: Passive income</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Matched Buyers Page -->
-      <div class="page">
-        <div class="page-header">
-          <h1 class="page-title">🤝 Matched Investor Profiles</h1>
-        </div>
-        
-        <div class="buyer-match">
-          <h3>🎯 Perfect Fit Investors</h3>
-          <p>Based on location, budget, and strategy preferences, these investors are ideal matches:</p>
-          
-          <div class="buyer-list">
-            ${this.generateMatchedBuyersHtml(property)}
-          </div>
-        </div>
-
-        <div style="margin-top: 30px;">
-          <h3>📧 Outreach Strategy:</h3>
-          <ul style="font-size: 12px; line-height: 1.8;">
-            <li><strong>Immediate Contact:</strong> Reach out within 24 hours due to auction timeline</li>
-            <li><strong>Key Talking Points:</strong> Auction urgency, estimated equity, location benefits</li>
-            <li><strong>Follow-up:</strong> Schedule property tours within 48 hours</li>
-            <li><strong>Backup Buyers:</strong> Have 2-3 additional investors on standby</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-header">
-          <h2>✅ Next Action Items</h2>
-        </div>
-        <div class="section-content">
-          <div class="action-items">
-            <h3>Immediate Actions Required:</h3>
-            <ul>
-              <li>Contact property owner to discuss situation</li>
-              <li>Schedule property inspection</li>
-              <li>Verify debt amounts and legal status</li>
-              <li>Research recent comparable sales</li>
-              <li>Calculate repair estimates</li>
-              <li>Prepare purchase agreement terms</li>
-            </ul>
-
-            <h3>Timeline Considerations:</h3>
-            <ul>
-              <li><strong>Auction Date:</strong> ${property.auctionDate ? new Date(property.auctionDate).toLocaleDateString() : 'TBD'}</li>
-              <li><strong>Days Remaining:</strong> ${property.daysUntilAuction || 'Unknown'}</li>
-              <li><strong>Urgency Level:</strong> ${property.priority?.toUpperCase() || 'MEDIUM'}</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <!-- Contact CTA Page -->
-      <div class="page">
-        <div class="contact-cta">
-          📞 READY TO MOVE FORWARD?
-          <div class="cta-phone">Call Now: (808) 555-DEAL</div>
-          <div>Email: deals@sub2leads.com</div>
-          <div style="margin-top: 15px; font-size: 14px;">
-            ⚠️ Auction properties move fast - Don't miss this opportunity!
-          </div>
-        </div>
-
-        <div style="margin-top: 40px;">
-          <h3>✅ Next Steps:</h3>
-          <ol style="font-size: 12px; line-height: 2;">
-            <li><strong>Contact investor immediately</strong> - Time is critical</li>
-            <li><strong>Schedule property inspection</strong> - Verify condition</li>
-            <li><strong>Research title and liens</strong> - Confirm debt amounts</li>
-            <li><strong>Prepare offer strategy</strong> - Maximum 70% ARV minus repairs</li>
-            <li><strong>Coordinate with attorney</strong> - Ensure proper legal process</li>
-            <li><strong>Secure funding</strong> - Have financing ready before auction</li>
-          </ol>
-        </div>
-
-        <div style="margin-top: 40px; padding: 20px; background: #f8fafc; border-radius: 8px;">
-          <h3 style="margin-top: 0;">📝 Important Disclaimers:</h3>
-          <p style="font-size: 10px; line-height: 1.6; color: #64748b;">
-            This analysis is for informational purposes only. All estimated values, repair costs, and potential returns 
-            are approximate and should be verified independently. Market conditions, property condition, and legal 
-            status can change rapidly. Consult with qualified professionals including real estate agents, contractors, 
-            attorneys, and financial advisors before making investment decisions. Past performance does not guarantee 
-            future results.
-          </p>
-        </div>
-      </div>
-
-      <div class="page-footer">
-        <strong>Sub2Leads Investment Platform</strong> | Professional Hawaii Property Analysis | www.sub2leads.com
-      </div>
-    </body>
-    </html>`;
-  }
-
-  // Helper methods for enhanced presentation
-  private extractIsland(address: string): string {
-    if (address.toLowerCase().includes('honolulu') || address.toLowerCase().includes('kapolei') || address.toLowerCase().includes('kailua')) {
-      return 'Oahu';
-    } else if (address.toLowerCase().includes('maui') || address.toLowerCase().includes('lahaina')) {
-      return 'Maui';
-    } else if (address.toLowerCase().includes('hilo') || address.toLowerCase().includes('kona')) {
-      return 'Big Island';
-    } else if (address.toLowerCase().includes('kauai') || address.toLowerCase().includes('lihue')) {
-      return 'Kauai';
+    if (property.tmk) {
+      this.addKeyValuePair('TMK:', property.tmk, leftCol, yPos);
+      yPos += 30;
     }
-    return 'Oahu'; // Default
+
+    if (property.auctionDate) {
+      this.addKeyValuePair('Auction Date:', new Date(property.auctionDate).toLocaleDateString(), leftCol, yPos);
+      yPos += 30;
+    }
+
+    this.addKeyValuePair('Property Type:', property.propertyType || 'SFR', leftCol, yPos);
+    yPos += 30;
+
+    this.addKeyValuePair('Status:', property.status, leftCol, yPos);
+
+    // Right column
+    yPos = 120;
+
+    if (property.estimatedValue) {
+      this.addKeyValuePair('Estimated ARV:', `$${property.estimatedValue.toLocaleString()}`, rightCol, yPos);
+      yPos += 30;
+    }
+
+    if (property.amountOwed) {
+      this.addKeyValuePair('Amount Owed:', `$${property.amountOwed.toLocaleString()}`, rightCol, yPos);
+      yPos += 30;
+    }
+
+    this.addKeyValuePair('Priority:', property.priority, rightCol, yPos);
+    yPos += 30;
+
+    // Calculate potential spread
+    if (property.estimatedValue && property.amountOwed) {
+      const spread = property.estimatedValue - property.amountOwed;
+      this.doc
+        .fontSize(16)
+        .font('Helvetica-Bold')
+        .fillColor('#dc2626')
+        .text(`🔥 Potential Spread: $${spread.toLocaleString()}`, rightCol, yPos + 20);
+    }
+
+    // Notes section
+    if (property.notes) {
+      yPos = 350;
+      this.doc
+        .fontSize(14)
+        .font('Helvetica-Bold')
+        .fillColor('#374151')
+        .text('NOTES:', this.margin, yPos);
+
+      this.doc
+        .fontSize(12)
+        .font('Helvetica')
+        .fillColor('#6b7280')
+        .text(property.notes, this.margin, yPos + 25, {
+          width: this.pageWidth - 2 * this.margin,
+          align: 'left'
+        });
+    }
+
+    // Contact info if available
+    if (contact && contact.name) {
+      yPos = 450;
+      this.doc
+        .fontSize(14)
+        .font('Helvetica-Bold')
+        .fillColor('#374151')
+        .text('OWNER CONTACT:', this.margin, yPos);
+
+      this.doc
+        .fontSize(12)
+        .font('Helvetica')
+        .fillColor('#6b7280')
+        .text(`Name: ${contact.name}`, this.margin, yPos + 25);
+
+      if (contact.email) {
+        this.doc.text(`Email: ${contact.email}`, this.margin, yPos + 45);
+      }
+
+      if (contact.phone) {
+        this.doc.text(`Phone: ${contact.phone}`, this.margin, yPos + 65);
+      }
+    }
+
+    this.doc.addPage();
   }
 
-  private generateComparableHtml(property: any): string {
-    // Mock comparable sales data
-    const comps = [
-      { address: '91-1234 Kona Rd', price: 789000, date: '06/2025', distance: '0.4 mi', bed: 3, bath: 2, sqft: 1850 },
-      { address: '92-4567 Hula Pl', price: 765000, date: '04/2025', distance: '0.6 mi', bed: 3, bath: 2, sqft: 1720 },
-      { address: '90-9876 Moana St', price: 810000, date: '05/2025', distance: '0.9 mi', bed: 4, bath: 3, sqft: 2100 }
+  private createPhotosPage(property: PropertyData) {
+    this.addSectionHeader('PROPERTY PHOTOS', '#059669');
+
+    // Photo grid - 2x2 layout
+    const photoWidth = 240;
+    const photoHeight = 180;
+    const spacing = 20;
+
+    const positions = [
+      { x: this.margin, y: 150 },
+      { x: this.margin + photoWidth + spacing, y: 150 },
+      { x: this.margin, y: 150 + photoHeight + spacing },
+      { x: this.margin + photoWidth + spacing, y: 150 + photoHeight + spacing }
     ];
 
-    return comps.map(comp => `
-      <tr>
-        <td>${comp.address}</td>
-        <td>$${comp.price.toLocaleString()}</td>
-        <td>${comp.date}</td>
-        <td>${comp.distance}</td>
-        <td>${comp.bed}/${comp.bath}</td>
-        <td>${comp.sqft.toLocaleString()}</td>
-      </tr>
-    `).join('');
+    positions.forEach((pos, index) => {
+      this.createPhotoPlaceholder(pos.x, pos.y, photoWidth, photoHeight, `Photo ${index + 1}`);
+    });
+
+    this.doc
+      .fontSize(10)
+      .fillColor('#6b7280')
+      .text('Photos show current property condition and potential value-add opportunities', 
+            this.margin, 580, {
+              width: this.pageWidth - 2 * this.margin,
+              align: 'center'
+            });
+
+    this.doc.addPage();
   }
 
-  private calculatePricePerSqFt(property: any): string {
-    const sqft = property.squareFeet || 1800; // Default estimate
-    const value = property.estimatedValue || 0;
-    return Math.round(value / sqft).toString();
-  }
+  private createLocationMap(property: PropertyData) {
+    this.addSectionHeader('LOCATION & MAP', '#7c3aed');
 
-  private getMarketTrend(property: any): string {
-    return 'Stable to Appreciating (+2-4% annually)';
-  }
+    // Map placeholder
+    this.createPhotoPlaceholder(this.margin + 50, 150, 400, 300, 'Location Map');
 
-  private getRecommendedStrategy(property: any): string {
-    const equity = this.calculateEquity(property);
-    if (equity > 200000) return 'Fix & Flip';
-    if (equity > 100000) return 'BRRRR';
-    return 'Buy & Hold';
-  }
+    // Location details
+    this.doc
+      .fontSize(12)
+      .fillColor('#374151')
+      .text('Location Benefits:', this.margin, 480);
 
-  private calculateHoldROI(property: any): string {
-    return '12.5';
-  }
-
-  private calculateFlipProfit(property: any): number {
-    const equity = this.calculateEquity(property);
-    const repairs = this.estimateRepairs(property);
-    return Math.max(0, equity - repairs - 50000); // Subtract holding costs
-  }
-
-  private calculateLTV(property: any): string {
-    const debt = property.amountOwed || 0;
-    const value = property.estimatedValue || 1;
-    return Math.round((debt / value) * 100).toString();
-  }
-
-  private calculateMonthlyCashFlow(property: any): number {
-    const estimatedRent = (property.estimatedValue || 0) * 0.005; // 0.5% rule
-    const monthlyPayment = (property.amountOwed || 0) * 0.004; // Rough estimate
-    return Math.max(0, Math.round(estimatedRent - monthlyPayment));
-  }
-
-  private generateMatchedBuyersHtml(property: any): string {
-    // Mock matched buyers data
-    const buyers = [
-      { name: 'Wave Ventures LLC', strategy: 'Fix & Flip', maxBudget: 750000, focus: 'West Oahu SFR under $800K' },
-      { name: 'Pacific Investment Group', strategy: 'Buy & Hold', maxBudget: 700000, focus: 'Rental properties near beaches' },
-      { name: 'Aloha Capital Partners', strategy: 'BRRRR', maxBudget: 650000, focus: 'Value-add opportunities' }
+    const benefits = [
+      '• Close to schools and shopping',
+      '• Easy access to major highways',
+      '• Growing neighborhood',
+      '• Strong rental demand in area'
     ];
 
-    return buyers.map(buyer => `
-      <div class="buyer-card">
-        <div class="buyer-name">${buyer.name}</div>
-        <div style="font-size: 11px; margin-top: 5px;">
-          <strong>Strategy:</strong> ${buyer.strategy}<br>
-          <strong>Max Budget:</strong> $${buyer.maxBudget.toLocaleString()}<br>
-          <strong>Focus:</strong> ${buyer.focus}
-        </div>
-      </div>
-    `).join('');
+    benefits.forEach((benefit, index) => {
+      this.doc
+        .fontSize(11)
+        .fillColor('#6b7280')
+        .text(benefit, this.margin + 20, 505 + (index * 20));
+    });
+
+    this.doc.addPage();
   }
 
-  private estimateRepairs(property: any): number {
-    // Estimate 10-15% of property value for repairs on distressed properties
-    const baseEstimate = (property.estimatedValue || 0) * 0.125;
-    return Math.round(baseEstimate);
-  }
+  private createCompsPage(comps: CompData[]) {
+    this.addSectionHeader('COMPARABLE SALES', '#ea580c');
 
-  private calculateMaxOffer(property: any): number {
-    // 70% rule: 70% of ARV minus repairs
-    const arv = property.estimatedValue || 0;
-    const repairs = this.estimateRepairs(property);
-    return Math.round((arv * 0.70) - repairs);
-  }
+    // Table header
+    const tableTop = 150;
+    const tableLeft = this.margin;
+    const colWidths = [200, 100, 80, 80];
+    const rowHeight = 25;
 
-  private calculateEquity(property: any): number {
-    return (property.estimatedValue || 0) - (property.amountOwed || 0);
-  }
+    this.doc
+      .fontSize(12)
+      .font('Helvetica-Bold')
+      .fillColor('#374151');
 
-  private calculateROI(property: any): string {
-    const equity = this.calculateEquity(property);
-    const investment = this.estimateRepairs(property) + this.calculateMaxOffer(property);
-    const roi = (equity - investment) / investment * 100;
-    return roi.toFixed(2);
-  }
+    // Headers
+    this.doc.text('Address', tableLeft, tableTop);
+    this.doc.text('Sold Price', tableLeft + colWidths[0], tableTop);
+    this.doc.text('Date', tableLeft + colWidths[0] + colWidths[1], tableTop);
+    this.doc.text('Distance', tableLeft + colWidths[0] + colWidths[1] + colWidths[2], tableTop);
 
-  async closeBrowser() {
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
+    // Header line
+    this.doc
+      .strokeColor('#d1d5db')
+      .lineWidth(1)
+      .moveTo(tableLeft, tableTop + 20)
+      .lineTo(tableLeft + colWidths.reduce((a, b) => a + b), tableTop + 20)
+      .stroke();
+
+    // Data rows
+    comps.forEach((comp, index) => {
+      const rowY = tableTop + 35 + (index * rowHeight);
+
+      this.doc
+        .fontSize(11)
+        .font('Helvetica')
+        .fillColor('#6b7280');
+
+      this.doc.text(comp.address, tableLeft, rowY, { width: colWidths[0] - 10 });
+      this.doc.text(`$${comp.soldPrice.toLocaleString()}`, tableLeft + colWidths[0], rowY);
+      this.doc.text(comp.soldDate, tableLeft + colWidths[0] + colWidths[1], rowY);
+      this.doc.text(comp.distance, tableLeft + colWidths[0] + colWidths[1] + colWidths[2], rowY);
+    });
+
+    // Summary
+    if (comps.length > 0) {
+      const avgPrice = comps.reduce((sum, comp) => sum + comp.soldPrice, 0) / comps.length;
+      this.doc
+        .fontSize(14)
+        .font('Helvetica-Bold')
+        .fillColor('#ea580c')
+        .text(`Average Comp Price: $${Math.round(avgPrice).toLocaleString()}`, 
+              this.margin, tableTop + 35 + (comps.length * rowHeight) + 30);
     }
+
+    this.doc.addPage();
+  }
+
+  private createStrategyPage(property: PropertyData, matches: BuyerMatch[]) {
+    this.addSectionHeader('INVESTMENT STRATEGY & MATCHES', '#0891b2');
+
+    let yPos = 150;
+
+    // Recommended strategy
+    this.doc
+      .fontSize(14)
+      .font('Helvetica-Bold')
+      .fillColor('#374151')
+      .text('RECOMMENDED EXIT STRATEGY:', this.margin, yPos);
+
+    yPos += 30;
+    this.doc
+      .fontSize(12)
+      .font('Helvetica')
+      .fillColor('#6b7280')
+      .text('• Fix & Flip: High potential for value-add renovation', this.margin + 20, yPos);
+
+    yPos += 20;
+    this.doc.text('• BRRRR: Strong rental market supports buy-rehab-rent strategy', this.margin + 20, yPos);
+
+    yPos += 20;
+    this.doc.text('• Wholesale: Quick exit opportunity for cash buyers', this.margin + 20, yPos);
+
+    // Matched buyers section
+    if (matches.length > 0) {
+      yPos += 60;
+      this.doc
+        .fontSize(14)
+        .font('Helvetica-Bold')
+        .fillColor('#374151')
+        .text('MATCHED INVESTORS:', this.margin, yPos);
+
+      matches.forEach((match, index) => {
+        yPos += 35;
+        this.doc
+          .fontSize(12)
+          .font('Helvetica-Bold')
+          .fillColor('#0891b2')
+          .text(`${match.name}`, this.margin + 20, yPos);
+
+        yPos += 18;
+        this.doc
+          .fontSize(11)
+          .font('Helvetica')
+          .fillColor('#6b7280')
+          .text(`Strategy: ${match.strategy}`, this.margin + 40, yPos);
+
+        if (match.maxPrice) {
+          yPos += 15;
+          this.doc.text(`Max Budget: $${match.maxPrice.toLocaleString()}`, this.margin + 40, yPos);
+        }
+
+        if (match.email) {
+          yPos += 15;
+          this.doc.text(`Contact: ${match.email}`, this.margin + 40, yPos);
+        }
+      });
+    }
+
+    // ROI projections
+    yPos += 80;
+    this.doc
+      .fontSize(14)
+      .font('Helvetica-Bold')
+      .fillColor('#374151')
+      .text('PROJECTED RETURNS:', this.margin, yPos);
+
+    if (property.estimatedValue && property.amountOwed) {
+      const spread = property.estimatedValue - property.amountOwed;
+      const roiPercent = Math.round((spread / property.amountOwed) * 100);
+
+      yPos += 25;
+      this.doc
+        .fontSize(12)
+        .font('Helvetica')
+        .fillColor('#16a34a')
+        .text(`Potential ROI: ${roiPercent}%`, this.margin + 20, yPos);
+
+      yPos += 20;
+      this.doc
+        .fillColor('#6b7280')
+        .text(`Cash-on-Cash Return: 12-15% (estimated)`, this.margin + 20, yPos);
+    }
+
+    this.doc.addPage();
+  }
+
+  private createContactPage(options: PDFOptions) {
+    this.addSectionHeader('CONTACT INFORMATION', '#dc2626');
+
+    const yPos = 200;
+
+    this.doc
+      .fontSize(18)
+      .font('Helvetica-Bold')
+      .fillColor('#374151')
+      .text('Ready to Move Forward?', this.margin, yPos, {
+        align: 'center',
+        width: this.pageWidth - 2 * this.margin
+      });
+
+    this.doc
+      .fontSize(14)
+      .font('Helvetica')
+      .fillColor('#6b7280')
+      .text('Contact us today to discuss this opportunity', this.margin, yPos + 40, {
+        align: 'center',
+        width: this.pageWidth - 2 * this.margin
+      });
+
+    // Contact box
+    const boxY = yPos + 100;
+    this.doc
+      .rect(this.margin + 100, boxY, this.pageWidth - 2 * this.margin - 200, 150)
+      .fillAndStroke('#f3f4f6', '#d1d5db');
+
+    this.doc
+      .fontSize(16)
+      .font('Helvetica-Bold')
+      .fillColor('#374151')
+      .text(options.companyName || 'Sub2Leads', this.margin + 120, boxY + 30);
+
+    const contactInfo = options.contactInfo || 'leads@sub2leads.com\n(808) 555-0123\nwww.sub2leads.com';
+    this.doc
+      .fontSize(12)
+      .font('Helvetica')
+      .fillColor('#6b7280')
+      .text(contactInfo, this.margin + 120, boxY + 60, {
+        width: this.pageWidth - 2 * this.margin - 240
+      });
+
+    // Disclaimer
+    this.doc
+      .fontSize(10)
+      .fillColor('#9ca3af')
+      .text('This presentation is for informational purposes only. All figures are estimates and should be verified independently.', 
+            this.margin, 650, {
+              width: this.pageWidth - 2 * this.margin,
+              align: 'center'
+            });
+  }
+
+  private addSectionHeader(title: string, color: string) {
+    this.doc
+      .fontSize(20)
+      .font('Helvetica-Bold')
+      .fillColor(color)
+      .text(title, this.margin, 80, {
+        align: 'center',
+        width: this.pageWidth - 2 * this.margin
+      });
+
+    // Underline
+    this.doc
+      .strokeColor(color)
+      .lineWidth(3)
+      .moveTo(this.margin + 150, 110)
+      .lineTo(this.pageWidth - this.margin - 150, 110)
+      .stroke();
+  }
+
+  private addKeyValuePair(key: string, value: string, x: number, y: number) {
+    this.doc
+      .fontSize(12)
+      .font('Helvetica-Bold')
+      .fillColor('#374151')
+      .text(key, x, y);
+
+    this.doc
+      .fontSize(12)
+      .font('Helvetica')
+      .fillColor('#6b7280')
+      .text(value, x + 100, y);
+  }
+
+  private createPhotoPlaceholder(x: number, y: number, width: number, height: number, label: string = 'Photo') {
+    // Draw placeholder rectangle
+    this.doc
+      .rect(x, y, width, height)
+      .fillAndStroke('#f3f4f6', '#d1d5db');
+
+    // Add placeholder text
+    this.doc
+      .fontSize(14)
+      .fillColor('#9ca3af')
+      .text(label, x + width/2 - 30, y + height/2, {
+        align: 'center'
+      });
+
+    // Add camera icon (simple representation)
+    this.doc
+      .rect(x + width/2 - 15, y + height/2 - 30, 30, 20)
+      .stroke('#9ca3af');
   }
 }
 
-export const pdfGeneratorService = new PDFGeneratorService();
+export const pdfGenerator = new PropertyPDFGenerator();

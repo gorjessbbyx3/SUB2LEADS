@@ -95,10 +95,8 @@ class ScraperService {
 
       // Set timeout for Python scraper execution (5 minutes)
       const timeout = setTimeout(() => {
-        if (!isResolved) {
-          isResolved = true;
+        if (pythonProcess && !pythonProcess.killed) {
           pythonProcess.kill('SIGTERM');
-          reject(new Error(`Scraper timeout: ${scriptName} exceeded 5 minute limit`));
         }
       }, 300000); // 5 minutes
 
@@ -404,7 +402,7 @@ class ScraperService {
     try {
       // Get all properties
       const properties = await storage.getProperties({});
-      
+
       // Get scraping history
       const history = await this.getScrapingHistory();
 
@@ -425,7 +423,7 @@ class ScraperService {
       // Add files to ZIP
       zip.addFile('properties.csv', Buffer.from(propertiesCSV, 'utf8'));
       zip.addFile('scraping_history.csv', Buffer.from(historyCSV, 'utf8'));
-      
+
       // Create a summary JSON file
       const summary = {
         exportDate: new Date().toISOString(),
@@ -434,7 +432,7 @@ class ScraperService {
         propertiesBySource: this.groupPropertiesBySource(properties),
         propertiesByStatus: this.groupPropertiesByStatus(properties)
       };
-      
+
       zip.addFile('summary.json', Buffer.from(JSON.stringify(summary, null, 2), 'utf8'));
 
       return zip.toBuffer();
@@ -456,7 +454,7 @@ class ScraperService {
         return value;
       }).join(',');
     });
-    
+
     return [csvHeaders, ...csvRows].join('\n');
   }
 

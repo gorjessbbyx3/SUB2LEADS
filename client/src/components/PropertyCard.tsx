@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { MapPin, Calendar, DollarSign, User, ExternalLink } from 'lucide-react';
+import { MapPin, Calendar, DollarSign, User, ExternalLink, FileText } from 'lucide-react';
 
 interface Property {
   id: number;
@@ -47,6 +47,42 @@ export default function PropertyCard({ property, onViewDetails }: PropertyCardPr
   const getMapImageUrl = (address: string) => {
     const encodedAddress = encodeURIComponent(address);
     return `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`;
+  };
+
+  const handleGeneratePDF = async (propertyId: number) => {
+    try {
+      const response = await fetch(`/api/properties/${propertyId}/pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          includePhotos: true,
+          includeMap: true,
+          includeComps: true,
+          includeMatches: true,
+          companyName: 'Sub2Leads Hawaii',
+          contactInfo: 'leads@sub2leads.com\n(808) 555-0123\nwww.sub2leads.com'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `property-${propertyId}-presentation.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('PDF generation failed:', error);
+      alert('Failed to generate PDF. Please try again.');
+    }
   };
 
   return (
@@ -129,6 +165,16 @@ export default function PropertyCard({ property, onViewDetails }: PropertyCardPr
                 <ExternalLink className="w-4 h-4" />
               </Button>
             )}
+             <Button 
+                variant="outline" 
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleGeneratePDF(property.id);
+                }}
+              >
+                <FileText className="w-4 h-4" />
+              </Button>
           </div>
         </div>
       </CardContent>

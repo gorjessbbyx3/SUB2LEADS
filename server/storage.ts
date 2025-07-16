@@ -126,6 +126,8 @@ export interface IStorage {
     activeDeals: number;
     avgBudget: number;
   }>;
+
+  getMatchedBuyers(propertyId: number): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -171,8 +173,9 @@ export class DatabaseStorage implements IStorage {
     if (filters?.limit) {
       query = query.limit(filters.limit) as any;
     }
-    if (filters?.offset) {
+    if (filters?.offset) { {
       query = query.offset(filters.offset) as any;
+    }
     }
 
     return await query;
@@ -568,6 +571,30 @@ export class DatabaseStorage implements IStorage {
       activeDeals: stats.totalInvestors, // For now, assume all are active deals
       avgBudget: Math.round(stats.avgBudget || 0),
     };
+  }
+
+  async getMatchedBuyers(propertyId: number): Promise<any[]> {
+    try {
+      // In a real app, this would query the buyers table and matching logic
+      // For now, return mock matched buyers
+      return [
+        {
+          name: 'Wave Ventures LLC',
+          strategy: 'Fix & Flip',
+          maxPrice: 750000,
+          email: 'waves@ventures.com'
+        },
+        {
+          name: 'Aloha Holdings',
+          strategy: 'Buy & Hold',
+          maxPrice: 700000,
+          email: 'info@alohaholdings.com'
+        }
+      ];
+    } catch (error) {
+      console.error('Error fetching matched buyers:', error);
+      return [];
+    }
   }
 }
 

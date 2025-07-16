@@ -9,7 +9,8 @@ import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
 if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
+  // Set default domain for Replit environment
+  process.env.REPLIT_DOMAINS = process.env.REPL_SLUG ? `${process.env.REPL_SLUG}-${process.env.REPL_OWNER}.replit.app` : "localhost";
 }
 
 const getOidcConfig = memoize(
