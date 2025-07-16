@@ -16,7 +16,7 @@ localPort = 5000
 externalPort = 80
 
 [workflows]
-runButton = "Start application"
+runButton = "Hawaii CRM Advanced"
 
 [[workflows.workflow]]
 name = "Project"
@@ -74,6 +74,15 @@ args = "npm run dev"
 
 [[workflows.workflow]]
 name = "Start Server"
+author = 42094346
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+
+[[workflows.workflow]]
+name = "Hawaii CRM Advanced"
 author = 42094346
 mode = "sequential"
 

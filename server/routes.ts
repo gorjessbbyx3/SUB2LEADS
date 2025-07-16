@@ -1060,8 +1060,139 @@ export async function registerRoutes(app: Express) {
   // Start scheduler
   schedulerService.start();
 
-  // Add the Inngest serve handler
-  app.use("/api/inngest", serve({ client: inngest, functions: [helloWorld, processLeadMatch, processWholesaleDeal, schedulePropertyScraping] }));
+  // Advanced AI Analysis Routes
+  app.post('/api/leads/:leadId/analyze-motivation', isAuthenticated, async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.leadId);
+      const { motivationPredictor } = await import('./services/motivationPredictor');
+      
+      const motivation = await motivationPredictor.predictSellerMotivation(leadId);
+      
+      // Trigger Inngest workflow for follow-up actions
+      await inngest.send({
+        name: "lead/analyze.motivation",
+        data: { leadId }
+      });
+      
+      res.json(motivation);
+    } catch (error) {
+      console.error('Motivation analysis error:', error);
+      res.status(500).json({ error: 'Failed to analyze seller motivation' });
+    }
+  });
+
+  app.post('/api/properties/:propertyId/analyze-str', isAuthenticated, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const { strAnalyzer } = await import('./services/strAnalyzer');
+      
+      const analysis = await strAnalyzer.analyzeProperty(propertyId);
+      
+      // Trigger Inngest workflow for STR analysis
+      await inngest.send({
+        name: "property/analyze.str",
+        data: { propertyId }
+      });
+      
+      res.json(analysis);
+    } catch (error) {
+      console.error('STR analysis error:', error);
+      res.status(500).json({ error: 'Failed to analyze STR potential' });
+    }
+  });
+
+  app.get('/api/leads/:leadId/motivation-score', isAuthenticated, async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.leadId);
+      const lead = await storage.getLead(leadId);
+      
+      if (!lead) {
+        return res.status(404).json({ error: 'Lead not found' });
+      }
+      
+      res.json({
+        leadId,
+        motivationScore: (lead as any).motivationScore || null,
+        urgencyLevel: (lead as any).urgencyLevel || 'unknown',
+        lastAnalyzed: (lead as any).motivationLastAnalyzed || null
+      });
+    } catch (error) {
+      console.error('Error fetching motivation score:', error);
+      res.status(500).json({ error: 'Failed to fetch motivation score' });
+    }
+  });
+
+  app.get('/api/properties/:propertyId/str-analysis', isAuthenticated, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const property = await storage.getProperty(propertyId);
+      
+      if (!property) {
+        return res.status(404).json({ error: 'Property not found' });
+      }
+      
+      res.json({
+        propertyId,
+        strScore: (property as any).strScore || null,
+        projectedStrIncome: (property as any).projectedStrIncome || null,
+        lastAnalyzed: (property as any).strLastAnalyzed || null
+      });
+    } catch (error) {
+      console.error('Error fetching STR analysis:', error);
+      res.status(500).json({ error: 'Failed to fetch STR analysis' });
+    }
+  });
+
+  // Trigger bulk analysis
+  app.post('/api/analysis/bulk-motivation', isAuthenticated, async (req, res) => {
+    try {
+      const leads = await storage.getLeads({ limit: 100 });
+      const activeLeads = leads.filter(lead => lead.status !== 'closed');
+      
+      // Trigger bulk motivation analysis
+      for (const lead of activeLeads.slice(0, 10)) { // Limit to 10 for demo
+        await inngest.send({
+          name: "lead/analyze.motivation",
+          data: { leadId: lead.id }
+        });
+      }
+      
+      res.json({
+        success: true,
+        queued: Math.min(activeLeads.length, 10),
+        total: activeLeads.length
+      });
+    } catch (error) {
+      console.error('Bulk motivation analysis error:', error);
+      res.status(500).json({ error: 'Failed to queue bulk motivation analysis' });
+    }
+  });
+
+  // Add the Inngest serve handler with all functions
+  const { 
+    analyzeSellerMotivation, 
+    analyzePropertySTR, 
+    checkLeaseholdStatus, 
+    smartFollowUp, 
+    weeklyMotivationUpdate, 
+    advancedLeadScoring 
+  } = await import('./inngest/functions');
+
+  app.use("/api/inngest", serve({ 
+    client: inngest, 
+    functions: [
+      helloWorld, 
+      processLeadMatch, 
+      processWholesaleDeal, 
+      schedulePropertyScraping,
+      analyzeSellerMotivation,
+      analyzePropertySTR,
+      checkLeaseholdStatus,
+      smartFollowUp,
+      weeklyMotivationUpdate,
+      advancedLeadScoring
+    ] 
+  }));
 
   return server;
 }

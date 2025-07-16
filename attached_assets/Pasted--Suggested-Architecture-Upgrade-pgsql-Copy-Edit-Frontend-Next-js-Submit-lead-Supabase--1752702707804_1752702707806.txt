@@ -1,0 +1,88 @@
+🧱 Suggested Architecture Upgrade
+pgsql
+Copy
+Edit
+📲 Frontend (Next.js)
+ └─ Submit lead → Supabase
+ └─ View AI scores → Supabase data
+ └─ Deal analysis UI → AI + STR estimator
+
+🧠 XAI Grok (Prediction Engine)
+ └─ Analyze leads (motivation, STR score, etc.)
+ └─ Return predictions + explainable reasons
+
+⚙️ Inngest (Workflow Automation)
+ └─ Run daily lead scorers
+ └─ Trigger follow-up or deal status checks
+ └─ Handle PDF generation & email triggers
+
+🗄️ Supabase (Core DB)
+ └─ Store all lead, buyer, and AI data
+ └─ Triggers for update hooks
+
+📩 Resend (Messaging)
+ └─ Send lead alerts to buyers
+ └─ Send follow-up emails to sellers
+ └─ Notify yourself of “hot” leads
+🛠️ Core Supabase Table Changes
+leads
+Add:
+
+ts
+Copy
+Edit
+motivation_score: number
+motivation_reason: text
+leasehold_status: text
+str_score: number
+str_income_estimate: number
+roi_estimate: number
+investment_score: number
+lead_score: number
+last_xai_updated: timestamp
+lead_interactions
+ts
+Copy
+Edit
+lead_id: uuid
+channel: 'email' | 'sms' | 'call'
+message: text
+sentiment_score: number
+timestamp: timestamp
+tasks (optional logging table for Inngest runs)
+ts
+Copy
+Edit
+id, task_name, status, error, started_at, finished_at
+🔁 Inngest Triggers You Should Add
+Workflow	Trigger
+Daily seller motivation check	Runs on new leads or stale leads
+STR analyzer	Runs on lead submission with zip/island info
+Follow-up sequencer	Runs based on lead interaction logs
+PDF generator	Runs when “Export Deal” is clicked
+Leasehold checker	Scheduled weekly to recheck flagged leads
+Buyer match & notification	On lead score update or STR score > 85
+
+🧠 XAI Grok Prompts to Build
+Model	Input	Output
+Motivation Predictor	Owner status, lien, time owned	score + reason
+STR ROI Estimator	Zip, comps, type	$ income + score
+Lead Scorer	All lead fields	Dynamic lead_score
+Follow-Up Generator	Last message, tone	Personalized follow-up
+Sentiment Analysis	Call transcription	Score 0–1
+
+📩 Resend Automations
+Event	Email
+STR Score > 85	Alert 5 best buyers
+Lead marked "High Motivation"	Send outreach email to seller
+PDF deal created	Send to agent or yourself
+Follow-up scheduled	Auto-send personalized email or SMS
+
+✅ Action Plan
+Task	Tool
+🧱 Add new fields to leads in Supabase	Supabase Studio
+🧠 Create 2 XAI Grok prompt configs (motivation, STR score)	Grok
+⚙️ Set up lead_score_update job	Inngest
+📩 Connect Resend for buyer notifications	Resend dashboard
+🧪 Test flow: Add lead → auto-score → email → dashboard update	Local dev
+
