@@ -990,6 +990,38 @@ export async function registerRoutes(app: Express) {
     }
   });
 
+  // Notes routes
+  app.get("/api/notes", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const notes = await storage.getNotes(user?.claims?.sub);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error fetching notes:", error);
+      res.status(500).json({ error: "Failed to fetch notes" });
+    }
+  });
+
+  app.post("/api/notes", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { title, content, is_public = false } = req.body;
+      
+      const note = await storage.createNote({
+        userId: user?.claims?.sub,
+        note: content || title, // Map to the 'note' field in your schema
+        title,
+        content,
+        is_public
+      });
+      
+      res.status(201).json(note);
+    } catch (error) {
+      console.error("Error creating note:", error);
+      res.status(500).json({ error: "Failed to create note" });
+    }
+  });
+
   // Dashboard stats endpoint
   app.get("/api/dashboard/stats", isAuthenticated, async (req, res) => {
     try {

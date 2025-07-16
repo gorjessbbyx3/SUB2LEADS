@@ -20,6 +20,7 @@ import NotFound from "./pages/not-found";
 import Landing from './pages/Landing';
 import { Button } from '@/components/ui/button';
 import WholesalerListings from "./pages/WholesalerListings";
+import Notes from './pages/Notes';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -118,6 +119,7 @@ function AppContent() {
               <Route path="/outreach" component={Outreach} />
               <Route path="/data-scraper" component={DataScraper} />
               <Route path="/reports" component={Reports} />
+              <Route path="/notes" component={Notes} />
               <Route path="/wholesaler-listings" component={WholesalerListings} />
               <Route component={NotFound} />
             </Switch>

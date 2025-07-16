@@ -32,6 +32,7 @@ import {
   type InsertActivity,
   type Investor,
   type InsertInvestor,
+  notes,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, gte, lte, count, sql } from "drizzle-orm";
@@ -129,6 +130,10 @@ export interface IStorage {
   }>;
 
   getMatchedBuyers(propertyId: number): Promise<any[]>;
+
+  // Notes
+  getNotes(userId: string): Promise<any>;
+  createNote(noteData: { userId: string; note: string; title?: string; content?: string; is_public?: boolean }): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -752,6 +757,23 @@ export class DatabaseStorage implements IStorage {
     };
 
     return pipeline;
+  }
+
+  // Notes
+  async getNotes(userId: string) {
+    return await db
+      .select()
+      .from(notes)
+      .where(eq(notes.userId, userId))
+      .orderBy(desc(notes.createdAt));
+  }
+
+  async createNote(noteData: { userId: string; note: string; title?: string; content?: string; is_public?: boolean }) {
+    const [result] = await db
+      .insert(notes)
+      .values(noteData)
+      .returning();
+    return result;
   }
 }
 
