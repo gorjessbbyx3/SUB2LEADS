@@ -62,17 +62,17 @@ export default function Dashboard() {
             />
             <StatsCard
               title="Active Outreach"
-              value={64}
-              change="+8 this week"
+              value={pipeline?.inConversation || 0}
+              change="In conversation"
               icon={Send}
-              trend="up"
+              trend="neutral"
             />
             <StatsCard
-              title="Closed Deals"
-              value={12}
-              change="$2.4M this month"
+              title="Follow-ups"
+              value={pipeline?.followUp || 0}
+              change="Requiring follow-up"
               icon={Handshake}
-              trend="up"
+              trend="neutral"
             />
           </div>
 

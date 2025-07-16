@@ -131,22 +131,8 @@ class ScraperService {
       }));
     } catch (error) {
       console.error('Star Advertiser scraping failed:', error);
-      // Return mock data as fallback
-      return [
-        {
-          address: '123 Foreclosure St, Honolulu, HI 96813',
-          status: 'foreclosure',
-          source: 'star_advertiser',
-          priority: 'high',
-          estimatedValue: 450000,
-          amountOwed: 320000,
-          owner_name: 'John Smith',
-          auction_date: '2024-03-15',
-          attorney_info: 'Smith & Associates',
-          title: 'Notice of Foreclosure Sale',
-          source_url: 'https://www.staradvertiser.com/legal-notices/'
-        },
-      ];
+      // Return empty array instead of mock data to maintain data integrity
+      return [];
     }
   }
 
@@ -163,20 +149,8 @@ class ScraperService {
       }));
     } catch (error) {
       console.error('Honolulu Tax scraping failed:', error);
-      // Return mock data as fallback
-      return [
-        {
-          address: '456 Tax Lien Ave, Pearl City, HI 96782',
-          status: 'tax_delinquent',
-          source: 'honolulu_tax',
-          priority: 'medium',
-          estimatedValue: 380000,
-          amount_owed: 15000,
-          owner_name: 'Jane Doe',
-          parcel_number: '98765432',
-          source_url: 'https://www.honolulupropertytax.com/search.html'
-        },
-      ];
+      // Return empty array instead of mock data to maintain data integrity
+      return [];
     }
   }
 
@@ -194,22 +168,8 @@ class ScraperService {
       }));
     } catch (error) {
       console.error('Hawaii Judiciary scraping failed:', error);
-      // Return mock data as fallback
-      return [
-        {
-          address: '789 Court Rd, Kailua, HI 96734',
-          status: 'foreclosure',
-          source: 'hawaii_judiciary',
-          priority: 'high',
-          estimatedValue: 720000,
-          amount_owed: 580000,
-          owner_name: 'Bob Johnson',
-          case_number: '2024-CV-001234',
-          plaintiff: 'First Hawaiian Bank',
-          defendant: 'Bob Johnson',
-          source_url: 'https://www.courts.state.hi.us/legal_references/foreclosure_listings'
-        },
-      ];
+      // Return empty array instead of mock data to maintain data integrity
+      return [];
     }
   }
 

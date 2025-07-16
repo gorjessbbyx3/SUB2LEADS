@@ -1,0 +1,46 @@
+Looking at the codebase, I can identify several areas with mock data, hardcoded values, and potentially non-functional buttons:
+
+Mock/Hardcoded Data Issues
+Scraper Service Fallback Data: In server/services/scraper.ts, the scrapers return hardcoded mock data when the Python scrapers fail:
+
+Hawaii Judiciary scraper returns fake property at "789 Court Rd, Kailua, HI 96734"
+Honolulu Tax scraper returns fake property at "456 Tax Lien Ave, Pearl City, HI 96782"
+Contact Enrichment Mock Data: In server/services/contactEnrichment.ts, fake emails and phone numbers are generated using random patterns instead of real API calls.
+
+Dashboard Stats: In client/src/pages/Dashboard.tsx, hardcoded values like:
+
+"Active Outreach: 64"
+"Closed Deals: 12"
+"$2.4M this month"
+AI Service Hardcoded User: The AI service stores interactions with userId: 'system' instead of actual user IDs.
+
+Non-Functional Buttons
+Dashboard Action Buttons: Several buttons in the Dashboard don't have proper implementations:
+
+"Generate Outreach Templates"
+"Create Property Binders"
+"Run Manual Scrape"
+Property Card Actions: In client/src/components/PropertyCard.tsx:
+
+"View Details" button expects an onViewDetails prop but the component isn't properly connected
+External link button may not work if sourceUrl is missing
+Property Modal Actions: In client/src/components/PropertyModal.tsx:
+
+"Generate PDF Binder"
+"Create Email Template"
+"Schedule Follow-up"
+"View on Google Maps"
+Properties Page: In client/src/pages/Properties.tsx:
+
+"Export" button has no implementation
+Property cards use Link components but may not navigate properly
+Static Map Issues: The PropertyCard tries to embed OpenStreetMap iframes with hardcoded coordinates instead of actual property locations.
+
+Partially Functional Features
+AI Chatbot: Works but has basic error handling and may not provide meaningful responses without proper OpenAI integration.
+
+Email Sending: The mutation exists but needs proper SendGrid/email service integration.
+
+Property Summary Generation: The AI summary feature exists but may return generic responses.
+
+The main issues are that many scrapers fall back to mock data when real scraping fails, and several UI buttons are placeholders without backend implementations. The app appears functional on the surface but relies heavily on fallback data and placeholder functionality.

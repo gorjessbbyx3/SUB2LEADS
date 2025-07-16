@@ -48,34 +48,11 @@ export class ContactEnrichmentService {
 
       enrichedData.contactScore = score;
 
-      // Enhanced mock enrichment for demo
-      if (contact.name && !contact.email) {
-        // Simulate finding an email with more realistic patterns
-        const firstName = contact.name.split(' ')[0]?.toLowerCase();
-        const lastName = contact.name.split(' ')[1]?.toLowerCase();
-        if (firstName && lastName) {
-          const emailProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'hawaii.rr.com'];
-          const provider = emailProviders[Math.floor(Math.random() * emailProviders.length)];
-          const patterns = [
-            `${firstName}.${lastName}@${provider}`,
-            `${firstName}${lastName}@${provider}`,
-            `${firstName}_${lastName}@${provider}`,
-            `${firstName}${lastName[0]}@${provider}`,
-          ];
-          enrichedData.email = patterns[Math.floor(Math.random() * patterns.length)];
-          enrichedData.contactScore += 30;
-        }
-      }
-
-      if (contact.name && !contact.phone) {
-        // Simulate finding a phone number with Hawaii area codes
-        const areaCodes = ['808'];
-        const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
-        const exchange = Math.floor(Math.random() * 900 + 100);
-        const number = Math.floor(Math.random() * 9000 + 1000);
-        enrichedData.phone = `(${areaCode}) ${exchange}-${number}`;
-        enrichedData.contactScore += 30;
-      }
+      // Only perform real contact enrichment - no mock data generation
+      // TODO: Implement real contact enrichment APIs (PeopleDataLabs, FullContact, etc.)
+      // For now, only calculate score and add metadata without generating fake contact info
+      
+      console.log('Contact enrichment requires external API integration - skipping mock data generation');
 
       // Check if it's an LLC or corporation
       if (contact.name?.toLowerCase().includes('llc') || 
@@ -89,18 +66,7 @@ export class ContactEnrichmentService {
         enrichedData.contactType = 'individual';
       }
 
-      // Simulate finding social media profiles with more realistic probability
-      if (contact.name && Math.random() > 0.4) {
-        const namePart = contact.name.toLowerCase().replace(/\s+/g, '');
-        enrichedData.linkedinUrl = `https://linkedin.com/in/${namePart}`;
-        enrichedData.contactScore += 5;
-      }
-
-      if (contact.name && Math.random() > 0.6) {
-        const namePart = contact.name.toLowerCase().replace(/\s+/g, '.');
-        enrichedData.facebookUrl = `https://facebook.com/${namePart}`;
-        enrichedData.contactScore += 5;
-      }
+      // Skip social media profile generation - requires real API integration
 
       // Add estimated income/property value insights
       if (contact.estimatedValue) {
