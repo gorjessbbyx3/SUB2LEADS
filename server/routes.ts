@@ -1007,7 +1007,7 @@ export async function registerRoutes(app: Express) {
     try {
       const user = req.user as any;
       const { title, content, is_public = false } = req.body;
-      
+
       const note = await storage.createNote({
         userId: user?.claims?.sub,
         note: content || title, // Map to the 'note' field in your schema
@@ -1015,7 +1015,7 @@ export async function registerRoutes(app: Express) {
         content,
         is_public
       });
-      
+
       res.status(201).json(note);
     } catch (error) {
       console.error("Error creating note:", error);
@@ -1065,15 +1065,15 @@ export async function registerRoutes(app: Express) {
     try {
       const leadId = parseInt(req.params.leadId);
       const { motivationPredictor } = await import('./services/motivationPredictor');
-      
+
       const motivation = await motivationPredictor.predictSellerMotivation(leadId);
-      
+
       // Trigger Inngest workflow for follow-up actions
       await inngest.send({
         name: "lead/analyze.motivation",
         data: { leadId }
       });
-      
+
       res.json(motivation);
     } catch (error) {
       console.error('Motivation analysis error:', error);
@@ -1085,15 +1085,15 @@ export async function registerRoutes(app: Express) {
     try {
       const propertyId = parseInt(req.params.propertyId);
       const { strAnalyzer } = await import('./services/strAnalyzer');
-      
+
       const analysis = await strAnalyzer.analyzeProperty(propertyId);
-      
+
       // Trigger Inngest workflow for STR analysis
       await inngest.send({
         name: "property/analyze.str",
         data: { propertyId }
       });
-      
+
       res.json(analysis);
     } catch (error) {
       console.error('STR analysis error:', error);
@@ -1105,11 +1105,11 @@ export async function registerRoutes(app: Express) {
     try {
       const leadId = parseInt(req.params.leadId);
       const lead = await storage.getLead(leadId);
-      
+
       if (!lead) {
         return res.status(404).json({ error: 'Lead not found' });
       }
-      
+
       res.json({
         leadId,
         motivationScore: (lead as any).motivationScore || null,
@@ -1126,11 +1126,11 @@ export async function registerRoutes(app: Express) {
     try {
       const propertyId = parseInt(req.params.propertyId);
       const property = await storage.getProperty(propertyId);
-      
+
       if (!property) {
         return res.status(404).json({ error: 'Property not found' });
       }
-      
+
       res.json({
         propertyId,
         strScore: (property as any).strScore || null,
@@ -1148,7 +1148,7 @@ export async function registerRoutes(app: Express) {
     try {
       const leads = await storage.getLeads({ limit: 100 });
       const activeLeads = leads.filter(lead => lead.status !== 'closed');
-      
+
       // Trigger bulk motivation analysis
       for (const lead of activeLeads.slice(0, 10)) { // Limit to 10 for demo
         await inngest.send({
@@ -1156,7 +1156,7 @@ export async function registerRoutes(app: Express) {
           data: { leadId: lead.id }
         });
       }
-      
+
       res.json({
         success: true,
         queued: Math.min(activeLeads.length, 10),

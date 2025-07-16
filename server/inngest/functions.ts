@@ -1,4 +1,3 @@
-
 import { inngest } from '../inngest';
 import { motivationPredictor } from '../services/motivationPredictor';
 import { strAnalyzer } from '../services/strAnalyzer';
@@ -19,9 +18,9 @@ export const processLeadMatch = inngest.createFunction(
   { event: "lead/match.investors" },
   async ({ event, step }) => {
     const { leadId, userId } = event.data;
-    
+
     console.log(`Processing lead match for lead ${leadId} by user ${userId}`);
-    
+
     return { processed: true, leadId };
   }
 );
@@ -31,9 +30,9 @@ export const processWholesaleDeal = inngest.createFunction(
   { event: "wholesale/deal.imported" },
   async ({ event, step }) => {
     const { propertyId, leadId, matches } = event.data;
-    
+
     console.log(`Processing wholesale deal for property ${propertyId}`);
-    
+
     return { processed: true, propertyId, matchCount: matches.length };
   }
 );
@@ -43,9 +42,9 @@ export const schedulePropertyScraping = inngest.createFunction(
   { event: "property/scrape.scheduled" },
   async ({ event, step }) => {
     const { source } = event.data;
-    
+
     console.log(`Scheduling property scraping for source: ${source}`);
-    
+
     return { scheduled: true, source };
   }
 );
@@ -56,7 +55,7 @@ export const analyzeSellerMotivation = inngest.createFunction(
   { event: "lead/analyze.motivation" },
   async ({ event, step }) => {
     const { leadId } = event.data;
-    
+
     const motivation = await step.run("predict-motivation", async () => {
       return await motivationPredictor.predictSellerMotivation(leadId);
     });
@@ -70,7 +69,7 @@ export const analyzeSellerMotivation = inngest.createFunction(
         });
       });
     }
-    
+
     return { leadId, motivationScore: motivation.score, urgency: motivation.urgencyLevel };
   }
 );
@@ -81,7 +80,7 @@ export const analyzePropertySTR = inngest.createFunction(
   { event: "property/analyze.str" },
   async ({ event, step }) => {
     const { propertyId } = event.data;
-    
+
     const analysis = await step.run("perform-str-analysis", async () => {
       return await strAnalyzer.analyzeProperty(propertyId);
     });
@@ -106,7 +105,7 @@ export const checkLeaseholdStatus = inngest.createFunction(
         // Check if leasehold and lease expiring soon
         const isLeasehold = property.notes?.toLowerCase().includes('leasehold') || 
                            property.address.toLowerCase().includes('leasehold');
-        
+
         if (isLeasehold) {
           // In real implementation, you'd parse actual lease expiration data
           // For now, alert on leasehold properties for manual review
@@ -117,7 +116,7 @@ export const checkLeaseholdStatus = inngest.createFunction(
             title: 'Leasehold Property Alert',
             description: 'Manual review required for leasehold status and lease expiration'
           });
-          
+
           alertCount++;
         }
       });
@@ -142,7 +141,7 @@ export const smartFollowUp = inngest.createFunction(
         // Get last interaction
         const activities = await storage.getActivities({ leadId: lead.id, limit: 1 });
         const lastActivity = activities[0];
-        
+
         if (lastActivity) {
           const daysSinceContact = Math.floor(
             (Date.now() - new Date(lastActivity.createdAt).getTime()) / (1000 * 60 * 60 * 24)
@@ -177,7 +176,7 @@ export const weeklyMotivationUpdate = inngest.createFunction(
       const allLeads = await storage.getLeads({ limit: 1000 });
       return allLeads.filter(lead => lead.status !== 'closed');
     });
-    
+
     for (const lead of leads) {
       await step.run(`update-motivation-${lead.id}`, async () => {
         try {
@@ -188,7 +187,7 @@ export const weeklyMotivationUpdate = inngest.createFunction(
         }
       });
     }
-    
+
     return { processed: leads.length };
   }
 );
@@ -199,30 +198,30 @@ export const advancedLeadScoring = inngest.createFunction(
   { event: "lead/score.advanced" },
   async ({ event, step }) => {
     const { leadId } = event.data;
-    
+
     const scoreData = await step.run("calculate-advanced-score", async () => {
       const lead = await storage.getLead(leadId);
       const property = await storage.getProperty(lead.propertyId);
-      
+
       // Advanced scoring with Hawaii-specific factors
       let score = 50;
-      
+
       // Island-specific seasonality
       const island = property.address.includes('Honolulu') ? 'Oahu' : 
                     property.address.includes('Maui') ? 'Maui' : 'Big Island';
-      
+
       const currentMonth = new Date().getMonth();
       const isHighSeason = [11, 0, 1, 6, 7].includes(currentMonth); // Dec, Jan, Feb, Jul, Aug
-      
+
       if (isHighSeason) score += 10;
-      
+
       // Weather/disaster factors (simplified)
       score += 5; // Base for no current weather alerts
-      
+
       // Lead interaction history
       const activities = await storage.getActivities({ leadId, limit: 10 });
       if (activities.length > 0) score += Math.min(activities.length * 2, 20);
-      
+
       return { score: Math.min(score, 100), factors: [`${island} island`, isHighSeason ? 'Peak season' : 'Regular season'] };
     });
 
