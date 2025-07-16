@@ -32,9 +32,16 @@ export default function Properties() {
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
 
-  const { data: properties = [], isLoading, refetch } = useQuery({
+  const { data: properties = [], isLoading, refetch, error } = useQuery({
     queryKey: ["/api/properties"],
-    queryFn: () => fetch("/api/properties?limit=100").then(res => res.json()),
+    queryFn: async () => {
+      const response = await fetch("/api/properties?limit=100");
+      if (!response.ok) {
+        throw new Error('Failed to fetch properties');
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const { data: stats } = useQuery({

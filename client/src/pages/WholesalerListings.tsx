@@ -61,9 +61,16 @@ export default function WholesalerListings() {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
 
-  const { data: listings = [], isLoading, refetch } = useQuery({
+  const { data: listings = [], isLoading, refetch, error } = useQuery({
     queryKey: ["/api/wholesaler-listings"],
-    queryFn: () => fetch("/api/wholesaler-listings").then(res => res.json()),
+    queryFn: async () => {
+      const response = await fetch("/api/wholesaler-listings");
+      if (!response.ok) {
+        throw new Error('Failed to fetch wholesaler listings');
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const { data: stats } = useQuery({
@@ -321,10 +328,10 @@ export default function WholesalerListings() {
                     </p>
                     <div className="flex items-center space-x-2">
                       <Badge variant="outline">
-                        {filteredAndSortedListings.filter((l: WholesaleProperty) => l.source === 'hawaii_home_listings').length} Hawaii Home
+                        {filteredAndSortedListings.filter((l: WholesaleLead) => l.source === 'hawaii_home_listings').length} Hawaii Home
                       </Badge>
                       <Badge variant="outline">
-                        {filteredAndSortedListings.filter((l: WholesaleProperty) => l.source === 'big_isle').length} Big Isle
+                        {filteredAndSortedListings.filter((l: WholesaleLead) => l.source === 'big_isle').length} Big Isle
                       </Badge>
                     </div>
                   </div>

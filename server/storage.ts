@@ -154,50 +154,63 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Property operations
-  async getProperties(filters?: {
+  async getProperties(filters: {
     status?: string;
     priority?: string;
     limit?: number;
     offset?: number;
-  }): Promise<Property[]> {
+  } = {}) {
     try {
       let query = db.select({
-          id: properties.id,
-          address: properties.address,
-          propertyType: properties.propertyType,
-          status: properties.status,
-          priority: properties.priority,
-          estimatedValue: properties.estimatedValue,
-          lienAmount: properties.lienAmount,
-          aiSummary: properties.aiSummary,
-          underContractStatus: properties.underContractStatus,
-          contractUploadUrl: properties.contractUploadUrl,
-          createdAt: properties.createdAt,
-          updatedAt: properties.updatedAt
-        }).from(properties);
+        id: properties.id,
+        address: properties.address,
+        city: properties.city,
+        state: properties.state,
+        zipCode: properties.zipCode,
+        ownerName: properties.ownerName,
+        estimatedValue: properties.estimatedValue,
+        lienAmount: properties.lienAmount,
+        status: properties.status,
+        priority: properties.priority,
+        propertyType: properties.propertyType,
+        auctionDate: properties.auctionDate,
+        daysUntilAuction: properties.daysUntilAuction,
+        source: properties.source,
+        sourceUrl: properties.sourceUrl,
+        createdAt: properties.createdAt,
+        updatedAt: properties.updatedAt,
+        userId: properties.userId,
+        amountOwed: properties.amountOwed,
+        bedrooms: properties.bedrooms,
+        bathrooms: properties.bathrooms,
+        squareFeet: properties.squareFeet,
+        yearBuilt: properties.yearBuilt,
+        repairsNeeded: properties.repairsNeeded,
+        dealType: properties.dealType,
+        askingPrice: properties.askingPrice,
+        leadSource: properties.leadSource
+      }).from(properties);
 
-      if (filters?.status) {
-        query = query.where(eq(properties.status, filters.status)) as any;
+      if (filters.status) {
+        query = query.where(eq(properties.status, filters.status));
       }
 
-      if (filters?.priority) {
-        query = query.where(eq(properties.priority, filters.priority)) as any;
+      if (filters.priority) {
+        query = query.where(eq(properties.priority, filters.priority));
       }
 
-      query = query.orderBy(desc(properties.createdAt)) as any;
-
-      if (filters?.limit) {
-        query = query.limit(filters.limit) as any;
+      if (filters.limit) {
+        query = query.limit(filters.limit);
       }
 
-      if (filters?.offset) {
-        query = query.offset(filters.offset) as any;
+      if (filters.offset) {
+        query = query.offset(filters.offset);
       }
 
       const result = await query;
-      return result || [];
+      return result;
     } catch (error) {
-      console.error('Error in getProperties:', error);
+      console.error("Error in getProperties:", error);
       return [];
     }
   }
