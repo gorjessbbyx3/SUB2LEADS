@@ -34,7 +34,7 @@ export function Sidebar() {
   return (
     <aside className="w-64 bg-white shadow-lg border-r border-gray-200 fixed h-full z-10">
       <div className="p-6 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-gray-900 font-heading">Hawaii CRM</h1>
+        <h1 className="text-xl font-bold text-gray-900 font-heading">BIRD.DOG BY GorJess & co.</h1>
         <p className="text-sm text-gray-500 mt-1">Lead Generation Platform</p>
       </div>
 
