@@ -135,9 +135,9 @@ class HonoluluTaxScraper:
             return 0
 
 if __name__ == "__main__":
-    scraper = HonoluluTaxScraper()
-    
     try:
+        scraper = HonoluluTaxScraper()
+        
         # Search for delinquent properties across multiple zip codes
         properties = scraper.search_delinquent_properties(['96801', '96813', '96814', '96815', '96816'])
         
@@ -170,8 +170,10 @@ if __name__ == "__main__":
         
         # Output as JSON for Node.js to parse
         print(json.dumps(properties, indent=2))
+        sys.exit(0)
         
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"Scraper error: {str(e)}", file=sys.stderr)
         # Output empty array on error
         print("[]")
+        sys.exit(1)

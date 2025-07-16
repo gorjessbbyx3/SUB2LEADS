@@ -208,9 +208,9 @@ class StarAdvertiserForeclosureScraper:
         return info
 
 if __name__ == "__main__":
-    scraper = StarAdvertiserForeclosureScraper()
-    
     try:
+        scraper = StarAdvertiserForeclosureScraper()
+        
         foreclosures = scraper.scrape_foreclosures()
         
         # Add mock data if no foreclosures found
@@ -244,8 +244,10 @@ if __name__ == "__main__":
         
         # Output as JSON for Node.js to parse
         print(json.dumps(foreclosures, indent=2))
+        sys.exit(0)
         
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"Scraper error: {str(e)}", file=sys.stderr)
         # Output empty array on error
         print("[]")
+        sys.exit(1)

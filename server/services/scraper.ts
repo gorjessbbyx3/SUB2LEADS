@@ -316,30 +316,34 @@ class ScraperService {
     return await storage.getScrapingJobs(20);
   }
 
+  async runScrapingJob(source: string): Promise<{ success: boolean; message: string; propertiesFound: number }> {
+    return await this.startScraping(source);
+  }
+
   async runAllScrapers(): Promise<{ success: boolean; message: string; results: any[] }> {
     console.log('Running all scrapers...');
 
     const results = [];
 
     try {
-      const starResult = await this.runScrapingJob('star_advertiser');
+      const starResult = await this.startScraping('star_advertiser');
       results.push({ source: 'star_advertiser', ...starResult });
-    } catch (error) {
-      results.push({ source: 'star_advertiser', success: false, message: error.message });
+    } catch (error: any) {
+      results.push({ source: 'star_advertiser', success: false, message: error.message, propertiesFound: 0 });
     }
 
     try {
-      const taxResult = await this.runScrapingJob('honolulu_tax');
+      const taxResult = await this.startScraping('honolulu_tax');
       results.push({ source: 'honolulu_tax', ...taxResult });
-    } catch (error) {
-      results.push({ source: 'honolulu_tax', success: false, message: error.message });
+    } catch (error: any) {
+      results.push({ source: 'honolulu_tax', success: false, message: error.message, propertiesFound: 0 });
     }
 
     try {
-      const judiciaryResult = await this.runScrapingJob('hawaii_judiciary');
+      const judiciaryResult = await this.startScraping('hawaii_judiciary');
       results.push({ source: 'hawaii_judiciary', ...judiciaryResult });
-    } catch (error) {
-      results.push({ source: 'hawaii_judiciary', success: false, message: error.message });
+    } catch (error: any) {
+      results.push({ source: 'hawaii_judiciary', success: false, message: error.message, propertiesFound: 0 });
     }
 
     const totalProperties = results.reduce((sum, result) => sum + (result.propertiesFound || 0), 0);
