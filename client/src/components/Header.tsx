@@ -20,18 +20,15 @@ export function Header({ title, subtitle, action }: HeaderProps) {
             <p className="text-gray-500 text-sm mt-1">{subtitle}</p>
           )}
         </div>
-        <div className="flex items-center space-x-4">
-          {action && (
-            <Button 
-              onClick={action.onClick}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {action.label}
-            </Button>
-          )}
-          
-        </div>
+        {action && (
+          <Button 
+            onClick={action.onClick}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {action.label}
+          </Button>
+        )}
       </div>
     </header>
   );
