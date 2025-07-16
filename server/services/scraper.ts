@@ -366,6 +366,85 @@ class ScraperService {
       results
     };
   }
+
+  async generateDataExport(): Promise<Buffer> {
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip();
+
+    try {
+      // Get all properties
+      const properties = await storage.getProperties({});
+      
+      // Get scraping history
+      const history = await this.getScrapingHistory();
+
+      // Create CSV content for properties
+      const propertiesCSV = this.convertToCSV(properties, [
+        'id', 'address', 'city', 'state', 'zipCode', 'estimatedValue', 
+        'status', 'priority', 'auctionDate', 'amountOwed', 'daysUntilAuction',
+        'propertyType', 'bedrooms', 'bathrooms', 'squareFeet', 'yearBuilt',
+        'sourceUrl', 'scrapedAt'
+      ]);
+
+      // Create CSV content for scraping history
+      const historyCSV = this.convertToCSV(history, [
+        'id', 'source', 'status', 'propertiesFound', 'propertiesProcessed',
+        'startedAt', 'completedAt', 'errorMessage'
+      ]);
+
+      // Add files to ZIP
+      zip.addFile('properties.csv', Buffer.from(propertiesCSV, 'utf8'));
+      zip.addFile('scraping_history.csv', Buffer.from(historyCSV, 'utf8'));
+      
+      // Create a summary JSON file
+      const summary = {
+        exportDate: new Date().toISOString(),
+        totalProperties: properties.length,
+        totalScrapingJobs: history.length,
+        propertiesBySource: this.groupPropertiesBySource(properties),
+        propertiesByStatus: this.groupPropertiesByStatus(properties)
+      };
+      
+      zip.addFile('summary.json', Buffer.from(JSON.stringify(summary, null, 2), 'utf8'));
+
+      return zip.toBuffer();
+    } catch (error) {
+      console.error('Error generating data export:', error);
+      throw new Error('Failed to generate data export');
+    }
+  }
+
+  private convertToCSV(data: any[], headers: string[]): string {
+    const csvHeaders = headers.join(',');
+    const csvRows = data.map(item => {
+      return headers.map(header => {
+        const value = item[header] || '';
+        // Escape commas and quotes in CSV
+        if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      }).join(',');
+    });
+    
+    return [csvHeaders, ...csvRows].join('\n');
+  }
+
+  private groupPropertiesBySource(properties: any[]): Record<string, number> {
+    return properties.reduce((acc, prop) => {
+      const source = prop.source || 'unknown';
+      acc[source] = (acc[source] || 0) + 1;
+      return acc;
+    }, {});
+  }
+
+  private groupPropertiesByStatus(properties: any[]): Record<string, number> {
+    return properties.reduce((acc, prop) => {
+      const status = prop.status || 'unknown';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
+  }
 }
 
 export const scraperService = new ScraperService();
