@@ -12,6 +12,33 @@ import Outreach from "@/pages/Outreach";
 import Reports from "@/pages/Reports";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/not-found";
+import React, { Suspense } from 'react';
+
+function ErrorBoundary({ children, fallback }: { children: React.ReactNode; fallback: React.ReactNode }) {
+  const [hasError, setHasError] = React.useState(false);
+
+  React.useEffect(() => {
+    const errorHandler = (error: any, info: any) => {
+      console.error("Caught an error: ", error, info);
+      setHasError(true);
+    };
+
+    window.addEventListener('error', errorHandler);
+    window.addEventListener('unhandledrejection', errorHandler);
+
+    return () => {
+      window.removeEventListener('error', errorHandler);
+      window.removeEventListener('unhandledrejection', errorHandler);
+    };
+  }, []);
+
+  if (hasError) {
+    return fallback;
+  }
+
+  return children;
+}
+
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, login } = useAuth();
@@ -63,7 +90,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AppRoutes />
+        <ErrorBoundary fallback={<p>Something went wrong.</p>}>
+          <Suspense fallback={<p>Loading app...</p>}>
+            <AppRoutes />
+          </Suspense>
+        </ErrorBoundary>
       </AuthProvider>
     </QueryClientProvider>
   );

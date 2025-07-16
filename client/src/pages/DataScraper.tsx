@@ -24,10 +24,10 @@ import {Header} from '@/components/Header';
 import { useToast } from '@/hooks/use-toast';
 
 interface ScrapingJob {
-  id: number;
+  id: string;
   source: string;
-  status: string;
-  startedAt: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  startTime: string;
   completedAt?: string;
   propertiesFound: number;
   propertiesProcessed: number;
