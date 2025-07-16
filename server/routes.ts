@@ -416,6 +416,77 @@ export async function registerRoutes(app: Express) {
     }
   });
 
+  // Wholesaler Listings endpoints
+  app.get('/api/wholesaler-listings', async (req, res) => {
+    try {
+      // Mock data for now - this would integrate with actual APIs
+      const listings = [
+        {
+          id: '1',
+          address: '123 Ala Moana Blvd',
+          city: 'Honolulu',
+          island: 'Oahu',
+          price: 285000,
+          beds: 2,
+          baths: 1,
+          sqft: 950,
+          propertyType: 'Condo',
+          listingDate: '2024-01-15',
+          wholesalerName: 'Pacific Wholesale Properties',
+          wholesalerPhone: '(808) 555-0123',
+          wholesalerEmail: 'deals@pacificwholesale.com',
+          description: 'Great investment opportunity in Kakaako',
+          images: [],
+          source: 'hawaii_home_listings' as const,
+          sourceUrl: 'https://www.hawaiihomelistings.com/property/123'
+        },
+        {
+          id: '2',
+          address: '456 Kilauea Ave',
+          city: 'Hilo',
+          island: 'Big Island',
+          price: 185000,
+          beds: 3,
+          baths: 2,
+          sqft: 1200,
+          propertyType: 'Single Family',
+          listingDate: '2024-01-14',
+          wholesalerName: 'Big Island Deals',
+          wholesalerPhone: '(808) 555-0456',
+          wholesalerEmail: 'info@bigisledeals.com',
+          description: 'Fixer upper with ocean views',
+          images: [],
+          source: 'big_isle' as const,
+          sourceUrl: 'https://bigisle.com/listing/456'
+        }
+      ];
+
+      res.json(listings);
+    } catch (error) {
+      console.error('Error fetching wholesaler listings:', error);
+      res.status(500).json({ error: 'Failed to fetch wholesaler listings' });
+    }
+  });
+
+  app.get('/api/wholesaler-listings/stats', async (req, res) => {
+    try {
+      // Mock stats - would calculate from actual data
+      const stats = {
+        total: 2,
+        averagePrice: 235000,
+        oahuCount: 1,
+        bigIslandCount: 1,
+        mauiCount: 0,
+        kauaiCount: 0
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching wholesaler stats:', error);
+      res.status(500).json({ error: 'Failed to fetch wholesaler stats' });
+    }
+  });
+
   // MLS Routes
   app.get("/api/mls/listings", async (req, res) => {
     try {
