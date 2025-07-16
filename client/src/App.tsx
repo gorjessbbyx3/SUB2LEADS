@@ -30,43 +30,38 @@ const queryClient = new QueryClient({
   },
 });
 
-function ErrorBoundary({ children, fallback }: { children: React.ReactNode; fallback: React.ReactNode }) {
-  const [hasError, setHasError] = React.useState(false);
-
-  React.useEffect(() => {
-    const errorHandler = (event: ErrorEvent) => {
-      console.error("Caught an error: ", event.error, event);
-      setHasError(true);
-    };
-
-    const rejectionHandler = (event: PromiseRejectionEvent) => {
-      console.error("Unhandled promise rejection: ", event.reason);
-      event.preventDefault();
-      setHasError(true);
-    };
-
-    window.addEventListener('error', errorHandler);
-    window.addEventListener('unhandledrejection', rejectionHandler);
-
-    return () => {
-      window.removeEventListener('error', errorHandler);
-      window.removeEventListener('unhandledrejection', rejectionHandler);
-    };
-  }, []);
-
-  if (hasError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h1>
-          <p className="text-gray-600 mb-4">Please refresh the page to try again.</p>
-          <Button onClick={() => window.location.reload()}>Refresh Page</Button>
-        </div>
-      </div>
-    );
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback?: React.ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: React.ReactNode; fallback?: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
   }
 
-  return <>{children}</>;
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Error boundary caught an error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h1>
+            <p className="text-gray-600 mb-4">Please refresh the page to try again.</p>
+            <Button onClick={() => window.location.reload()}>Refresh Page</Button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 function AppContent() {

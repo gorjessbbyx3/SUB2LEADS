@@ -126,6 +126,33 @@ export async function registerRoutes(app: Express) {
     }
   });
 
+  app.put("/api/leads/:id", isAuthenticated, async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.id);
+      const user = req.user as any;
+      const updatedLead = await storage.updateLead(leadId, req.body, user?.claims?.sub);
+      res.json(updatedLead);
+    } catch (error) {
+      console.error("Error updating lead:", error);
+      res.status(500).json({ error: "Failed to update lead" });
+    }
+  });
+
+  app.post("/api/leads", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const validatedData = insertLeadSchema.parse({
+        ...req.body,
+        userId: user?.claims?.sub
+      });
+      const lead = await storage.createLead(validatedData);
+      res.status(201).json(lead);
+    } catch (error) {
+      console.error("Error creating lead:", error);
+      res.status(500).json({ error: "Failed to create lead" });
+    }
+  });
+
   // Investor routes
   app.get("/api/investors", isAuthenticated, async (req, res) => {
     try {
@@ -324,6 +351,34 @@ export async function registerRoutes(app: Express) {
     }
   });
 
+  // Add alias for backwards compatibility
+  app.post("/api/scraping/run", isAuthenticated, async (req, res) => {
+    try {
+      const { source } = req.body;
+      const job = await scraperService.startScraping(source);
+      res.json(job);
+    } catch (error) {
+      console.error("Error starting scraping:", error);
+      res.status(500).json({ error: "Failed to start scraping" });
+    }
+  });
+
+  app.get("/api/scraping/status", isAuthenticated, async (req, res) => {
+    try {
+      const jobs = await storage.getScrapingJobs(5);
+      const recentJob = jobs[0];
+      res.json({
+        isRunning: recentJob?.status === 'running',
+        lastRun: recentJob?.createdAt,
+        status: recentJob?.status || 'idle',
+        recordsFound: recentJob?.recordsFound || 0
+      });
+    } catch (error) {
+      console.error("Error fetching scraping status:", error);
+      res.status(500).json({ error: "Failed to fetch scraping status" });
+    }
+  });
+
   app.get("/api/scraping/jobs", isAuthenticated, async (req, res) => {
     try {
       const jobs = await storage.getScrapingJobs(10);
@@ -408,6 +463,17 @@ export async function registerRoutes(app: Express) {
     }
   });
 
+  app.post("/api/mls/refresh", isAuthenticated, async (req, res) => {
+    try {
+      // Mock refresh process - in production this would trigger MLS data sync
+      console.log("MLS refresh triggered");
+      res.json({ success: true, message: "MLS data refresh initiated" });
+    } catch (error) {
+      console.error("MLS refresh error:", error);
+      res.status(500).json({ error: "Failed to refresh MLS data" });
+    }
+  });
+
   // Foreclosure Routes
   app.get("/api/foreclosures", async (req, res) => {
     try {
@@ -452,6 +518,40 @@ export async function registerRoutes(app: Express) {
     } catch (error) {
       console.error("Auction stats error:", error);
       res.status(500).json({ error: "Failed to fetch auction stats" });
+    }
+  });
+
+  // Dashboard stats endpoint
+  app.get("/api/dashboard/stats", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const properties = await storage.getProperties({ limit: 1000 });
+      const leads = await storage.getLeads({ userId: user?.claims?.sub, limit: 1000 });
+      const investors = await storage.getInvestors(user?.claims?.sub, { limit: 1000 });
+
+      const stats = {
+        totalProperties: properties.length,
+        activeLeads: leads.filter(l => ['new', 'contacted', 'qualified'].includes(l.status)).length,
+        totalInvestors: investors.length,
+        pendingDeals: leads.filter(l => l.status === 'under_contract').length,
+        recentActivity: {
+          newProperties: properties.filter(p => {
+            const created = new Date(p.createdAt);
+            const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            return created > oneWeekAgo;
+          }).length,
+          newLeads: leads.filter(l => {
+            const created = new Date(l.createdAt);
+            const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            return created > oneWeekAgo;
+          }).length
+        }
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+      res.status(500).json({ error: "Failed to fetch dashboard stats" });
     }
   });
 

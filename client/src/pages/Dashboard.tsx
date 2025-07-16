@@ -20,7 +20,8 @@ import {
 
 export default function Dashboard() {
   const { data: stats } = useQuery({
-    queryKey: ["/api/properties/stats"],
+    queryKey: ["/api/dashboard/stats"],
+    queryFn: () => fetch("/api/dashboard/stats").then(res => res.json()),
   });
 
   const { data: recentProperties } = useQuery({
@@ -39,10 +40,10 @@ export default function Dashboard() {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
-      
+
       <main className="flex-1 ml-64 overflow-y-auto">
         <Header title="Dashboard" subtitle="Overview of your lead generation activities" />
-        
+
         <div className="p-6 space-y-6">
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -158,7 +159,7 @@ export default function Dashboard() {
                     }
                   </span>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-3 h-3 bg-green-500 rounded-full"></div>
@@ -171,7 +172,7 @@ export default function Dashboard() {
                     }
                   </span>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
@@ -179,7 +180,7 @@ export default function Dashboard() {
                   </div>
                   <span className="text-xs text-gray-500">Processing leads</span>
                 </div>
-                
+
                 <Button className="w-full">Run Manual Scrape</Button>
               </CardContent>
             </Card>

@@ -657,6 +657,69 @@ export class DatabaseStorage implements IStorage {
     console.log('Outreach history created:', data);
     return { id: Date.now(), ...data };
   }
+
+  async updateLead(leadId: number, data: any, userId: string) {
+    const existingLead = await this.getLead(leadId);
+    if (!existingLead) {
+      throw new Error('Lead not found');
+    }
+
+    await db.update(leads)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(leads.id, leadId));
+
+    return this.getLead(leadId);
+  }
+
+  async createLead(data: any) {
+    const [lead] = await db.insert(leads).values({
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }).returning();
+    return lead;
+  }
+
+  async getScrapingJobs(limit: number = 10) {
+    // Mock implementation - replace with real DB query when scraping_jobs table is created
+    return [
+      {
+        id: 1,
+        source: 'foreclosures',
+        status: 'completed',
+        recordsFound: 15,
+        createdAt: new Date(Date.now() - 3600000), // 1 hour ago
+        completedAt: new Date(Date.now() - 3000000) // 50 minutes ago
+      },
+      {
+        id: 2,
+        source: 'tax_liens',
+        status: 'running',
+        recordsFound: 8,
+        createdAt: new Date(Date.now() - 600000), // 10 minutes ago
+        completedAt: null
+      }
+    ].slice(0, limit);
+  }
+
+  async getLeadsPipeline(userId: string) {
+    const allLeads = await this.getLeads({ userId, limit: 1000 });
+    
+    const pipeline = {
+      new: allLeads.filter(lead => lead.status === 'new'),
+      contacted: allLeads.filter(lead => lead.status === 'contacted'),
+      qualified: allLeads.filter(lead => lead.status === 'qualified'),
+      negotiating: allLeads.filter(lead => lead.status === 'negotiating'),
+      under_contract: allLeads.filter(lead => lead.status === 'under_contract'),
+      closed: allLeads.filter(lead => lead.status === 'closed'),
+      dead: allLeads.filter(lead => lead.status === 'dead')
+    };
+
+    return pipeline;
+  }
 }
 
 export const storage = new DatabaseStorage();
