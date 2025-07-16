@@ -43,73 +43,194 @@ class EHawaiiMFDRScraper:
         notices = []
 
         try:
-            # Look for tables containing foreclosure notices
+            # Find the main notices table
             tables = soup.find_all('table')
             
             for table in tables:
                 rows = table.find_all('tr')
                 
-                for row in rows[1:]:  # Skip header row
-                    cells = row.find_all(['td', 'th'])
+                # Skip header row and process data rows
+                for row in rows[1:]:
+                    cells = row.find_all('td')
                     
-                    if len(cells) >= 3:  # Expect at least 3 columns
-                        notice = self._parse_table_row(cells)
+                    if len(cells) >= 4:  # Expect owner, address, posting_date, view_link
+                        notice = self._parse_mfdr_table_row(cells, row)
                         if notice:
                             notices.append(notice)
+                            
+                            # Follow view link to get additional details
+                            detailed_notice = self._fetch_detailed_notice(notice)
+                            if detailed_notice:
+                                notices.append(detailed_notice)
+                            
+                            # Rate limiting
+                            time.sleep(1)
 
         except Exception as e:
             print(f"Error parsing notice table: {e}", file=sys.stderr)
 
         return notices
 
-    def _parse_table_row(self, cells):
-        """Parse individual table row into notice data"""
+    def _parse_mfdr_table_row(self, cells, row):
+        """Parse MFDR table row with specific column structure"""
         try:
-            # Extract text from each cell
-            cell_texts = [cell.get_text(strip=True) for cell in cells]
+            if len(cells) < 4:
+                return None
+                
+            # MFDR table structure: Owner | Address | Posting Date | View Link
+            owner_name = cells[0].get_text(strip=True)
+            property_address = cells[1].get_text(strip=True)
+            posting_date = cells[2].get_text(strip=True)
             
-            # Common patterns for MFDR notices
-            case_number = ""
-            property_address = ""
-            borrower_name = ""
-            notice_date = ""
-            
-            # Try to identify columns based on content patterns
-            for i, text in enumerate(cell_texts):
-                # Case number pattern
-                if re.search(r'(MFDR|FC|CV)\s*[-]?\s*\d+', text, re.IGNORECASE):
-                    case_number = text
-                
-                # Address pattern
-                elif any(addr_keyword in text.lower() for addr_keyword in ['street', 'st', 'avenue', 'ave', 'road', 'rd', 'drive', 'dr', 'lane', 'ln']):
-                    property_address = text
-                
-                # Date pattern
-                elif re.search(r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}', text):
-                    notice_date = text
-                
-                # Name pattern (capitalized words)
-                elif re.search(r'^[A-Z][a-z]+\s+[A-Z][a-z]+', text):
-                    borrower_name = text
+            # Extract view link
+            view_link = ""
+            view_cell = cells[3]
+            link_element = view_cell.find('a')
+            if link_element and link_element.get('href'):
+                href = link_element.get('href')
+                view_link = self._resolve_url(href)
 
-            # Only create notice if we have meaningful data
-            if case_number or property_address:
+            # Only create notice if we have essential data
+            if owner_name and property_address:
                 return {
-                    'case_number': case_number,
+                    'owner_name': owner_name,
+                    'borrower_name': owner_name,  # Same as owner for MFDR
                     'address': property_address,
-                    'borrower_name': borrower_name,
-                    'notice_date': notice_date,
+                    'posting_date': posting_date,
+                    'notice_date': posting_date,
+                    'view_link': view_link,
                     'status': 'mfdr_notice',
                     'source': 'ehawaii_mfdr',
                     'source_url': self.notices_url,
                     'scraped_at': datetime.now().isoformat(),
-                    'raw_data': ' | '.join(cell_texts)
+                    'raw_data': f"Owner: {owner_name} | Address: {property_address} | Posted: {posting_date}"
                 }
 
         except Exception as e:
-            print(f"Error parsing table row: {e}", file=sys.stderr)
+            print(f"Error parsing MFDR table row: {e}", file=sys.stderr)
 
         return None
+
+    def _fetch_detailed_notice(self, notice):
+        """Fetch detailed notice information from view link"""
+        if not notice.get('view_link'):
+            return None
+            
+        try:
+            print(f"Fetching details from: {notice['view_link']}", file=sys.stderr)
+            response = self.session.get(notice['view_link'], timeout=30)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Extract detailed information from the notice page
+            text_content = soup.get_text()
+            
+            # Parse additional details
+            details = self._extract_detailed_notice_info(text_content)
+            
+            if details:
+                # Merge with original notice data
+                detailed_notice = notice.copy()
+                detailed_notice.update(details)
+                detailed_notice['source_url'] = notice['view_link']
+                detailed_notice['has_details'] = True
+                
+                return detailed_notice
+
+        except Exception as e:
+            print(f"Error fetching detailed notice {notice.get('view_link')}: {e}", file=sys.stderr)
+
+        return None
+
+    def _extract_detailed_notice_info(self, text):
+        """Extract detailed information from full notice text"""
+        info = {}
+
+        try:
+            # TMK (Tax Map Key) - Hawaiian property identifier
+            tmk_patterns = [
+                r'TMK[:\s]*([0-9-]+)',
+                r'Tax Map Key[:\s]*([0-9-]+)',
+                r'\(TMK\)\s*([0-9-]+)'
+            ]
+            
+            for pattern in tmk_patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    info['tmk'] = match.group(1).strip()
+                    break
+
+            # Auction/Sale Date
+            auction_patterns = [
+                r'(?:auction|sale)\s+(?:date|on):\s*(\w+\s+\d+,?\s+\d{4})',
+                r'(?:date|on)\s+(\w+\s+\d+,?\s+\d{4}).*(?:auction|sale)',
+                r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}).*(?:auction|sale)',
+                r'(?:auction|sale).*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})'
+            ]
+
+            for pattern in auction_patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    info['auction_date'] = match.group(1).strip()
+                    break
+
+            # Attorney/Trustee information
+            attorney_patterns = [
+                r'(?:attorney|counsel|trustee|law firm):\s*([^\n\r.;]+)',
+                r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,?\s+(?:Esq|Attorney|LLLC|LLC|P\.A\.|ALC))',
+                r'(?:Trustee|Attorney):\s*([^\n\r.;]+)'
+            ]
+
+            for pattern in attorney_patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    info['attorney_info'] = match.group(1).strip()
+                    break
+
+            # Case/File Number
+            case_patterns = [
+                r'(?:Case|File|Doc|Docket)\s*[#No.]*\s*([A-Z0-9-]+)',
+                r'FC[:\s-]*([0-9-]+)',
+                r'MFDR[:\s-]*([0-9-]+)'
+            ]
+
+            for pattern in case_patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    info['case_number'] = match.group(1).strip()
+                    break
+
+            # Loan/Debt Amount
+            amount_patterns = [
+                r'\$[\d,]+\.?\d*',
+                r'(?:amount|debt|balance|owed).*?\$?([\d,]+\.?\d*)',
+                r'\$?([\d,]+\.?\d*).*(?:owed|debt|balance)'
+            ]
+
+            for pattern in amount_patterns:
+                matches = re.findall(pattern, text, re.IGNORECASE)
+                if matches:
+                    # Take the largest amount found
+                    amounts = []
+                    for match in matches:
+                        amount_str = str(match).replace('$', '').replace(',', '')
+                        try:
+                            amount = float(amount_str)
+                            if amount > 1000:  # Filter out small numbers that aren't loan amounts
+                                amounts.append(amount)
+                        except:
+                            continue
+                    
+                    if amounts:
+                        info['amount_owed'] = max(amounts)
+                        break
+
+            return info
+
+        except Exception as e:
+            print(f"Error extracting detailed notice info: {e}", file=sys.stderr)
+            return {}
 
     def _parse_individual_notices(self, soup):
         """Parse individual notice links and fetch details"""
@@ -246,33 +367,23 @@ if __name__ == "__main__":
 
         print(f"Debug: Found {len(notices)} MFDR notices", file=sys.stderr)
 
-        # Add mock data if no notices found (for testing)
+        # Only add mock data if absolutely no notices found and we want to test the pipeline
         if not notices:
-            print("Debug: No real notices found, using mock data", file=sys.stderr)
-            notices = [
-                {
-                    'case_number': 'MFDR-2024-001',
-                    'address': '456 MFDR Lane, Honolulu, HI 96815',
-                    'borrower_name': 'David Kim',
-                    'notice_date': '2024-01-15',
-                    'amount_owed': 425000,
-                    'status': 'mfdr_notice',
-                    'source': 'ehawaii_mfdr',
-                    'source_url': 'https://mfdr.ehawaii.gov/notices/index.html',
-                    'scraped_at': datetime.now().isoformat()
-                },
-                {
-                    'case_number': 'MFDR-2024-002',
-                    'address': '789 Foreclosure Ave, Kailua, HI 96734',
-                    'borrower_name': 'Lisa Wong',
-                    'notice_date': '2024-01-20',
-                    'amount_owed': 680000,
-                    'status': 'mfdr_notice',
-                    'source': 'ehawaii_mfdr',
-                    'source_url': 'https://mfdr.ehawaii.gov/notices/index.html',
-                    'scraped_at': datetime.now().isoformat()
-                }
-            ]
+            print("Debug: No real notices found from MFDR site", file=sys.stderr)
+            # Uncomment below for testing with mock data
+            # notices = [
+            #     {
+            #         'case_number': 'MFDR-2024-001',
+            #         'address': '456 MFDR Lane, Honolulu, HI 96815',
+            #         'borrower_name': 'David Kim',
+            #         'notice_date': '2024-01-15',
+            #         'amount_owed': 425000,
+            #         'status': 'mfdr_notice',
+            #         'source': 'ehawaii_mfdr',
+            #         'source_url': 'https://mfdr.ehawaii.gov/notices/index.html',
+            #         'scraped_at': datetime.now().isoformat()
+            #     }
+            # ]
 
         # Ensure we always output valid JSON
         if notices:
