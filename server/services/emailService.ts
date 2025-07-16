@@ -115,27 +115,6 @@ Hawaii Investment Team
     return templates[templateType] ? templates[templateType](lead) : templates.foreclosure(lead);
   }
 
-  async markEmailSent(leadId: number, emailLogId: number) {
-    try {
-      // Update email log status
-      await storage.updateEmailLog(emailLogId, {
-        status: 'sent',
-        sentAt: new Date(),
-      });
-
-      // Update lead status
-      await storage.updateLead(leadId, {
-        status: 'contacted',
-        lastContactDate: new Date(),
-      });
-
-      return { success: true };
-    } catch (error) {
-      console.error('Error marking email as sent:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
   async getEmailTemplates() {
     return aiService.getEmailTemplates();
   }
