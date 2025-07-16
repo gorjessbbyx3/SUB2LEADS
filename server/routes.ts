@@ -14,7 +14,7 @@ import { validateRequest, validateQuery, rateLimit } from './middleware/validati
 import { inngestHandler, inngest } from './inngest';
 import path from 'path';
 import { serve } from 'inngest/express';
-import { helloWorld } from './inngest/functions';
+import { helloWorld, processLeadMatch, processWholesaleDeal, schedulePropertyScraping } from './inngest/functions';
 
 export async function registerRoutes(app: Express) {
   const server = createServer(app);
@@ -1061,7 +1061,7 @@ export async function registerRoutes(app: Express) {
   schedulerService.start();
 
   // Add the Inngest serve handler
-  app.use("/api/inngest", serve({ client: inngest, functions: [helloWorld] }));
+  app.use("/api/inngest", serve({ client: inngest, functions: [helloWorld, processLeadMatch, processWholesaleDeal, schedulePropertyScraping] }));
 
   return server;
 }
