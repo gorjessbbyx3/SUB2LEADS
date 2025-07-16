@@ -416,50 +416,125 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  // Wholesaler Listings endpoints
-  app.get('/api/wholesaler-listings', async (req, res) => {
+  // Import wholesale listings into main properties system
+  app.post('/api/wholesaler-listings/import', isAuthenticated, async (req, res) => {
     try {
-      // Mock data for now - this would integrate with actual APIs
-      const listings = [
+      const user = req.user as any;
+      
+      // Mock wholesale listings data - replace with actual API calls
+      const wholesaleListings = [
         {
-          id: '1',
-          address: '123 Ala Moana Blvd',
+          address: '123 Ala Moana Blvd, Honolulu, HI 96815',
           city: 'Honolulu',
-          island: 'Oahu',
-          price: 285000,
-          beds: 2,
-          baths: 1,
-          sqft: 950,
+          state: 'HI',
+          zipCode: '96815',
+          estimatedValue: 285000,
+          status: 'wholesale',
+          priority: 'medium',
           propertyType: 'Condo',
-          listingDate: '2024-01-15',
-          wholesalerName: 'Pacific Wholesale Properties',
-          wholesalerPhone: '(808) 555-0123',
-          wholesalerEmail: 'deals@pacificwholesale.com',
-          description: 'Great investment opportunity in Kakaako',
-          images: [],
-          source: 'hawaii_home_listings' as const,
-          sourceUrl: 'https://www.hawaiihomelistings.com/property/123'
+          bedrooms: 2,
+          bathrooms: 1,
+          squareFeet: 950,
+          dealType: 'wholesaler',
+          contractHolderName: 'Pacific Wholesale Properties',
+          contractHolderPhone: '(808) 555-0123',
+          contractHolderEmail: 'deals@pacificwholesale.com',
+          askingPrice: 285000,
+          sourceUrl: 'https://www.hawaiihomelistings.com/property/123',
+          leadSource: 'hawaii_home_listings'
         },
         {
-          id: '2',
-          address: '456 Kilauea Ave',
+          address: '456 Kilauea Ave, Hilo, HI 96720',
           city: 'Hilo',
-          island: 'Big Island',
-          price: 185000,
-          beds: 3,
-          baths: 2,
-          sqft: 1200,
+          state: 'HI', 
+          zipCode: '96720',
+          estimatedValue: 185000,
+          status: 'wholesale',
+          priority: 'medium',
           propertyType: 'Single Family',
-          listingDate: '2024-01-14',
-          wholesalerName: 'Big Island Deals',
-          wholesalerPhone: '(808) 555-0456',
-          wholesalerEmail: 'info@bigisledeals.com',
-          description: 'Fixer upper with ocean views',
-          images: [],
-          source: 'big_isle' as const,
-          sourceUrl: 'https://bigisle.com/listing/456'
+          bedrooms: 3,
+          bathrooms: 2,
+          squareFeet: 1200,
+          dealType: 'wholesaler',
+          contractHolderName: 'Big Island Deals',
+          contractHolderPhone: '(808) 555-0456',
+          contractHolderEmail: 'info@bigisledeals.com',
+          askingPrice: 185000,
+          sourceUrl: 'https://bigisle.com/listing/456',
+          leadSource: 'big_isle'
         }
       ];
+
+      const importedProperties = [];
+      const importedLeads = [];
+
+      for (const listing of wholesaleListings) {
+        // Create property record
+        const property = await storage.createProperty(listing);
+        importedProperties.push(property);
+
+        // Create contact record for wholesaler
+        const contact = await storage.createContact({
+          propertyId: property.id,
+          name: listing.contractHolderName,
+          email: listing.contractHolderEmail,
+          phone: listing.contractHolderPhone,
+          isLLC: listing.contractHolderName.includes('LLC') || listing.contractHolderName.includes('Properties')
+        });
+
+        // Create lead record for wholesaler relationship
+        const lead = await storage.createLead({
+          propertyId: property.id,
+          contactId: contact.id,
+          userId: user?.claims?.sub,
+          status: 'to_contact',
+          priority: 'medium',
+          notes: `Wholesale listing from ${listing.leadSource}. Contact for deal details and terms.`
+        });
+        importedLeads.push(lead);
+      }
+
+      res.json({ 
+        success: true, 
+        imported: {
+          properties: importedProperties.length,
+          leads: importedLeads.length
+        }
+      });
+    } catch (error) {
+      console.error('Error importing wholesale listings:', error);
+      res.status(500).json({ error: 'Failed to import wholesale listings' });
+    }
+  });
+
+  // Get wholesale properties (filtered from main properties)
+  app.get('/api/wholesaler-listings', async (req, res) => {
+    try {
+      const properties = await storage.getProperties({ 
+        status: 'wholesale',
+        limit: 100 
+      });
+
+      // Format for wholesaler listings display
+      const listings = properties.map(property => ({
+        id: property.id,
+        address: property.address,
+        city: property.city,
+        island: property.city.includes('Honolulu') ? 'Oahu' : 
+               property.city.includes('Hilo') ? 'Big Island' : 'Oahu',
+        price: property.askingPrice || property.estimatedValue,
+        beds: property.bedrooms,
+        baths: property.bathrooms,
+        sqft: property.squareFeet,
+        propertyType: property.propertyType,
+        listingDate: property.createdAt,
+        wholesalerName: property.contractHolderName,
+        wholesalerPhone: property.contractHolderPhone,
+        wholesalerEmail: property.contractHolderEmail,
+        description: property.repairsNeeded || 'Investment opportunity',
+        source: property.leadSource || 'hawaii_home_listings',
+        sourceUrl: property.sourceUrl
+      }));
 
       res.json(listings);
     } catch (error) {

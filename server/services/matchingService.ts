@@ -55,7 +55,11 @@ class MatchingService {
     const investor = await storage.getInvestor(investorId);
     if (!investor) return [];
 
-    const properties = await storage.getProperties({ limit: 1000 });
+    // Include both distressed and wholesale properties
+    const allProperties = await storage.getProperties({ limit: 1000 });
+    const properties = allProperties.filter(p => 
+      ['foreclosure', 'tax_delinquent', 'auction', 'wholesale'].includes(p.status)
+    );
     const matches: MatchResult[] = [];
 
     for (const property of properties) {

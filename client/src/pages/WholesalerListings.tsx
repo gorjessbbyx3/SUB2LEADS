@@ -201,6 +201,27 @@ export default function WholesalerListings() {
                         Refresh
                       </Button>
                       <Button 
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('/api/wholesaler-listings/import', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' }
+                            });
+                            const result = await response.json();
+                            if (result.success) {
+                              alert(`Imported ${result.imported.properties} properties and created ${result.imported.leads} wholesaler leads`);
+                              refetch();
+                            }
+                          } catch (error) {
+                            console.error('Error importing listings:', error);
+                            alert('Failed to import listings');
+                          }
+                        }}
+                      >
+                        Import to CRM
+                      </Button>
+                      <Button 
                         variant="outline" 
                         size="sm"
                         onClick={() => window.open('https://www.hawaiihomelistings.com/search/results/?island=Oahu&region=all&neighborhood=all&beds_min=all&baths_min=all&list_price_min=50000&list_price_max=all&type=res&type=con&sort_latest=true', '_blank')}
@@ -383,9 +404,12 @@ export default function WholesalerListings() {
                                     </Button>
                                     <Button 
                                       size="sm"
-                                      onClick={() => window.open(`mailto:${listing.wholesalerEmail}?subject=Interest in ${listing.address}`, '_blank')}
+                                      onClick={() => {
+                                        // Navigate to lead management for this wholesaler
+                                        window.location.href = `/leads?search=${encodeURIComponent(listing.wholesalerName)}`;
+                                      }}
                                     >
-                                      Contact
+                                      View Lead
                                     </Button>
                                   </div>
                                 </div>
