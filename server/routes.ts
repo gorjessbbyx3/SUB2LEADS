@@ -11,6 +11,7 @@ import { grokService } from './services/grokService';
 import { contactEnrichmentService } from './services/contactEnrichment';
 import { PropertyPDFGenerator } from './services/pdfGenerator';
 import { validateRequest, validateQuery, rateLimit } from './middleware/validation';
+import { inngestHandler, inngest } from './inngest';
 import path from 'path';
 
 export async function registerRoutes(app: Express) {
@@ -28,6 +29,9 @@ export async function registerRoutes(app: Express) {
       }
     });
   });
+
+  // Inngest webhook endpoint
+  app.use('/api/inngest', inngestHandler);
 
   // API Routes - all protected by authentication
 
@@ -148,6 +152,16 @@ export async function registerRoutes(app: Express) {
         userId: user?.claims?.sub
       });
       const lead = await storage.createLead(validatedData);
+
+      // Trigger investor matching workflow
+      await inngest.send({
+        name: "lead/match.investors",
+        data: {
+          leadId: lead.id,
+          userId: user?.claims?.sub
+        }
+      });
+
       res.status(201).json(lead);
     } catch (error) {
       console.error("Error creating lead:", error);
@@ -407,8 +421,14 @@ export async function registerRoutes(app: Express) {
   app.post("/api/scraping/start", isAuthenticated, rateLimit(300000, 3), async (req, res) => {
     try {
       const { source } = req.body;
-      const job = await scraperService.startScraping(source);
-      res.json(job);
+      
+      // Trigger Inngest workflow for comprehensive scraping
+      await inngest.send({
+        name: "property/scrape.scheduled",
+        data: { source }
+      });
+
+      res.json({ message: `Scraping workflow initiated for ${source}` });
     } catch (error) {
       console.error("Error starting scraping:", error);
       res.status(500).json({ error: "Failed to start scraping" });
@@ -560,6 +580,16 @@ export async function registerRoutes(app: Express) {
         // Find matching investors for this wholesale property
         const matches = await matchingService.findMatchesForLead(lead.id);
         matchedInvestors.push(...matches);
+
+        // Trigger Inngest workflow for wholesale deal notification
+        await inngest.send({
+          name: "wholesale/deal.imported",
+          data: {
+            propertyId: property.id,
+            leadId: lead.id,
+            matches: matches
+          }
+        });
 
         // Create activity log for the lead
         await storage.createActivity({
