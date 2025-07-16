@@ -53,7 +53,6 @@ export function Sidebar() {
                     ? "text-blue-600 bg-blue-50" 
                     : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
                 )}>
-                  <Icon className="mr-3 h-5 w-5" />
                   {item.name}
                 </Link>
               </li>
