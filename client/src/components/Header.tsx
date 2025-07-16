@@ -30,9 +30,7 @@ export function Header({ title, subtitle, action }: HeaderProps) {
               {action.label}
             </Button>
           )}
-          <Button variant="ghost" size="icon">
-            <Bell className="h-5 w-5 text-gray-500" />
-          </Button>
+          
         </div>
       </div>
     </header>
