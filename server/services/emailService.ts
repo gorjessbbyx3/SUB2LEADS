@@ -1,8 +1,12 @@
 import { storage } from '../storage';
 import { aiService } from './aiService';
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface EmailResult {
   success: boolean;
+  emailId?: string;
   mailtoLink?: string;
   error?: string;
 }
@@ -31,34 +35,51 @@ class EmailService {
 
       const body = emailContent.replace(subjectLine || '', '').trim();
 
-      // Create mailto link
+      // Send email using Resend
+      const emailResult = await resend.emails.send({
+        from: process.env.FROM_EMAIL || 'onboarding@resend.dev',
+        to: contact.email,
+        subject,
+        html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          ${body.replace(/\n/g, '<br>')}
+          <br><br>
+          <hr style="border: 1px solid #e5e7eb; margin: 20px 0;">
+          <p style="color: #6b7280; font-size: 12px;">
+            Hawaii Real Estate Investment Team
+          </p>
+        </div>`,
+      });
+
+      // Create mailto link as fallback
       const mailtoLink = this.createMailtoLink(contact.email, subject, body);
 
-      // Log email generation
+      // Log email sent
       await storage.createEmailLog({
         leadId: lead.id,
         propertyId: property.id,
         contactId: contact.id,
         subject,
         content: body,
-        status: 'generated',
+        status: 'sent',
         templateId,
         mailtoLink,
+        emailId: emailResult.data?.id,
       });
 
       return {
         success: true,
+        emailId: emailResult.data?.id,
         mailtoLink,
       };
 
     } catch (error) {
-      console.error('Email generation error:', error);
+      console.error('Email sending error:', error);
 
       // Log failed email
       await storage.createEmailLog({
         leadId: lead.id,
         propertyId: lead.propertyId,
-        subject: 'Failed to generate',
+        subject: 'Failed to send',
         content: error.message,
         status: 'failed',
         templateId,
@@ -198,7 +219,12 @@ Hawaii Investment Team
         </div>
       `;
 
-      await this.sendEmail(investor.email, subject, htmlContent);
+      await resend.emails.send({
+        from: process.env.FROM_EMAIL || 'onboarding@resend.dev',
+        to: investor.email,
+        subject,
+        html: htmlContent,
+      });
 
       console.log(`Match notification sent to ${investor.name} (${investor.email}) for property ${property.address}`);
 
