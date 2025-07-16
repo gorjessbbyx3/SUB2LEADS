@@ -46,8 +46,8 @@ export default function DataScraper() {
   });
 
   const { data: scrapingStats } = useQuery({
-    queryKey: ['scraping-stats'],
-    queryFn: () => apiRequest('GET', '/api/scraper/stats'),
+    queryKey: ["/api/scraper/stats"],
+    queryFn: () => fetch("/api/scraper/stats").then(res => res.json()),
   });
 
   const runScraperMutation = useMutation({
@@ -391,4 +391,3 @@ export default function DataScraper() {
     </div>
   );
 }
-```Fixed apiRequest parameter order for scraper stats.

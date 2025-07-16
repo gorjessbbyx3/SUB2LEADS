@@ -9,6 +9,7 @@ import PropertyDetail from "@/pages/PropertyDetail";
 import LeadManagement from "@/pages/LeadManagement";
 import DataScraper from "@/pages/DataScraper";
 import Outreach from "@/pages/Outreach";
+import Reports from "@/pages/Reports";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/not-found";
 
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="/leads" component={LeadManagement} />
         <Route path="/scraper" component={DataScraper} />
         <Route path="/outreach" component={Outreach} />
+        <Route path="/reports" component={Reports} />
         <Route component={NotFound} />
       </Switch>
       <Toaster />
