@@ -1,8 +1,8 @@
-# Hawaii Real Estate CRM - Replit Development Guide
+# Honolulu Bird Dog Dream CRM - Replit Development Guide
 
 ## Overview
 
-This is a full-stack web application designed to help real estate professionals in Hawaii identify distressed properties, enrich contact data with AI, and convert leads into deals. The system automatically scrapes public notices for tax delinquencies, foreclosures, and auctions, then uses AI to find contact information and generate outreach materials.
+This is a comprehensive bird dog CRM system designed specifically for Honolulu real estate professionals to identify distressed properties and connect them with a network of qualified investors. The system automatically scrapes Oahu foreclosure notices, tax delinquencies, and auctions, then uses AI to enrich contact data and facilitate deal flow between distressed property owners and cash buyers.
 
 **Status:** Successfully migrated from Replit Agent to standard Replit environment (January 15, 2025). Application is fully functional with proper client/server separation and security practices.
 
@@ -234,4 +234,5 @@ The system now includes comprehensive investor categories:
    - Investment strategies: Fix & Flip, Buy & Hold, Commercial, Luxury Rehab, BRRRR
 
 **Total Database**: 56 qualified investors with $1.3M average budget capacity
-**Strategic Focus**: Targeting mainland investors for Hawaii market expansion with verified portfolio data
+**Bird Dog Strategy**: Connect Oahu distressed properties with mainland cash buyers seeking Hawaii expansion
+**Deal Flow Focus**: Automated lead generation → Contact enrichment → Investor matching → Commission tracking
