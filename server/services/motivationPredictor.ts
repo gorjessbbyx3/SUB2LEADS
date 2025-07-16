@@ -13,6 +13,14 @@ export interface MotivationFactors {
   island: string;
   recentLifeEvents?: string[];
   marketActivity: 'hot' | 'warm' | 'cool';
+  // Risk assessment factors
+  zoningChangePotential?: boolean;
+  developmentZoneRisk?: string;
+  naturalDisasterRisk?: string;
+  wildfireRiskZone?: string;
+  floodZone?: string;
+  lavaZone?: number;
+  tsunamiEvacuationZone?: boolean;
 }
 
 export interface MotivationPrediction {
@@ -75,6 +83,48 @@ class MotivationPredictor {
       reasonFactors.push('Hot Oahu market creates selling opportunity');
     }
     
+    // Risk assessment factors
+    if (factors.zoningChangePotential) {
+      score += 15;
+      reasonFactors.push('Future development/rezoning may impact property value');
+    }
+    
+    // Natural disaster risk scoring
+    if (factors.naturalDisasterRisk === 'High Wildfire Risk') {
+      score += 20;
+      reasonFactors.push('High wildfire risk increases urgency to sell');
+    } else if (factors.naturalDisasterRisk === 'Moderate Wildfire Risk') {
+      score += 10;
+      reasonFactors.push('Moderate wildfire risk may motivate sale');
+    }
+    
+    if (factors.floodZone && ['A', 'AE', 'VE'].includes(factors.floodZone)) {
+      score += 15;
+      reasonFactors.push('High-risk flood zone increases insurance costs');
+    }
+    
+    if (factors.lavaZone && factors.lavaZone <= 2) {
+      score += 25;
+      reasonFactors.push('High lava flow risk zone creates urgency');
+    } else if (factors.lavaZone && factors.lavaZone <= 4) {
+      score += 10;
+      reasonFactors.push('Moderate lava flow risk');
+    }
+    
+    if (factors.tsunamiEvacuationZone) {
+      score += 12;
+      reasonFactors.push('Tsunami evacuation zone impacts desirability');
+    }
+    
+    // Development zone risks
+    if (factors.developmentZoneRisk === 'Transit-Oriented Development') {
+      score += 8;
+      reasonFactors.push('Transit development may change neighborhood character');
+    } else if (factors.developmentZoneRisk === 'Commercial Rezoning') {
+      score += 12;
+      reasonFactors.push('Commercial rezoning affects residential value');
+    }
+    
     // Use Grok for advanced analysis
     const grokAnalysis = await this.getGrokAnalysis(factors);
     if (grokAnalysis) {
@@ -108,11 +158,21 @@ Property Details:
 - Neighborhood: ${factors.neighborhood}
 - Market: ${factors.marketActivity}
 
+Risk Assessment:
+- Natural Disaster Risk: ${factors.naturalDisasterRisk || 'Unknown'}
+- Wildfire Zone: ${factors.wildfireRiskZone || 'Unknown'}
+- Flood Zone: ${factors.floodZone || 'Unknown'}
+- Lava Zone: ${factors.lavaZone || 'Unknown'}
+- Development Zone Risk: ${factors.developmentZoneRisk || 'None'}
+- Zoning Change Potential: ${factors.zoningChangePotential || false}
+- Tsunami Evacuation Zone: ${factors.tsunamiEvacuationZone || false}
+
 Consider Hawaii-specific factors like:
 - Cultural significance of land
 - Tourist rental potential
 - Distance from mainland (absentee challenges)
-- Natural disaster risks
+- Natural disaster risks (wildfire, lava, tsunami, flood)
+- Development pressure and rezoning impacts
 - Local economic conditions
 
 Provide a score adjustment (-20 to +20) and one key insight about seller motivation.
@@ -178,7 +238,14 @@ export const motivationPredictor = {
       propertyCondition: (lead as any).propertyCondition || 'fair',
       neighborhood: (lead as any).neighborhood || 'Unknown',
       island: (lead as any).island || 'Oahu',
-      marketActivity: 'warm' as const
+      marketActivity: 'warm' as const,
+      zoningChangePotential: (lead as any).zoningChangePotential || false,
+      developmentZoneRisk: (lead as any).developmentZoneRisk || 'None',
+      naturalDisasterRisk: (lead as any).naturalDisasterRisk || 'Unknown',
+      wildfireRiskZone: (lead as any).wildfireRiskZone || 'Unknown',
+      floodZone: (lead as any).floodZone || 'Unknown',
+      lavaZone: (lead as any).lavaZone || null,
+      tsunamiEvacuationZone: (lead as any).tsunamiEvacuationZone || false
     };
     
     const prediction = await MotivationPredictor.predictMotivation(leadId.toString(), factors);

@@ -61,9 +61,9 @@ export const analyzeSellerMotivation = inngest.createFunction(
     const analysis = await step.run("grok-motivation-analysis", async () => {
       const lead = await storage.getLead(leadId);
       const { grokService } = await import('../services/grokService');
-      
+
       const grokAnalysis = await grokService.getLeadMotivationScore(lead);
-      
+
       // Update lead with Grok analysis
       await storage.updateLead(leadId, {
         motivation_score: grokAnalysis.score,
@@ -79,10 +79,10 @@ export const analyzeSellerMotivation = inngest.createFunction(
       await step.run("send-motivation-alerts", async () => {
         const { resendService } = await import('../services/resendService');
         const lead = await storage.getLead(leadId);
-        
+
         // Send alert to yourself
         await resendService.sendMotivationAlert(lead);
-        
+
         // Get interested buyers and send hot lead alerts
         const buyers = await storage.getInvestors({ limit: 10 });
         if (buyers.length > 0) {
@@ -145,7 +145,7 @@ export const analyzePropertySTR = inngest.createFunction(
     const analysis = await step.run("perform-str-analysis", async () => {
       const { strAnalyzer } = await import('../services/strAnalyzer');
       const strAnalysis = await strAnalyzer.analyzeProperty(propertyId);
-      
+
       // Update property with STR data
       await storage.updateProperty(propertyId, {
         str_score: strAnalysis.score,
@@ -460,7 +460,7 @@ export const dailyMarketAnalysis = inngest.createFunction(
       await step.run(`analyze-str-${property.id}`, async () => {
         try {
           const analysis = await strAnalyzer.analyzeProperty(property.id);
-          
+
           if (analysis.score >= 85) {
             await inngest.send({
               name: "property/str.high-score",
@@ -480,3 +480,29 @@ export const dailyMarketAnalysis = inngest.createFunction(
     return { analyzed: properties.length };
   }
 );
+
+// Import risk scoring functions
+import { scoreLeadRisk, batchRiskAssessment } from './riskScoringFunction';
+
+// Export all functions
+export {
+  helloWorld,
+  processLeadMatch,
+  processWholesaleDeal,
+  schedulePropertyScraping,
+  analyzeSellerMotivation,
+  processNewLead,
+  analyzePropertySTR,
+  checkLeaseholdStatus,
+  smartFollowUp,
+  weeklyMotivationUpdate,
+  advancedLeadScoring,
+  analyzeNeighborhood,
+  urgentLeadFollowup,
+  hotLeadAlert,
+  sendFollowupEmail,
+  strHighScoreAlert,
+  dailyMarketAnalysis,
+  scoreLeadRisk,
+  batchRiskAssessment
+};
