@@ -277,6 +277,7 @@ export default function PropertyDetail() {
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="contacts">Contacts ({contacts.length})</TabsTrigger>
+              <TabsTrigger value="contract">Contract Status</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
             </TabsList>
@@ -320,6 +321,46 @@ export default function PropertyDetail() {
                         </p>
                       </div>
                     )}
+                    
+                    {/* Contract Status */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Contract Status</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        {property.underContractStatus === 'yes' && (
+                          <Badge className="bg-blue-500 text-white">🔒 Under Contract</Badge>
+                        )}
+                        {property.underContractStatus === 'no' && (
+                          <Badge className="bg-green-600 text-white">🟢 Available</Badge>
+                        )}
+                        {property.underContractStatus === 'unsure' && (
+                          <Badge className="bg-gray-400 text-white">❓ Unknown</Badge>
+                        )}
+                        {!property.underContractStatus && (
+                          <Badge className="bg-gray-300 text-gray-700">Not Set</Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* MLS Status Check */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">MLS Status</label>
+                      <div className="flex gap-2 mt-1">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => window.open(`https://www.hicentral.com/forsale.php?search=1&searchbox=${encodeURIComponent(property.address)}`, '_blank')}
+                        >
+                          🔎 Check HiCentral MLS
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => window.open(`https://boc.ehawaii.gov/docsearch/search.html?query=${encodeURIComponent(property.address)}`, '_blank')}
+                        >
+                          🔎 Search Hawaii Recorder
+                        </Button>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -350,6 +391,94 @@ export default function PropertyDetail() {
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            <TabsContent value="contract" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Contract Status Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Current Status
+                      </label>
+                      <div className="flex items-center gap-2">
+                        {property.underContractStatus === 'yes' && (
+                          <Badge className="bg-blue-500 text-white">🔒 Under Contract</Badge>
+                        )}
+                        {property.underContractStatus === 'no' && (
+                          <Badge className="bg-green-600 text-white">🟢 Available</Badge>
+                        )}
+                        {property.underContractStatus === 'unsure' && (
+                          <Badge className="bg-gray-400 text-white">❓ Unknown</Badge>
+                        )}
+                        {!property.underContractStatus && (
+                          <Badge className="bg-gray-300 text-gray-700">Not Set</Badge>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Contract Document
+                      </label>
+                      {property.contractUploadUrl ? (
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-green-500 text-white">📎 Contract Uploaded</Badge>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => window.open(property.contractUploadUrl, '_blank')}
+                          >
+                            View
+                          </Button>
+                        </div>
+                      ) : (
+                        <Badge className="bg-gray-300 text-gray-700">No Contract Uploaded</Badge>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium mb-3">External Status Checks</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <Button 
+                        variant="outline"
+                        onClick={() => window.open(`https://www.hicentral.com/forsale.php?search=1&searchbox=${encodeURIComponent(property.address)}`, '_blank')}
+                      >
+                        🔎 HiCentral MLS
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        onClick={() => window.open(`https://boc.ehawaii.gov/docsearch/search.html?query=${encodeURIComponent(property.address)}`, '_blank')}
+                      >
+                        🔎 Hawaii Recorder
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        onClick={() => window.open(`https://www.redfin.com/city/7849/HI/Honolulu?search=${encodeURIComponent(property.address)}`, '_blank')}
+                      >
+                        🔎 Redfin Status
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-blue-900 mb-2">Status Guide</h4>
+                    <div className="text-sm text-blue-800 space-y-1">
+                      <p><strong>🟢 Active:</strong> Still available for purchase</p>
+                      <p><strong>🔒 In Escrow Showing:</strong> Under contract, but accepting backup offers</p>
+                      <p><strong>🔒 In Escrow Not Showing:</strong> Fully under contract</p>
+                      <p><strong>🔴 Sold:</strong> Transaction completed</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="contacts" className="space-y-4">

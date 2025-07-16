@@ -17,6 +17,9 @@ interface Property {
   auctionDate?: string;
   ownerName?: string;
   sourceUrl?: string;
+  underContractStatus?: 'yes' | 'no' | 'unsure';
+  contractUploadUrl?: string;
+  mlsStatus?: string;
 }
 
 interface PropertyCardProps {
@@ -114,9 +117,21 @@ export default function PropertyCard({ property, onViewDetails }: PropertyCardPr
           </div>
 
           <div className="flex justify-between items-center">
-            <Badge className={getStatusColor(property.status)}>
-              {property.status.replace('_', ' ')}
-            </Badge>
+            <div className="flex flex-col gap-1">
+              <Badge className={getStatusColor(property.status)}>
+                {property.status.replace('_', ' ')}
+              </Badge>
+              {/* Contract Status Badge */}
+              {property.underContractStatus === 'yes' && (
+                <Badge className="bg-blue-500 text-white">🔒 Under Contract</Badge>
+              )}
+              {property.underContractStatus === 'no' && (
+                <Badge className="bg-green-600 text-white">🟢 Available</Badge>
+              )}
+              {property.underContractStatus === 'unsure' && (
+                <Badge className="bg-gray-400 text-white">❓ Unknown</Badge>
+              )}
+            </div>
             <div className="text-right">
               <div className="flex items-center text-sm">
                 <DollarSign className="w-4 h-4 mr-1" />
@@ -175,6 +190,18 @@ export default function PropertyCard({ property, onViewDetails }: PropertyCardPr
               >
                 <FileText className="w-4 h-4" />
               </Button>
+          </div>
+          
+          {/* MLS Status Check Button */}
+          <div className="mt-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="w-full"
+              onClick={() => window.open(`https://www.hicentral.com/forsale.php?search=1&searchbox=${encodeURIComponent(property.address)}`, '_blank')}
+            >
+              🔎 Check HiCentral MLS
+            </Button>
           </div>
         </div>
       </CardContent>

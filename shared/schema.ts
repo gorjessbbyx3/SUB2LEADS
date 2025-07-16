@@ -66,6 +66,24 @@ export const properties = pgTable("properties", {
   scrapedAt: timestamp("scraped_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  underContractStatus: text('under_contract_status').default('no'), // 'yes', 'no', 'unsure'
+  contractUploadUrl: text('contract_upload_url'),
+  mlsStatus: text('mls_status'), // Auto-populated from MLS checks
+  dealType: text('deal_type'), // 'wholesaler', 'birddog'
+  contractHolderName: text('contract_holder_name'),
+  contractHolderPhone: text('contract_holder_phone'),
+  contractHolderEmail: text('contract_holder_email'),
+  askingPrice: integer('asking_price'),
+  contractPrice: integer('contract_price'),
+  estimatedARV: integer('estimated_arv'),
+  repairsNeeded: text('repairs_needed'),
+  contractExpiration: timestamp('contract_expiration'),
+  exitStrategy: text('exit_strategy'),
+  occupancyStatus: text('occupancy_status'),
+  showingInstructions: text('showing_instructions'),
+  distressType: text('distress_type'),
+  leadSource: text('lead_source'),
+  timeFound: timestamp('time_found'),
 });
 
 // Property owners/contacts
