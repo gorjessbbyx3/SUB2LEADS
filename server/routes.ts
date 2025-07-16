@@ -484,6 +484,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/scraper/download', async (req, res) => {
+    try {
+      const zipBuffer = await scraperService.generateDataExport();
+      
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename="property-records.zip"');
+      res.send(zipBuffer);
+    } catch (error) {
+      console.error('Download error:', error);
+      res.status(500).json({ error: 'Failed to generate download' });
+    }
+  });
+
   app.get('/api/scraper/stats', async (req, res) => {
     try {
       const stats = await storage.getPropertiesStats();
