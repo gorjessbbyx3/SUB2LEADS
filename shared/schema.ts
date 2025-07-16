@@ -300,6 +300,21 @@ export type Investor = typeof investors.$inferSelect;
 export type InsertInvestor = typeof investors.$inferInsert;
 
 // Zod schemas
+
+// Notes table definition (Since it was missing in the original schema)
+export const notes = pgTable("notes", {
+    id: serial("id").primaryKey(),
+    userId: varchar("user_id").references(() => users.id).notNull(),
+    note: text("note").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Notes schemas
+export const insertNotesSchema = createInsertSchema(notes);
+export const selectNotesSchema = createSelectSchema(notes);
+
+// Export all insert and select schemas
 export const insertPropertySchema = createInsertSchema(properties);
 export const insertContactSchema = createInsertSchema(contacts);
 export const insertLeadSchema = createInsertSchema(leads);
