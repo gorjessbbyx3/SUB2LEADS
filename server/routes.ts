@@ -662,6 +662,148 @@ export async function registerRoutes(app: Express) {
           address: "789 Luxury Lane, Kailua, HI 96734",
           price: 1250000,
           bedrooms: 4,
+
+
+  // Import investors from CSV with duplicate checking
+  app.post("/api/investors/import", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { investors: importInvestors } = req.body;
+
+      if (!importInvestors || !Array.isArray(importInvestors)) {
+        return res.status(400).json({ error: "Invalid investors data" });
+      }
+
+      const results = {
+        imported: 0,
+        duplicates: 0,
+        errors: 0,
+        details: []
+      };
+
+      // Get existing investors to check for duplicates
+      const existingInvestors = await storage.getInvestors(user?.claims?.sub, { limit: 1000 });
+
+      for (const investorData of importInvestors) {
+        try {
+          // Check for duplicates by email or name
+          const isDuplicate = existingInvestors.some(existing => 
+            existing.email?.toLowerCase() === investorData.email?.toLowerCase() ||
+            existing.name.toLowerCase() === investorData.name.toLowerCase()
+          );
+
+          if (isDuplicate) {
+            results.duplicates++;
+            results.details.push({
+              name: investorData.name,
+              status: 'duplicate',
+              reason: 'Email or name already exists'
+            });
+            continue;
+          }
+
+          // Parse budget range
+          const budgetMatch = investorData.budget?.match(/\$?(\d+(?:\.\d+)?)[kKmM]?.*?(\$?(\d+(?:\.\d+)?)[kKmM]?)?/);
+          let minBudget = 0;
+          let maxBudget = 0;
+
+          if (budgetMatch) {
+            const parseAmount = (str) => {
+              if (!str) return 0;
+              const num = parseFloat(str.replace(/[$,]/g, ''));
+              if (str.toLowerCase().includes('k')) return num * 1000;
+              if (str.toLowerCase().includes('m')) return num * 1000000;
+              return num;
+            };
+
+            minBudget = parseAmount(budgetMatch[1]);
+            maxBudget = budgetMatch[3] ? parseAmount(budgetMatch[3]) : minBudget;
+          }
+
+          // Determine preferred islands from address
+          const preferredIslands = [];
+          const address = investorData.mailingAddress?.toLowerCase() || '';
+          if (address.includes('honolulu') || address.includes('kapolei') || address.includes('kaneohe')) {
+            preferredIslands.push('Oahu');
+          } else if (address.includes('lahaina') || address.includes('kihei') || address.includes('maui')) {
+            preferredIslands.push('Maui');
+          } else if (address.includes('hilo') || address.includes('kona')) {
+            preferredIslands.push('Big Island');
+          } else if (address.includes('lihue') || address.includes('kauai')) {
+            preferredIslands.push('Kauai');
+          } else {
+            preferredIslands.push('Oahu'); // Default
+          }
+
+          // Determine strategies
+          const strategies = [];
+          if (investorData.strategy?.toLowerCase().includes('buy & hold')) {
+            strategies.push('Buy & Hold');
+          } else if (investorData.strategy?.toLowerCase().includes('fix & flip')) {
+            strategies.push('Fix & Flip');
+          } else if (investorData.strategy?.toLowerCase().includes('brrrr')) {
+            strategies.push('BRRRR');
+          } else {
+            strategies.push('Buy & Hold'); // Default
+          }
+
+          // Determine property types from notes
+          const propertyTypes = [];
+          const notes = investorData.notes?.toLowerCase() || '';
+          if (notes.includes('duplex') || notes.includes('triplex')) {
+            propertyTypes.push('Duplex', 'Triplex');
+          } else if (notes.includes('sfr') || notes.includes('single family')) {
+            propertyTypes.push('Single Family');
+          } else if (notes.includes('rental')) {
+            propertyTypes.push('Single Family', 'Duplex');
+          } else {
+            propertyTypes.push('Single Family'); // Default
+          }
+
+          // Create investor record
+          const newInvestor = await storage.createInvestor({
+            userId: user?.claims?.sub,
+            name: investorData.name,
+            email: investorData.email,
+            phone: investorData.phone,
+            company: investorData.name.includes('LLC') || investorData.name.includes('Holdings') || investorData.name.includes('Capital') ? investorData.name : null,
+            minBudget,
+            maxBudget,
+            preferredIslands,
+            strategies,
+            propertyTypes,
+            priority: 'medium',
+            status: 'active',
+            notes: `Recent Purchase: ${investorData.recentPurchase}. ${investorData.notes}`,
+            dealsCompleted: 1 // They have at least one recent purchase
+          });
+
+          results.imported++;
+          results.details.push({
+            name: investorData.name,
+            status: 'imported',
+            id: newInvestor.id
+          });
+
+        } catch (error) {
+          console.error(`Error importing investor ${investorData.name}:`, error);
+          results.errors++;
+          results.details.push({
+            name: investorData.name,
+            status: 'error',
+            reason: error.message
+          });
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error('Error importing investors:', error);
+      res.status(500).json({ error: 'Failed to import investors' });
+    }
+  });
+
+
           bathrooms: 3,
           status: "active",
           listDate: "2024-01-15",

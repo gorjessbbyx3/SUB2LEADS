@@ -26,7 +26,9 @@ import {
   Mail,
   Calendar,
   TrendingUp,
-  CheckCircle
+  CheckCircle,
+  Upload,
+  FileText
 } from "lucide-react";
 
 interface Investor {
@@ -58,6 +60,8 @@ export default function Investors() {
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingInvestor, setEditingInvestor] = useState<Investor | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importResults, setImportResults] = useState<any>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -114,6 +118,22 @@ export default function Investors() {
       toast({
         title: 'Success',
         description: 'Investor updated successfully',
+      });
+    },
+  });
+
+  const importInvestorsMutation = useMutation({
+    mutationFn: (data: any) => apiRequest('/api/investors/import', {
+      method: 'POST',
+      body: data,
+    }),
+    onSuccess: (results) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/investors'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/investors/stats'] });
+      setImportResults(results);
+      toast({
+        title: 'Import Complete',
+        description: `${results.imported} investors imported, ${results.duplicates} duplicates found`,
       });
     },
   });
@@ -211,6 +231,45 @@ export default function Investors() {
     return `${formatNum(min)} - ${formatNum(max)}`;
   };
 
+  const handleCSVImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim());
+      
+      const investors = lines.slice(1)
+        .filter(line => line.trim())
+        .map(line => {
+          const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+          const investor: any = {};
+          
+          headers.forEach((header, index) => {
+            const key = header.toLowerCase().replace(/\s+/g, '');
+            investor[key] = values[index] || '';
+          });
+          
+          return {
+            name: investor.name,
+            email: investor.email,
+            phone: investor.phone,
+            mailingAddress: investor.mailingaddress,
+            strategy: investor.strategy,
+            budget: investor.budget,
+            notes: investor.notes,
+            recentPurchase: investor.recentpurchase
+          };
+        });
+
+      importInvestorsMutation.mutate({ investors });
+    };
+    
+    reader.readAsText(file);
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
@@ -224,6 +283,17 @@ export default function Investors() {
             onClick: () => setIsAddModalOpen(true)
           }}
         />
+        
+        <div className="px-6 mb-4">
+          <Button 
+            variant="outline" 
+            onClick={() => setIsImportModalOpen(true)}
+            className="mr-2"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Import Investors
+          </Button>
+        </div>
         
         <div className="p-6 space-y-6">
           {/* Stats Cards */}
@@ -640,6 +710,90 @@ export default function Investors() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Investors Modal */}
+      <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import Investors from CSV</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="text-sm text-gray-600">
+              Upload a CSV file with investor data. The system will check for duplicates and import new investors.
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="csvFile">Select CSV File</Label>
+              <Input
+                id="csvFile"
+                type="file"
+                accept=".csv"
+                onChange={handleCSVImport}
+                disabled={importInvestorsMutation.isPending}
+              />
+            </div>
+            
+            {importInvestorsMutation.isPending && (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+                <p className="text-sm text-gray-600 mt-2">Processing import...</p>
+              </div>
+            )}
+            
+            {importResults && (
+              <div className="space-y-3">
+                <div className="text-sm font-medium">Import Results:</div>
+                <div className="grid grid-cols-3 gap-2 text-sm">
+                  <div className="text-green-600">
+                    <CheckCircle className="h-4 w-4 inline mr-1" />
+                    {importResults.imported} imported
+                  </div>
+                  <div className="text-yellow-600">
+                    <FileText className="h-4 w-4 inline mr-1" />
+                    {importResults.duplicates} duplicates
+                  </div>
+                  <div className="text-red-600">
+                    <span className="h-4 w-4 inline mr-1">⚠</span>
+                    {importResults.errors} errors
+                  </div>
+                </div>
+                
+                {importResults.details?.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto">
+                    <div className="text-xs space-y-1">
+                      {importResults.details.map((detail: any, index: number) => (
+                        <div key={index} className={`p-2 rounded ${
+                          detail.status === 'imported' ? 'bg-green-50' :
+                          detail.status === 'duplicate' ? 'bg-yellow-50' : 'bg-red-50'
+                        }`}>
+                          <span className="font-medium">{detail.name}</span>
+                          <span className="ml-2 text-gray-600">
+                            {detail.status === 'imported' ? '✓ Imported' :
+                             detail.status === 'duplicate' ? '⚠ Duplicate' : '✗ Error'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsImportModalOpen(false);
+                  setImportResults(null);
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
