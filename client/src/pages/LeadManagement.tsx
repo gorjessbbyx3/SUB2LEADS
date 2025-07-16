@@ -24,9 +24,9 @@ export default function LeadManagement() {
     queryKey: ["/api/leads/pipeline"],
   });
 
-  const { data: leads = [] } = useQuery({
+  const { data: leads = [], refetch: refetchLeads } = useQuery({
     queryKey: ["/api/leads"],
-    queryFn: () => fetch("/api/leads?limit=100").then(res => res.json()),
+    queryFn: () => fetch("/api/leads").then(res => res.json()),
   });
 
   const handlePropertyClick = (propertyId: number) => {
@@ -38,17 +38,17 @@ export default function LeadManagement() {
     const matchesSearch = searchTerm === "" || 
       lead.contact?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.property?.address?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
     const matchesPriority = priorityFilter === "all" || lead.priority === priorityFilter;
-    
+
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
-      
+
       <main className="flex-1 ml-64 overflow-y-auto">
         <Header 
           title="Lead Management" 
@@ -58,7 +58,7 @@ export default function LeadManagement() {
             onClick: () => console.log("Create new lead")
           }}
         />
-        
+
         <div className="p-6 space-y-6">
           {/* Pipeline Overview */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -75,7 +75,7 @@ export default function LeadManagement() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -89,7 +89,7 @@ export default function LeadManagement() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -103,7 +103,7 @@ export default function LeadManagement() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -146,7 +146,7 @@ export default function LeadManagement() {
                     className="pl-10"
                   />
                 </div>
-                
+
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Status" />
@@ -159,7 +159,7 @@ export default function LeadManagement() {
                     <SelectItem value="follow_up">Follow-up</SelectItem>
                   </SelectContent>
                 </Select>
-                
+
                 <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Priority" />
@@ -178,11 +178,20 @@ export default function LeadManagement() {
                   <TabsTrigger value="kanban">Kanban View</TabsTrigger>
                   <TabsTrigger value="table">Table View</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="kanban" className="mt-6">
-                  <LeadKanban />
+                  <LeadKanban 
+                    onStatusChange={async (leadId, newStatus) => {
+                      await fetch(`/api/leads/${leadId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: newStatus })
+                      });
+                      refetchLeads();
+                    }}
+                  />
                 </TabsContent>
-                
+
                 <TabsContent value="table" className="mt-6">
                   <div className="border rounded-lg">
                     <table className="w-full">

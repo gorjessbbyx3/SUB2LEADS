@@ -581,3 +581,122 @@ export class PropertyPDFGenerator {
 }
 
 export const pdfGenerator = new PropertyPDFGenerator();
+import PDFDocument from 'pdfkit';
+import fs from 'fs';
+import path from 'path';
+
+export interface PropertyPresentationData {
+  includeMap?: boolean;
+  includeComps?: boolean;
+  includePhotos?: boolean;
+  customNotes?: string;
+  investorName?: string;
+}
+
+export class PropertyPDFGenerator {
+  async generatePropertyPresentation(
+    property: any, 
+    options: PropertyPresentationData = {}
+  ): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ margin: 50 });
+        const chunks: Buffer[] = [];
+
+        doc.on('data', chunk => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+
+        // Header
+        doc.fontSize(24).text('Property Investment Presentation', { align: 'center' });
+        doc.moveDown();
+
+        // Property Details
+        doc.fontSize(18).text('Property Information', { underline: true });
+        doc.moveDown(0.5);
+        
+        doc.fontSize(12);
+        doc.text(`Address: ${property.address}`);
+        doc.text(`City: ${property.city}, ${property.state} ${property.zipCode}`);
+        doc.text(`Estimated Value: $${property.estimatedValue?.toLocaleString() || 'N/A'}`);
+        doc.text(`Status: ${property.status}`);
+        doc.text(`Priority: ${property.priority}`);
+        
+        if (property.auctionDate) {
+          doc.text(`Auction Date: ${property.auctionDate}`);
+        }
+        
+        if (property.amountOwed) {
+          doc.text(`Amount Owed: $${property.amountOwed.toLocaleString()}`);
+        }
+
+        doc.moveDown();
+
+        // Property Details
+        if (property.bedrooms || property.bathrooms || property.squareFeet) {
+          doc.fontSize(16).text('Property Features', { underline: true });
+          doc.moveDown(0.5);
+          doc.fontSize(12);
+          
+          if (property.bedrooms) doc.text(`Bedrooms: ${property.bedrooms}`);
+          if (property.bathrooms) doc.text(`Bathrooms: ${property.bathrooms}`);
+          if (property.squareFeet) doc.text(`Square Feet: ${property.squareFeet.toLocaleString()}`);
+          if (property.yearBuilt) doc.text(`Year Built: ${property.yearBuilt}`);
+          
+          doc.moveDown();
+        }
+
+        // Investment Analysis
+        doc.fontSize(16).text('Investment Analysis', { underline: true });
+        doc.moveDown(0.5);
+        doc.fontSize(12);
+        
+        const arv = property.estimatedValue || 0;
+        const debt = property.amountOwed || 0;
+        const equity = arv - debt;
+        const equityPercent = arv > 0 ? ((equity / arv) * 100).toFixed(1) : '0';
+        
+        doc.text(`After Repair Value (ARV): $${arv.toLocaleString()}`);
+        doc.text(`Total Debt: $${debt.toLocaleString()}`);
+        doc.text(`Estimated Equity: $${equity.toLocaleString()}`);
+        doc.text(`Equity Percentage: ${equityPercent}%`);
+        
+        doc.moveDown();
+
+        // Market Insights
+        doc.fontSize(16).text('Market Insights', { underline: true });
+        doc.moveDown(0.5);
+        doc.fontSize(12);
+        
+        if (property.daysUntilAuction) {
+          doc.text(`Days Until Auction: ${property.daysUntilAuction}`);
+        }
+        
+        doc.text(`Property Type: ${property.propertyType || 'Residential'}`);
+        doc.text(`Data Source: ${property.sourceUrl || 'Government Records'}`);
+        
+        if (options.customNotes) {
+          doc.moveDown();
+          doc.fontSize(16).text('Additional Notes', { underline: true });
+          doc.moveDown(0.5);
+          doc.fontSize(12);
+          doc.text(options.customNotes);
+        }
+
+        // Footer
+        doc.moveDown(2);
+        doc.fontSize(10).text(
+          `Generated on ${new Date().toLocaleDateString()} by Sub2Leads CRM`,
+          { align: 'center' }
+        );
+
+        if (options.investorName) {
+          doc.text(`Prepared for: ${options.investorName}`, { align: 'center' });
+        }
+
+        doc.end();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+}

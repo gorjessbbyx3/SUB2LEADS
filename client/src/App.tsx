@@ -104,6 +104,7 @@ function AppContent() {
         <Header />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
           <Router>
+          <ErrorBoundary>
             <Switch>
               <Route path="/" component={Dashboard} />
               <Route path="/properties" component={Properties} />
@@ -118,7 +119,8 @@ function AppContent() {
               <Route path="/reports" component={Reports} />
               <Route component={NotFound} />
             </Switch>
-          </Router>
+          </ErrorBoundary>
+        </Router>
         </main>
       </div>
       <Toaster />
