@@ -20,11 +20,14 @@ import {
   Home,
   Bed,
   Bath,
-  Square
+  Square,
+  Target,
+  Users
 } from "lucide-react";
 
-interface WholesaleProperty {
-  id: string;
+interface WholesaleLead {
+  id: number;
+  propertyId: number;
   address: string;
   city: string;
   island: string;
@@ -38,12 +41,17 @@ interface WholesaleProperty {
   wholesalerPhone: string;
   wholesalerEmail: string;
   description: string;
-  images: string[];
   source: 'hawaii_home_listings' | 'big_isle';
   sourceUrl: string;
-  contractPrice?: number;
-  estimatedARV?: number;
-  repairsNeeded?: string;
+  leadStatus: string;
+  leadPriority: string;
+  notes: string;
+  potentialMatches: number;
+  topMatches: Array<{
+    investorName: string;
+    matchScore: number;
+    reasons: string[];
+  }>;
 }
 
 export default function WholesalerListings() {
@@ -63,7 +71,7 @@ export default function WholesalerListings() {
   });
 
   const filteredAndSortedListings = (listings || [])
-    .filter((listing: WholesaleProperty) => {
+    .filter((listing: WholesaleLead) => {
       const matchesSearch = searchTerm === "" || 
         listing.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
         listing.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -81,7 +89,7 @@ export default function WholesalerListings() {
 
       return matchesSearch && matchesIsland && matchesPrice && matchesSource;
     })
-    .sort((a: WholesaleProperty, b: WholesaleProperty) => {
+    .sort((a: WholesaleLead, b: WholesaleLead) => {
       switch (sortBy) {
         case "newest":
           return new Date(b.listingDate).getTime() - new Date(a.listingDate).getTime();
@@ -91,6 +99,8 @@ export default function WholesalerListings() {
           return b.price - a.price;
         case "sqft_high":
           return b.sqft - a.sqft;
+        case "matches_high":
+          return b.potentialMatches - a.potentialMatches;
         default:
           return 0;
       }
@@ -165,13 +175,13 @@ export default function WholesalerListings() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500">Big Island</p>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {stats?.bigIslandCount || 0}
+                    <p className="text-sm text-gray-500">Investor Matches</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {stats?.totalMatches || 0}
                     </p>
                   </div>
-                  <div className="p-2 bg-orange-50 rounded-lg">
-                    <MapPin className="h-6 w-6 text-orange-600" />
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <Target className="h-6 w-6 text-blue-600" />
                   </div>
                 </div>
               </CardContent>
@@ -210,7 +220,7 @@ export default function WholesalerListings() {
                             });
                             const result = await response.json();
                             if (result.success) {
-                              alert(`Imported ${result.imported.properties} properties and created ${result.imported.leads} wholesaler leads`);
+                              alert(`Imported ${result.imported.properties} properties, created ${result.imported.leads} wholesaler leads, and found ${result.imported.potentialMatches} investor matches!`);
                               refetch();
                             }
                           } catch (error) {
@@ -299,6 +309,7 @@ export default function WholesalerListings() {
                         <SelectItem value="price_low">Price: Low to High</SelectItem>
                         <SelectItem value="price_high">Price: High to Low</SelectItem>
                         <SelectItem value="sqft_high">Largest First</SelectItem>
+                        <SelectItem value="matches_high">Most Matches</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -336,21 +347,13 @@ export default function WholesalerListings() {
                     </div>
                   ) : filteredAndSortedListings.length > 0 ? (
                     <div className="grid grid-cols-1 gap-4">
-                      {filteredAndSortedListings.map((listing: WholesaleProperty) => (
+                      {filteredAndSortedListings.map((listing: WholesaleLead) => (
                         <Card key={listing.id} className="hover:shadow-md transition-shadow">
                           <CardContent className="p-4">
                             <div className="flex gap-4">
                               {/* Property Image */}
                               <div className="w-24 h-24 bg-gray-200 rounded-lg flex items-center justify-center">
-                                {listing.images && listing.images.length > 0 ? (
-                                  <img 
-                                    src={listing.images[0]} 
-                                    alt={listing.address}
-                                    className="w-full h-full object-cover rounded-lg"
-                                  />
-                                ) : (
-                                  <Home className="h-8 w-8 text-gray-400" />
-                                )}
+                                <Home className="h-8 w-8 text-gray-400" />
                               </div>
 
                               {/* Property Details */}
@@ -365,6 +368,9 @@ export default function WholesalerListings() {
                                     </Badge>
                                     <Badge variant="outline">
                                       {listing.island}
+                                    </Badge>
+                                    <Badge variant={listing.leadPriority === "high" ? "destructive" : "secondary"}>
+                                      {listing.leadPriority}
                                     </Badge>
                                   </div>
                                 </div>
@@ -388,6 +394,26 @@ export default function WholesalerListings() {
                                   </div>
                                 </div>
 
+                                {/* Investor Matches */}
+                                {listing.potentialMatches > 0 && (
+                                  <div className="bg-blue-50 p-3 rounded-lg mb-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-sm font-medium text-blue-900">
+                                        {listing.potentialMatches} Investor Matches
+                                      </span>
+                                      <Target className="h-4 w-4 text-blue-600" />
+                                    </div>
+                                    <div className="space-y-1">
+                                      {listing.topMatches.map((match, idx) => (
+                                        <div key={idx} className="text-xs text-blue-800">
+                                          <span className="font-medium">{match.investorName}</span>
+                                          <span className="ml-2 text-blue-600">({match.matchScore}% match)</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
                                 <div className="flex items-center justify-between">
                                   <div className="text-sm text-gray-500">
                                     <p className="font-medium">{listing.wholesalerName}</p>
@@ -406,11 +432,24 @@ export default function WholesalerListings() {
                                       size="sm"
                                       onClick={() => {
                                         // Navigate to lead management for this wholesaler
-                                        window.location.href = `/leads?search=${encodeURIComponent(listing.wholesalerName)}`;
+                                        window.location.href = `/leads?leadId=${listing.id}`;
                                       }}
                                     >
-                                      View Lead
+                                      Manage Lead
                                     </Button>
+                                    {listing.potentialMatches > 0 && (
+                                      <Button 
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          // Navigate to matching page for this lead
+                                          window.location.href = `/matching?leadId=${listing.id}`;
+                                        }}
+                                      >
+                                        <Users className="h-4 w-4 mr-1" />
+                                        View Matches
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                               </div>

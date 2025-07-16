@@ -416,7 +416,7 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  // Import wholesale listings into main properties system
+  // Import wholesale listings as leads and find investor matches
   app.post('/api/wholesaler-listings/import', isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
@@ -430,7 +430,7 @@ export async function registerRoutes(app: Express) {
           zipCode: '96815',
           estimatedValue: 285000,
           status: 'wholesale',
-          priority: 'medium',
+          priority: 'high',
           propertyType: 'Condo',
           bedrooms: 2,
           bathrooms: 1,
@@ -450,7 +450,7 @@ export async function registerRoutes(app: Express) {
           zipCode: '96720',
           estimatedValue: 185000,
           status: 'wholesale',
-          priority: 'medium',
+          priority: 'high',
           propertyType: 'Single Family',
           bedrooms: 3,
           bathrooms: 2,
@@ -467,6 +467,7 @@ export async function registerRoutes(app: Express) {
 
       const importedProperties = [];
       const importedLeads = [];
+      const matchedInvestors = [];
 
       for (const listing of wholesaleListings) {
         // Create property record
@@ -487,19 +488,35 @@ export async function registerRoutes(app: Express) {
           propertyId: property.id,
           contactId: contact.id,
           userId: user?.claims?.sub,
-          status: 'to_contact',
-          priority: 'medium',
-          notes: `Wholesale listing from ${listing.leadSource}. Contact for deal details and terms.`
+          status: 'new',
+          priority: 'high',
+          notes: `WHOLESALE DEAL from ${listing.leadSource}. Wholesaler: ${listing.contractHolderName}. Contact ASAP for deal details and terms. Asking: $${listing.askingPrice.toLocaleString()}`
         });
         importedLeads.push(lead);
+
+        // Find matching investors for this wholesale property
+        const matches = await matchingService.findMatchesForLead(lead.id);
+        matchedInvestors.push(...matches);
+
+        // Create activity log for the lead
+        await storage.createActivity({
+          leadId: lead.id,
+          propertyId: property.id,
+          userId: user?.claims?.sub,
+          type: 'lead_created',
+          title: 'Wholesale Lead Imported',
+          description: `Wholesale property imported from ${listing.leadSource}. Found ${matches.length} potential investor matches.`
+        });
       }
 
       res.json({ 
         success: true, 
         imported: {
           properties: importedProperties.length,
-          leads: importedLeads.length
-        }
+          leads: importedLeads.length,
+          potentialMatches: matchedInvestors.length
+        },
+        matches: matchedInvestors.slice(0, 5) // Return top 5 matches for preview
       });
     } catch (error) {
       console.error('Error importing wholesale listings:', error);
@@ -507,58 +524,130 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  // Get wholesale properties (filtered from main properties)
-  app.get('/api/wholesaler-listings', async (req, res) => {
+  // Get wholesale leads with their properties and potential matches
+  app.get('/api/wholesaler-listings', isAuthenticated, async (req, res) => {
     try {
-      const properties = await storage.getProperties({ 
-        status: 'wholesale',
+      const user = req.user as any;
+      
+      // Get all leads with wholesale properties
+      const allLeads = await storage.getLeads({ 
+        userId: user?.claims?.sub,
         limit: 100 
       });
 
-      // Format for wholesaler listings display
-      const listings = properties.map(property => ({
-        id: property.id,
-        address: property.address,
-        city: property.city,
-        island: property.city.includes('Honolulu') ? 'Oahu' : 
-               property.city.includes('Hilo') ? 'Big Island' : 'Oahu',
-        price: property.askingPrice || property.estimatedValue,
-        beds: property.bedrooms,
-        baths: property.bathrooms,
-        sqft: property.squareFeet,
-        propertyType: property.propertyType,
-        listingDate: property.createdAt,
-        wholesalerName: property.contractHolderName,
-        wholesalerPhone: property.contractHolderPhone,
-        wholesalerEmail: property.contractHolderEmail,
-        description: property.repairsNeeded || 'Investment opportunity',
-        source: property.leadSource || 'hawaii_home_listings',
-        sourceUrl: property.sourceUrl
-      }));
+      // Filter for wholesale leads and get their properties
+      const wholesaleLeads = [];
+      for (const lead of allLeads) {
+        const property = await storage.getProperty(lead.propertyId);
+        if (property && property.status === 'wholesale') {
+          const contact = await storage.getContact(lead.contactId);
+          
+          // Get potential investor matches for this lead
+          const matches = await matchingService.findMatchesForLead(lead.id);
+          
+          wholesaleLeads.push({
+            id: lead.id,
+            propertyId: property.id,
+            address: property.address,
+            city: property.city,
+            island: property.city.includes('Honolulu') ? 'Oahu' : 
+                   property.city.includes('Hilo') ? 'Big Island' : 'Oahu',
+            price: property.askingPrice || property.estimatedValue,
+            beds: property.bedrooms,
+            baths: property.bathrooms,
+            sqft: property.squareFeet,
+            propertyType: property.propertyType,
+            listingDate: property.createdAt,
+            wholesalerName: contact?.name || 'Unknown',
+            wholesalerPhone: contact?.phone || '',
+            wholesalerEmail: contact?.email || '',
+            description: property.repairsNeeded || 'Investment opportunity',
+            source: property.leadSource || 'hawaii_home_listings',
+            sourceUrl: property.sourceUrl,
+            leadStatus: lead.status,
+            leadPriority: lead.priority,
+            notes: lead.notes,
+            potentialMatches: matches.length,
+            topMatches: matches.slice(0, 3).map(match => ({
+              investorName: match.investor.name,
+              matchScore: match.matchScore,
+              reasons: match.matchReasons
+            }))
+          });
+        }
+      }
 
-      res.json(listings);
+      res.json(wholesaleLeads);
     } catch (error) {
       console.error('Error fetching wholesaler listings:', error);
       res.status(500).json({ error: 'Failed to fetch wholesaler listings' });
     }
   });
 
-  app.get('/api/wholesaler-listings/stats', async (req, res) => {
+  app.get('/api/wholesaler-listings/stats', isAuthenticated, async (req, res) => {
     try {
-      // Mock stats - would calculate from actual data
+      const user = req.user as any;
+      
+      // Get all wholesale leads
+      const allLeads = await storage.getLeads({ userId: user?.claims?.sub, limit: 100 });
+      const wholesaleLeads = [];
+      let totalMatches = 0;
+      
+      for (const lead of allLeads) {
+        const property = await storage.getProperty(lead.propertyId);
+        if (property && property.status === 'wholesale') {
+          wholesaleLeads.push({ lead, property });
+          const matches = await matchingService.findMatchesForLead(lead.id);
+          totalMatches += matches.length;
+        }
+      }
+
       const stats = {
-        total: 2,
-        averagePrice: 235000,
-        oahuCount: 1,
-        bigIslandCount: 1,
-        mauiCount: 0,
-        kauaiCount: 0
+        total: wholesaleLeads.length,
+        averagePrice: wholesaleLeads.length > 0 ? 
+          Math.round(wholesaleLeads.reduce((sum, w) => sum + (w.property.estimatedValue || 0), 0) / wholesaleLeads.length) : 0,
+        oahuCount: wholesaleLeads.filter(w => w.property.city.includes('Honolulu')).length,
+        bigIslandCount: wholesaleLeads.filter(w => w.property.city.includes('Hilo')).length,
+        mauiCount: wholesaleLeads.filter(w => w.property.city.includes('Maui')).length,
+        kauaiCount: wholesaleLeads.filter(w => w.property.city.includes('Kauai')).length,
+        totalMatches,
+        averageMatchesPerLead: wholesaleLeads.length > 0 ? Math.round(totalMatches / wholesaleLeads.length) : 0
       };
 
       res.json(stats);
     } catch (error) {
       console.error('Error fetching wholesaler stats:', error);
       res.status(500).json({ error: 'Failed to fetch wholesaler stats' });
+    }
+  });
+
+  // Get investor matches for a specific wholesale lead
+  app.get('/api/wholesaler-listings/:leadId/matches', isAuthenticated, async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.leadId);
+      const matches = await matchingService.findMatchesForLead(leadId);
+      
+      res.json({
+        leadId,
+        matches: matches.map(match => ({
+          investorId: match.investorId,
+          investorName: match.investor.name,
+          company: match.investor.company,
+          email: match.investor.email,
+          phone: match.investor.phone,
+          matchScore: match.matchScore,
+          matchReasons: match.matchReasons,
+          strategies: match.investor.strategies,
+          preferredIslands: match.investor.preferredIslands,
+          budgetRange: {
+            min: match.investor.minBudget,
+            max: match.investor.maxBudget
+          }
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching investor matches:', error);
+      res.status(500).json({ error: 'Failed to fetch investor matches' });
     }
   });
 
