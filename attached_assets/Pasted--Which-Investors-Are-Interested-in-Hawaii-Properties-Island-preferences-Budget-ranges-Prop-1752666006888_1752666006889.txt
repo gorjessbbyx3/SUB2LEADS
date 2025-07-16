@@ -1,0 +1,69 @@
+✅ Which Investors Are Interested in Hawaii Properties
+📍 Island preferences
+💰 Budget ranges
+🏠 Property types / strategies
+🧠 Viability (who's serious, who's vague)
+
+🧾 ANALYSIS: INVESTORS INTERESTED IN HAWAII
+I reviewed your spreadsheet and parsed investor preferences based on mentions of "Hawaii", Oahu, Maui, Big Island, and Kauai. Here's the breakdown:
+
+🔢 Total Investors Listed: 32
+🌺 Interested in Hawaii Properties: 19
+
+❌ No Hawaii Indication / Out-of-State Focus: 13
+
+🔍 Detailed Breakdown of Hawaii-Interested Investors
+#	Name / Entity	Budget	Location Focus	Strategy	Notes / Comments
+1	C&H Holdings	$400k – $1.2M	Hawaii (all islands)	Buy & Hold	Prefers duplex, triplex; open to distressed
+2	Mana Investments	Up to $800k	Oahu	Fix & Flip	Looking for quick ROI, contractor in-house
+3	Island Roots Capital	$500k–$1M	Maui + Big Island	Buy & Hold	Focused on long-term rentals
+4	Aloha Property Fund	$1M+	Oahu + Maui	Luxury Rehab / Resell	Focus on oceanfront or golf communities
+5	T. Nakamura	$350k	Oahu (Waianae)	Buy & Hold	Prefers single-family under $400k
+6	Green Path Real Estate	$300k–$700k	Kauai	Fix & Flip	Active flipper looking for permits in place
+7	Waimanalo Trust	Flexible	Oahu East Side	Passive Income	High-interest in off-market family homes
+8	Hawaiian Dreams LLC	Up to $650k	Big Island	BRRRR	Wants high ROI rentals near Hilo
+9	Pacific REI	$800k–$1.5M	Oahu + Maui	Fix & Flip	Does hard money deals, quick closings
+10	Kuleana Group	Any	Kauai + Molokai	Mission-driven	Seeks kuleana land, probate, distressed
+11	Lee & Sons LLC	Up to $500k	Oahu	Buy & Hold	Military-friendly rentals near Kaneohe
+12	High Tide Properties	$1M+	Oahu	Multifamily	4-12 unit buildings only
+13	Kohala Investors	$350k	Big Island	Rehab	OK with tear-downs, short-term resale
+14	Kupuna Capital	$250k–$600k	Maui	Buy & Hold	Senior housing preferred
+15	Wave Ventures	$700k	Oahu	Flip	Short timelines, prefers title clean
+16	Koa Capital	$500k+	Any island	Flip or Hold	Likes creative finance / Sub2 deals
+17	Kaulua LLC	$200k	Oahu	Hold	Prefers seller finance or long escrow
+18	Makai Holdings	Up to $900k	Kauai + Oahu	Flip	Already closed 2 deals in 2024
+19	Nalu Equity	$450k	Oahu	BRRRR	Interested in tax lien or foreclosure deals
+
+🧠 INVESTOR TAGS BY STRATEGY
+Strategy	Count	Example Investors
+Fix & Flip	7	Mana, Green Path, Wave
+Buy & Hold	8	C&H, Island Roots, Kupuna
+BRRRR	2	Hawaiian Dreams, Nalu
+Multifamily	1	High Tide
+Luxury Flip	1	Aloha Property Fund
+Mission-Based	1	Kuleana Group
+Creative Deals	2	Koa, Kaulua
+
+📍 INVESTOR INTEREST BY ISLAND
+Island	Interested Investors
+Oahu	14 (Most active!)
+Maui	6
+Big Island	4
+Kauai	4
+Molokai	1 (Kuleana only)
+
+⚠️ INVESTORS TO PRIORITIZE (VIPs)
+These are serious buyers with:
+
+Clear buy box
+
+Multiple closed deals
+
+Fast closing / cash capability
+
+Name	Reason
+Pacific REI	Hard money + fast close
+Makai Holdings	Closed 2 deals in 2024
+High Tide Properties	Multifamily focus
+Wave Ventures	Clear flip strategy
+Island Roots Capital	Rental-focused, stable

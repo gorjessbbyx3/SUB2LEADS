@@ -10,6 +10,7 @@ import Dashboard from '@/pages/Dashboard';
 import Properties from '@/pages/Properties';
 import PropertyDetail from '@/pages/PropertyDetail';
 import LeadManagement from '@/pages/LeadManagement';
+import Investors from '@/pages/Investors';
 import Outreach from '@/pages/Outreach';
 import DataScraper from '@/pages/DataScraper';
 import Reports from '@/pages/Reports';
@@ -108,6 +109,7 @@ function AppContent() {
               <Route path="/properties" component={Properties} />
               <Route path="/properties/:id" component={PropertyDetail} />
               <Route path="/leads" component={LeadManagement} />
+              <Route path="/investors" component={Investors} />
               <Route path="/outreach" component={Outreach} />
               <Route path="/scraper" component={DataScraper} />
               <Route path="/reports" component={Reports} />

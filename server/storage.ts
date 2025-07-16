@@ -9,6 +9,7 @@ import {
   aiInteractions,
   activities,
   pdfBinders,
+  investors,
   type User,
   type UpsertUser,
   type Property,
@@ -29,6 +30,8 @@ import {
   type InsertPDFBinder,
   type Activity,
   type InsertActivity,
+  type Investor,
+  type InsertInvestor,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, gte, lte, count, sql } from "drizzle-orm";
@@ -104,6 +107,25 @@ export interface IStorage {
   getActivitiesByLead(leadId: number, limit?: number): Promise<Activity[]>;
   getActivitiesByProperty(propertyId: number, limit?: number): Promise<Activity[]>;
   getRecentActivities(userId: string, limit?: number): Promise<Activity[]>;
+
+  // Investor operations
+  getInvestors(userId: string, filters?: {
+    island?: string;
+    strategy?: string;
+    priority?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<Investor[]>;
+  getInvestor(id: number): Promise<Investor | undefined>;
+  createInvestor(investor: InsertInvestor): Promise<Investor>;
+  updateInvestor(id: number, investor: Partial<InsertInvestor>): Promise<Investor | undefined>;
+  deleteInvestor(id: number): Promise<boolean>;
+  getInvestorStats(userId: string): Promise<{
+    totalInvestors: number;
+    vipInvestors: number;
+    activeDeals: number;
+    avgBudget: number;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -453,6 +475,99 @@ export class DatabaseStorage implements IStorage {
       .from(pdfBinders)
       .where(eq(pdfBinders.propertyId, propertyId))
       .orderBy(desc(pdfBinders.generatedAt));
+  }
+
+  // Investor operations
+  async getInvestors(userId: string, filters?: {
+    island?: string;
+    strategy?: string;
+    priority?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<Investor[]> {
+    const conditions = [eq(investors.userId, userId)];
+    
+    if (filters?.island && filters.island !== 'all') {
+      conditions.push(sql`${investors.preferredIslands} @> ${[filters.island]}`);
+    }
+    
+    if (filters?.strategy && filters.strategy !== 'all') {
+      conditions.push(sql`${investors.strategies} @> ${[filters.strategy]}`);
+    }
+    
+    if (filters?.priority && filters.priority !== 'all') {
+      conditions.push(eq(investors.priority, filters.priority));
+    }
+
+    let query = db
+      .select()
+      .from(investors)
+      .where(and(...conditions))
+      .orderBy(desc(investors.createdAt));
+
+    if (filters?.limit) {
+      query = query.limit(filters.limit);
+    }
+
+    if (filters?.offset) {
+      query = query.offset(filters.offset);
+    }
+
+    return await query;
+  }
+
+  async getInvestor(id: number): Promise<Investor | undefined> {
+    const [investor] = await db.select().from(investors).where(eq(investors.id, id));
+    return investor;
+  }
+
+  async createInvestor(investor: InsertInvestor): Promise<Investor> {
+    const [created] = await db.insert(investors).values({
+      ...investor,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async updateInvestor(id: number, investor: Partial<InsertInvestor>): Promise<Investor | undefined> {
+    const [updated] = await db
+      .update(investors)
+      .set({
+        ...investor,
+        updatedAt: new Date(),
+      })
+      .where(eq(investors.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteInvestor(id: number): Promise<boolean> {
+    const result = await db.delete(investors).where(eq(investors.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getInvestorStats(userId: string): Promise<{
+    totalInvestors: number;
+    vipInvestors: number;
+    activeDeals: number;
+    avgBudget: number;
+  }> {
+    const [stats] = await db
+      .select({
+        totalInvestors: count(),
+        vipInvestors: count(sql`CASE WHEN ${investors.status} = 'vip' THEN 1 END`),
+        avgBudget: sql<number>`AVG(${investors.maxBudget})`,
+      })
+      .from(investors)
+      .where(eq(investors.userId, userId));
+
+    return {
+      totalInvestors: stats.totalInvestors,
+      vipInvestors: stats.vipInvestors,
+      activeDeals: stats.totalInvestors, // For now, assume all are active deals
+      avgBudget: Math.round(stats.avgBudget || 0),
+    };
   }
 }
 

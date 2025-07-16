@@ -9,7 +9,7 @@ import { pdfGeneratorService } from './services/pdfGenerator';
 import { contactEnrichmentService } from './services/contactEnrichment';
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { mapService } from "./services/mapService";
-import { insertPropertySchema, insertContactSchema, insertLeadSchema, insertAIInteractionSchema } from "@shared/schema";
+import { insertPropertySchema, insertContactSchema, insertLeadSchema, insertAIInteractionSchema, insertInvestorSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -611,6 +611,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching recent activities:', error);
       res.status(500).json({ message: 'Failed to fetch recent activities' });
+    }
+  });
+
+  // Investor API routes
+  app.get('/api/investors', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { island, strategy, priority, limit, offset } = req.query;
+      const investors = await storage.getInvestors(userId, {
+        island,
+        strategy,
+        priority,
+        limit: limit ? parseInt(limit) : undefined,
+        offset: offset ? parseInt(offset) : undefined,
+      });
+      res.json(investors);
+    } catch (error) {
+      console.error('Error fetching investors:', error);
+      res.status(500).json({ message: 'Failed to fetch investors' });
+    }
+  });
+
+  app.get('/api/investors/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const stats = await storage.getInvestorStats(userId);
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching investor stats:', error);
+      res.status(500).json({ message: 'Failed to fetch investor stats' });
+    }
+  });
+
+  app.get('/api/investors/:id', isAuthenticated, async (req, res) => {
+    try {
+      const investor = await storage.getInvestor(parseInt(req.params.id));
+      if (!investor) {
+        return res.status(404).json({ message: 'Investor not found' });
+      }
+      res.json(investor);
+    } catch (error) {
+      console.error('Error fetching investor:', error);
+      res.status(500).json({ message: 'Failed to fetch investor' });
+    }
+  });
+
+  app.post('/api/investors', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validatedData = insertInvestorSchema.parse({ ...req.body, userId });
+      const investor = await storage.createInvestor(validatedData);
+      res.status(201).json(investor);
+    } catch (error) {
+      console.error('Error creating investor:', error);
+      res.status(400).json({ message: 'Invalid investor data' });
+    }
+  });
+
+  app.put('/api/investors/:id', isAuthenticated, async (req, res) => {
+    try {
+      const investorId = parseInt(req.params.id);
+      const validatedData = insertInvestorSchema.partial().parse(req.body);
+      const investor = await storage.updateInvestor(investorId, validatedData);
+      if (!investor) {
+        return res.status(404).json({ message: 'Investor not found' });
+      }
+      res.json(investor);
+    } catch (error) {
+      console.error('Error updating investor:', error);
+      res.status(400).json({ message: 'Invalid investor data' });
+    }
+  });
+
+  app.delete('/api/investors/:id', isAuthenticated, async (req, res) => {
+    try {
+      const investorId = parseInt(req.params.id);
+      const success = await storage.deleteInvestor(investorId);
+      if (!success) {
+        return res.status(404).json({ message: 'Investor not found' });
+      }
+      res.json({ message: 'Investor deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting investor:', error);
+      res.status(500).json({ message: 'Failed to delete investor' });
     }
   });
 

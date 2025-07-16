@@ -183,6 +183,28 @@ export const pdfBinders = pgTable("pdf_binders", {
   generatedAt: timestamp("generated_at").defaultNow(),
 });
 
+// Investors table
+export const investors = pgTable("investors", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }),
+  phone: varchar("phone", { length: 20 }),
+  company: varchar("company", { length: 255 }),
+  minBudget: integer("min_budget").default(0),
+  maxBudget: integer("max_budget").default(0),
+  preferredIslands: text("preferred_islands").array().default(['Oahu']),
+  strategies: text("strategies").array().default(['Buy & Hold']),
+  propertyTypes: text("property_types").array().default(['Single Family']),
+  priority: varchar("priority", { length: 20 }).notNull().default('medium'),
+  status: varchar("status", { length: 20 }).notNull().default('active'),
+  notes: text("notes"),
+  dealsCompleted: integer("deals_completed").default(0),
+  lastContactDate: timestamp("last_contact_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const propertiesRelations = relations(properties, ({ many, one }) => ({
   contacts: many(contacts),
@@ -256,6 +278,9 @@ export type InsertPDFBinder = typeof pdfBinders.$inferInsert;
 export type Activity = typeof activities.$inferSelect;
 export type InsertActivity = typeof activities.$inferInsert;
 
+export type Investor = typeof investors.$inferSelect;
+export type InsertInvestor = typeof investors.$inferInsert;
+
 // Zod schemas
 export const insertPropertySchema = createInsertSchema(properties);
 export const insertContactSchema = createInsertSchema(contacts);
@@ -264,6 +289,8 @@ export const insertOutreachCampaignSchema = createInsertSchema(outreachCampaigns
 export const insertAIInteractionSchema = createInsertSchema(aiInteractions);
 export const insertActivitySchema = createInsertSchema(activities);
 export const selectActivitySchema = createSelectSchema(activities);
+export const insertInvestorSchema = createInsertSchema(investors);
+export const selectInvestorSchema = createSelectSchema(investors);
 
 // Scraping Jobs table
 export const scrapingJobs2 = pgTable("scraping_jobs2", {
