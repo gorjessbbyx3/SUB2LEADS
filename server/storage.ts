@@ -166,35 +166,7 @@ export class DatabaseStorage implements IStorage {
     offset?: number;
   } = {}) {
     try {
-      let query = db.select({
-        id: properties.id,
-        address: properties.address,
-        city: properties.city,
-        state: properties.state,
-        zipCode: properties.zipCode,
-        ownerName: properties.ownerName,
-        estimatedValue: properties.estimatedValue,
-        lienAmount: properties.lienAmount,
-        status: properties.status,
-        priority: properties.priority,
-        propertyType: properties.propertyType,
-        auctionDate: properties.auctionDate,
-        daysUntilAuction: properties.daysUntilAuction,
-        source: properties.source,
-        sourceUrl: properties.sourceUrl,
-        createdAt: properties.createdAt,
-        updatedAt: properties.updatedAt,
-        userId: properties.userId,
-        amountOwed: properties.amountOwed,
-        bedrooms: properties.bedrooms,
-        bathrooms: properties.bathrooms,
-        squareFeet: properties.squareFeet,
-        yearBuilt: properties.yearBuilt,
-        repairsNeeded: properties.repairsNeeded,
-        dealType: properties.dealType,
-        askingPrice: properties.askingPrice,
-        leadSource: properties.leadSource
-      }).from(properties);
+      let query = db.select().from(properties);
 
       if (filters.status) {
         query = query.where(eq(properties.status, filters.status));
@@ -339,7 +311,17 @@ export class DatabaseStorage implements IStorage {
     offset?: number;
   }): Promise<Lead[]> {
     try {
-      let query = db.select().from(leads);
+      let query = db.select({
+        id: leads.id,
+        propertyId: leads.propertyId,
+        contactId: leads.contactId,
+        userId: leads.userId,
+        status: leads.status,
+        priority: leads.priority,
+        notes: leads.notes,
+        createdAt: leads.createdAt,
+        updatedAt: leads.updatedAt
+      }).from(leads);
 
       const conditions = [];
       if (filters?.status) conditions.push(eq(leads.status, filters.status));
@@ -571,7 +553,22 @@ export class DatabaseStorage implements IStorage {
       }
 
       let query = db
-        .select()
+        .select({
+          id: investors.id,
+          userId: investors.userId,
+          name: investors.name,
+          email: investors.email,
+          phone: investors.phone,
+          maxBudget: investors.maxBudget,
+          minBudget: investors.minBudget,
+          preferredIslands: investors.preferredIslands,
+          strategies: investors.strategies,
+          priority: investors.priority,
+          status: investors.status,
+          notes: investors.notes,
+          createdAt: investors.createdAt,
+          updatedAt: investors.updatedAt
+        })
         .from(investors)
         .where(and(...conditions))
         .orderBy(desc(investors.createdAt));
