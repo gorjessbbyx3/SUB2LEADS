@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Router, Route, Switch } from 'wouter';
@@ -10,12 +9,12 @@ import Dashboard from '@/pages/Dashboard';
 import Properties from '@/pages/Properties';
 import PropertyDetail from '@/pages/PropertyDetail';
 import LeadManagement from '@/pages/LeadManagement';
-import Investors from '@/pages/Investors';
+import Investors from './pages/Investors';
+import Matching from "./pages/Matching";
 import Outreach from '@/pages/Outreach';
 import DataScraper from '@/pages/DataScraper';
-import Reports from '@/pages/Reports';
-import Landing from '@/pages/Landing';
-import NotFound from '@/pages/not-found';
+import Reports from "./pages/Reports";
+import NotFound from "./pages/not-found";
 import { Button } from '@/components/ui/button';
 
 const queryClient = new QueryClient({
@@ -110,8 +109,7 @@ function AppContent() {
               <Route path="/properties/:id" component={PropertyDetail} />
               <Route path="/leads" component={LeadManagement} />
               <Route path="/investors" component={Investors} />
-              <Route path="/outreach" component={Outreach} />
-              <Route path="/scraper" component={DataScraper} />
+              <Route path="/matching" component={Matching} />
               <Route path="/reports" component={Reports} />
               <Route component={NotFound} />
             </Switch>

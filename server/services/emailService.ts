@@ -147,6 +147,66 @@ Hawaii Investment Team
     console.log('Email log created:', data);
     return data;
   }
+
+  async notifyInvestorOfMatch(investorId: number, propertyId: number, matchScore: number, matchReasons: string[]) {
+    try {
+      const investor = await storage.getInvestor(investorId);
+      const property = await storage.getProperty(propertyId);
+
+      if (!investor || !property || !investor.email) {
+        throw new Error('Investor or property not found, or investor has no email');
+      }
+
+      const subject = `🎯 New Property Match (${matchScore}% Match) - ${property.address}`;
+
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">New Property Match Found!</h2>
+
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1e40af; margin-top: 0;">Match Score: ${matchScore}%</h3>
+            <p><strong>Property:</strong> ${property.address}</p>
+            ${property.estimatedValue ? `<p><strong>Estimated Value:</strong> $${property.estimatedValue.toLocaleString()}</p>` : ''}
+            ${property.daysUntilAuction ? `<p><strong>Days Until Auction:</strong> ${property.daysUntilAuction}</p>` : ''}
+            <p><strong>Property Type:</strong> ${property.propertyType || 'Unknown'}</p>
+            <p><strong>Status:</strong> ${property.status}</p>
+          </div>
+
+          <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #059669; margin-top: 0;">Why This Matches Your Criteria:</h3>
+            <ul>
+              ${matchReasons.map(reason => `<li>${reason}</li>`).join('')}
+            </ul>
+          </div>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.FRONTEND_URL}/properties/${property.id}" 
+               style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              View Property Details
+            </a>
+          </div>
+
+          <hr style="border: 1px solid #e5e7eb; margin: 30px 0;">
+
+          <p style="color: #6b7280; font-size: 14px;">
+            This property matched your investment criteria. If you're interested, contact us immediately as foreclosure properties move quickly.
+          </p>
+
+          <p style="color: #6b7280; font-size: 12px;">
+            Hawaii Real Estate CRM - Connecting Investors with Opportunities
+          </p>
+        </div>
+      `;
+
+      await this.sendEmail(investor.email, subject, htmlContent);
+
+      console.log(`Match notification sent to ${investor.name} (${investor.email}) for property ${property.address}`);
+
+    } catch (error) {
+      console.error('Error sending match notification:', error);
+      throw error;
+    }
+  }
 }
 
 export const emailService = new EmailService();

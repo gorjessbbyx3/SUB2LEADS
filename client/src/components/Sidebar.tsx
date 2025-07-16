@@ -9,7 +9,8 @@ import {
   FileText, 
   Settings,
   LogOut,
-  DollarSign
+  DollarSign,
+  Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,6 +20,7 @@ const navigation = [
   { name: "Lead Management", href: "/leads", icon: Users },
   { name: "Properties", href: "/properties", icon: Home },
   { name: "Investors", href: "/investors", icon: DollarSign },
+  { name: "Matching", href: "/matching", icon: Target },
   { name: "Data Scraper", href: "/scraper", icon: Search },
   { name: "Outreach", href: "/outreach", icon: Mail },
   { name: "Reports & Binders", href: "/reports", icon: FileText },

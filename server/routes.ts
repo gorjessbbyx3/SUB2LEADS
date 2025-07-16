@@ -10,6 +10,7 @@ import { contactEnrichmentService } from './services/contactEnrichment';
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { mapService } from "./services/mapService";
 import { insertPropertySchema, insertContactSchema, insertLeadSchema, insertAIInteractionSchema, insertInvestorSchema } from "@shared/schema";
+import { matchingService } from './services/matchingService.js';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -157,7 +158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!lead) {
         return res.status(404).json({ message: "Lead not found" });
       }
-      
+
       res.json(lead);
     } catch (error) {
       console.error("Error updating lead:", error);
@@ -280,7 +281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (property.aiSummary && property.updatedAt) {
         const lastUpdate = new Date(property.updatedAt);
         const hoursSinceUpdate = (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60);
-        
+
         if (hoursSinceUpdate < 24) {
           return res.json({ summary: property.aiSummary, cached: true });
         }
@@ -487,7 +488,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/scraper/download', async (req, res) => {
     try {
       const zipBuffer = await scraperService.generateDataExport();
-      
+
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', 'attachment; filename="property-records.zip"');
       res.send(zipBuffer);
@@ -659,14 +660,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/investors/:id', isAuthenticated, async (req, res) => {
     try {
-      const investor = await storage.getInvestor(parseInt(req.params.id));
+      const id = parseInt(req.params.id);
+      const investor = await storage.getInvestor(id);
+
       if (!investor) {
-        return res.status(404).json({ message: 'Investor not found' });
+        return res.status(404).json({ error: 'Investor not found' });
       }
+
       res.json(investor);
     } catch (error) {
       console.error('Error fetching investor:', error);
-      res.status(500).json({ message: 'Failed to fetch investor' });
+      res.status(500).json({ error: 'Failed to fetch investor' });
     }
   });
 
@@ -697,10 +701,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete investor
   app.delete('/api/investors/:id', isAuthenticated, async (req, res) => {
     try {
-      const investorId = parseInt(req.params.id);
-      const success = await storage.deleteInvestor(investorId);
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteInvestor(id);
       if (!success) {
         return res.status(404).json({ message: 'Investor not found' });
       }
@@ -708,6 +713,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting investor:', error);
       res.status(500).json({ message: 'Failed to delete investor' });
+    }
+  });
+
+  // Matching endpoints
+  app.get('/api/matching/lead/:leadId', async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.leadId);
+      const matches = await matchingService.findMatchesForLead(leadId);
+      res.json(matches);
+    } catch (error) {
+      console.error('Error finding matches for lead:', error);
+      res.status(500).json({ error: 'Failed to find matches' });
+    }
+  });
+
+  app.get('/api/matching/investor/:investorId', async (req, res) => {
+    try {
+      const investorId = parseInt(req.params.investorId);
+      const matches = await matchingService.findMatchesForInvestor(investorId);
+      res.json(matches);
+    } catch (error) {
+      console.error('Error finding matches for investor:', error);
+      res.status(500).json({ error: 'Failed to find matches' });
+    }
+  });
+
+  app.get('/api/matching/all', async (req, res) => {
+    try {
+      const matches = await matchingService.findMatchesForAllLeads();
+      res.json(matches);
+    } catch (error) {
+      console.error('Error finding all matches:', error);
+      res.status(500).json({ error: 'Failed to find matches' });
+    }
+  });
+
+  app.get('/api/matching/stats', async (req, res) => {
+    try {
+      const stats = await matchingService.getMatchingStats();
+      res.json(stats);
+    } catch (error) {
+      console.error('Error getting matching stats:', error);
+      res.status(500).json({ error: 'Failed to get matching stats' });
+    }
+  });
+
+  // Notify investor of match
+  app.post('/api/email/notify-investor', async (req, res) => {
+    try {
+      const { investorId, propertyId, matchScore, matchReasons } = req.body;
+
+      await emailService.notifyInvestorOfMatch(investorId, propertyId, matchScore, matchReasons);
+
+      res.json({ success: true, message: 'Investor notified successfully' });
+    } catch (error) {
+      console.error('Error notifying investor:', error);
+      res.status(500).json({ error: 'Failed to notify investor' });
     }
   });
 
