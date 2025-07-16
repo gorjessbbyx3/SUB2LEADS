@@ -13,6 +13,8 @@ import { PropertyPDFGenerator } from './services/pdfGenerator';
 import { validateRequest, validateQuery, rateLimit } from './middleware/validation';
 import { inngestHandler, inngest } from './inngest';
 import path from 'path';
+import { serve } from 'inngest/express';
+import { helloWorld } from './inngest/functions';
 
 export async function registerRoutes(app: Express) {
   const server = createServer(app);
@@ -529,7 +531,7 @@ export async function registerRoutes(app: Express) {
         {
           address: '456 Kilauea Ave, Hilo, HI 96720',
           city: 'Hilo',
-          state: 'HI', 
+          state: 'HI',
           zipCode: '96720',
           estimatedValue: 185000,
           status: 'wholesale',
@@ -602,8 +604,8 @@ export async function registerRoutes(app: Express) {
         });
       }
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         imported: {
           properties: importedProperties.length,
           leads: importedLeads.length,
@@ -623,9 +625,9 @@ export async function registerRoutes(app: Express) {
       const user = req.user as any;
 
       // Get all leads with wholesale properties
-      const allLeads = await storage.getLeads({ 
+      const allLeads = await storage.getLeads({
         userId: user?.claims?.sub,
-        limit: 100 
+        limit: 100
       });
 
       // Filter for wholesale leads and get their properties
@@ -640,11 +642,11 @@ export async function registerRoutes(app: Express) {
 
           wholesaleLeads.push({
             id: lead.id,
-            propertyId: property.id,
+            propertyId: property.propertyId,
             address: property.address,
             city: property.city,
-            island: property.city.includes('Honolulu') ? 'Oahu' : 
-                   property.city.includes('Hilo') ? 'Big Island' : 'Oahu',
+            island: property.city.includes('Honolulu') ? 'Oahu' :
+              property.city.includes('Hilo') ? 'Big Island' : 'Oahu',
             price: property.askingPrice || property.estimatedValue,
             beds: property.bedrooms,
             baths: property.bathrooms,
@@ -697,7 +699,7 @@ export async function registerRoutes(app: Express) {
 
       const stats = {
         total: wholesaleLeads.length,
-        averagePrice: wholesaleLeads.length > 0 ? 
+        averagePrice: wholesaleLeads.length > 0 ?
           Math.round(wholesaleLeads.reduce((sum, w) => sum + (w.property.estimatedValue || 0), 0) / wholesaleLeads.length) : 0,
         oahuCount: wholesaleLeads.filter(w => w.property.city.includes('Honolulu')).length,
         bigIslandCount: wholesaleLeads.filter(w => w.property.city.includes('Hilo')).length,
@@ -744,19 +746,6 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  // MLS Routes
-  app.get("/api/mls/listings", async (req, res) => {
-    try {
-      // Return mock MLS data for now - replace with real MLS integration
-      res.json([
-        {
-          id: 1,
-          mlsNumber: "MLS123456",
-          address: "789 Luxury Lane, Kailua, HI 96734",
-          price: 1250000,
-          bedrooms: 4,
-
-
   // Import investors from CSV with duplicate checking
   app.post("/api/investors/import", isAuthenticated, async (req, res) => {
     try {
@@ -780,7 +769,7 @@ export async function registerRoutes(app: Express) {
       for (const investorData of importInvestors) {
         try {
           // Check for duplicates by email or name
-          const isDuplicate = existingInvestors.some(existing => 
+          const isDuplicate = existingInvestors.some(existing =>
             existing.email?.toLowerCase() === investorData.email?.toLowerCase() ||
             existing.name.toLowerCase() === investorData.name.toLowerCase()
           );
@@ -837,8 +826,7 @@ export async function registerRoutes(app: Express) {
           } else if (investorData.strategy?.toLowerCase().includes('brrrr')) {
             strategies.push('BRRRR');
           } else {
-            strategies.push('Buy & Hold'); // Default
-          }
+            strategies.push('Buy & Hold'); // Default          }
 
           // Determine property types from notes
           const propertyTypes = [];
@@ -914,7 +902,7 @@ export async function registerRoutes(app: Express) {
         },
         {
           id: 2,
-          mlsNumber: "MLS123457", 
+          mlsNumber: "MLS123457",
           address: "456 Beach Blvd, Honolulu, HI 96815",
           price: 875000,
           bedrooms: 3,
@@ -966,7 +954,7 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  // Eviction Routes  
+  // Eviction Routes
   app.get("/api/evictions", async (req, res) => {
     try {
       // Return mock eviction data for now
@@ -1038,9 +1026,6 @@ export async function registerRoutes(app: Express) {
 
   // Start scheduler
   schedulerService.start();
-  import { serve } from 'inngest/express';
-import { inngest } from './inngest';
-import { helloWorld } from './inngest/functions';
 
   // Add the Inngest serve handler
   app.use("/api/inngest", serve({ client: inngest, functions: [helloWorld] }));
