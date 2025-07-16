@@ -1,4 +1,3 @@
-
 -- Add risk factor fields to leads table
 ALTER TABLE leads
 ADD COLUMN zoning_change_potential BOOLEAN DEFAULT false,
@@ -33,3 +32,22 @@ CREATE TABLE risk_assessments (
 CREATE INDEX idx_risk_assessments_lead_id ON risk_assessments(lead_id);
 CREATE INDEX idx_risk_assessments_type ON risk_assessments(assessment_type);
 CREATE INDEX idx_risk_assessments_risk_level ON risk_assessments(risk_level);
+
+-- Add risk factor columns to properties table
+ALTER TABLE properties 
+ADD COLUMN IF NOT EXISTS zoning_change_potential BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS development_zone_risk TEXT DEFAULT 'None',
+ADD COLUMN IF NOT EXISTS natural_disaster_risk TEXT DEFAULT 'Unknown',
+ADD COLUMN IF NOT EXISTS wildfire_risk_zone TEXT DEFAULT 'Unknown',
+ADD COLUMN IF NOT EXISTS flood_zone TEXT DEFAULT 'Unknown',
+ADD COLUMN IF NOT EXISTS lava_zone TEXT DEFAULT 'Unknown',
+ADD COLUMN IF NOT EXISTS tsunami_risk TEXT DEFAULT 'Unknown';
+
+-- Add missing columns to leads table
+ALTER TABLE leads 
+ADD COLUMN IF NOT EXISTS last_contact_date DATE,
+ADD COLUMN IF NOT EXISTS company TEXT;
+
+-- Add missing columns to contacts table if they don't exist
+ALTER TABLE contacts 
+ADD COLUMN IF NOT EXISTS company TEXT;
