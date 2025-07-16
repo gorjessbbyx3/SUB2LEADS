@@ -826,7 +826,8 @@ export async function registerRoutes(app: Express) {
           } else if (investorData.strategy?.toLowerCase().includes('brrrr')) {
             strategies.push('BRRRR');
           } else {
-            strategies.push('Buy & Hold'); // Default          }
+            strategies.push('Buy & Hold'); // Default
+          }
 
           // Determine property types from notes
           const propertyTypes = [];
