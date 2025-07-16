@@ -1,0 +1,124 @@
+📍 GOAL: Hawaii County Data Integration for Sub2Leads (Bird Dog CRM)
+We'll break this down by:
+
+Target Sources
+
+Tech Stack
+
+Scraper/API Plan for Each Source
+
+Backend Integration Example (Next.js API route or Express)
+
+✅ 1. TARGET DATA SOURCES BY ISLAND
+Island	Source Type	Where to Scrape or Fetch
+Oahu (Honolulu)	Foreclosures	First Circuit Court Notices or Star Advertiser Legal Notices
+Oahu	Tax Delinquents	Real Property Assessment Division
+Maui	Foreclosures	Maui News Notices
+Big Island	Tax Sales	Hawaii County Tax Sale Site
+Kauai	Real Property	Kauai Property Tax Search
+Statewide	Probate Records	eCourt Kokua (manually scrape/search by name or doc type)
+
+✅ 2. TECH STACK FOR SCRAPING + API
+Node.js backend
+
+Cheerio or Puppeteer for scraping
+
+Axios or node-fetch for HTML requests
+
+Cron Jobs (e.g., node-cron) to run daily
+
+MongoDB or Supabase to store leads
+
+Optional: Serverless functions if using Vercel/Next.js
+
+✅ 3. EXAMPLE SCRAPER PLAN – Big Island Tax Sale
+Target:
+https://www.hawaiicounty.gov/departments/finance/real-property-tax/real-property-tax-sale
+
+Fields to Extract:
+
+Parcel #
+
+Address
+
+Owner Name
+
+Tax Due
+
+Assessed Value
+
+Sale Date
+
+Basic Scraper Plan:
+
+js
+Copy
+Edit
+// /scripts/scrapeBigIslandTaxSale.js
+const axios = require('axios');
+const cheerio = require('cheerio');
+
+async function scrapeBigIslandTaxSale() {
+  const url = 'https://www.hawaiicounty.gov/departments/finance/real-property-tax/real-property-tax-sale';
+
+  const { data } = await axios.get(url);
+  const $ = cheerio.load(data);
+
+  const leads = [];
+
+  $('table tbody tr').each((_, row) => {
+    const cells = $(row).find('td');
+
+    leads.push({
+      parcel: $(cells[0]).text().trim(),
+      address: $(cells[1]).text().trim(),
+      owner: $(cells[2]).text().trim(),
+      taxDue: $(cells[3]).text().trim(),
+      assessedValue: $(cells[4]).text().trim(),
+      saleDate: $(cells[5]).text().trim()
+    });
+  });
+
+  return leads;
+}
+
+module.exports = scrapeBigIslandTaxSale;
+✅ 4. BACKEND INTEGRATION (Express or Next.js API)
+Next.js API Route Example (for Vercel):
+
+ts
+Copy
+Edit
+// pages/api/leads/bigisland-tax.js
+import scrapeBigIslandTaxSale from '../../../scripts/scrapeBigIslandTaxSale';
+
+export default async function handler(req, res) {
+  try {
+    const leads = await scrapeBigIslandTaxSale();
+    res.status(200).json(leads);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+Optional MongoDB Save Logic:
+
+ts
+Copy
+Edit
+import { connectToDB } from '../../../lib/mongo';
+
+const db = await connectToDB();
+await db.collection('leads').insertMany(leads);
+✅ 5. BONUS: Webhook or Cron Job to Auto-Run Scraper
+Using node-cron (every 12 hours):
+
+ts
+Copy
+Edit
+import cron from 'node-cron';
+import scrapeBigIslandTaxSale from './scripts/scrapeBigIslandTaxSale';
+
+cron.schedule('0 */12 * * *', async () => {
+  const leads = await scrapeBigIslandTaxSale();
+  // save to DB
+});

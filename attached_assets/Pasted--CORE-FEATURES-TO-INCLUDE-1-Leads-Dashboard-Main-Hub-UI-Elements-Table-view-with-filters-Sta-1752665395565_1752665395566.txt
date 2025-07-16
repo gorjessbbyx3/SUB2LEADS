@@ -1,0 +1,160 @@
+🔧 CORE FEATURES TO INCLUDE
+1. Leads Dashboard (Main Hub)
+UI Elements:
+
+Table view with filters: Status, Island, Source, Motivation
+
+Columns: Address, Owner Name, Phone, Email, Lead Type (e.g., tax lien), Status (new, contacted, hot)
+
+Lead tags: Pre-foreclosure, Tax Lien, Absentee, Probate, Driving for Dollars
+
+Tech Integration:
+
+React Table + TanStack filters
+
+react-query or SWR for async data
+
+Google Maps API for geolocation + pin visualization
+
+2. Property Details Page
+UI Elements:
+
+Map view of the parcel (Google Maps / Leaflet)
+
+Tabs: Overview, Notes, Documents, Owner Info
+
+Fields: APN, zoning, assessed value, owner type (trust, LLC, etc.)
+
+Quick buttons: Call, SMS, Email, Skip Trace, Add to Campaign
+
+Tech Integration:
+
+Link to County tax site, Bureau of Conveyances, Parcel Viewer
+
+Button for skip tracing (via API like Skip Genie or BatchSkipTracing)
+
+File upload or image upload (pictures from the field)
+
+3. Driving for Dollars Tracker
+UI Elements:
+
+Map-based lead drop tool with:
+
+Pin drop
+
+Take photo
+
+Add notes
+
+Recent route list with addresses and notes
+
+Mobile responsive!
+
+Tech Integration:
+
+GPS logging (with phone permissions)
+
+Offline support using IndexedDB or SQLite if PWA/mobile
+
+Integration with LandGlide API (optional)
+
+4. Campaigns & Outreach
+UI Elements:
+
+Create SMS / Email / Mail Campaign
+
+Template manager
+
+Scheduled follow-ups (CRM reminders)
+
+Lead pipeline stages (Kanban view optional)
+
+Tech Integration:
+
+Twilio for SMS / Ringless VM
+
+SendGrid / Mailgun for email
+
+PDF/Letter generator (for direct mail)
+
+Firebase or Node backend with cron jobs for scheduling
+
+5. Investor/Broker Network
+UI Elements:
+
+Rolodex-style or Card Grid of investor profiles
+
+Tags: Buy box, Preferred Islands, Property Type
+
+CRM Notes, Last Contacted, Link to Recent Deals
+
+One-click "Match with Lead" button
+
+Tech Integration:
+
+Lead-to-buyer match engine (filter + tag-based)
+
+Notifications when a lead matches an investor’s buy box
+
+6. Task + Note System
+UI Elements:
+
+Calendar view for follow-ups
+
+Global task dashboard
+
+Voice-to-text note input (mobile-friendly)
+
+Attach notes to leads, investors, or properties
+
+7. Aloha Features (Hawaii-Specific)
+Show island icons: 🏝️ Big Island, 🌺 Oahu, 🌊 Maui, 🌴 Kauai
+
+Local law reminders (leasehold vs fee simple, DHHL alerts, etc.)
+
+Add Kuleana or cultural flag if property is on protected land
+
+‘Talk Story’ field to write relationship notes
+
+🧱 TECHNOLOGY STACK
+Frontend:
+React + Tailwind CSS
+
+Next.js (SSR + fast routing)
+
+Shadcn/ui or Chakra UI for components
+
+Backend:
+Node.js / Express or Firebase Functions
+
+MongoDB (geospatial queries, flexible schema)
+
+Supabase (Postgres + auth + real-time)
+
+APIs:
+Twilio, SendGrid
+
+Google Maps
+
+County data (scraping or if they offer API)
+
+🧭 UI LAYOUT SUGGESTION (Wireframe)
+diff
+Copy
+Edit
+[Sidebar]
+- Dashboard
+- Leads
+- Map
+- Campaigns
+- Investors
+- Tasks
+- Settings
+
+[Main View: Leads Table / Map / Property View]
+
+[Top Bar]
+- Search Bar
+- Island Filter
+- Add Lead
+- Import CSV

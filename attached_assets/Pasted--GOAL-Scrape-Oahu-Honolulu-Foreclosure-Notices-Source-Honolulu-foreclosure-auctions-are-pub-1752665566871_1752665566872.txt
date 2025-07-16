@@ -1,0 +1,121 @@
+📍 GOAL: Scrape Oahu (Honolulu) Foreclosure Notices
+🔎 Source:
+Honolulu foreclosure auctions are published in legal notices.
+The most consistent and centralized source is:
+
+📰 StarAdvertiser Legal Notices
+
+✅ SCRAPER STRATEGY OVERVIEW
+Target Fields to Extract:
+Property Address
+
+Owner(s)
+
+Auction Date & Time
+
+Case Number
+
+Attorney Contact
+
+Auction Location
+
+URL to full notice text (optional)
+
+🚧 Scraper Challenges:
+The StarAdvertiser site uses pagination and JavaScript rendering, so basic HTTP requests may not work.
+
+We'll use Puppeteer to handle dynamic content.
+
+Legal notices are structured as long blocks of text, so regex will be used to extract details.
+
+🧠 Code Plan Using Puppeteer
+📁 File: scripts/scrapeOahuForeclosures.js
+js
+Copy
+Edit
+const puppeteer = require('puppeteer');
+
+async function scrapeOahuForeclosures() {
+  const url = 'https://www.staradvertiser.com/legal-notices/';
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
+
+  await page.goto(url, { waitUntil: 'networkidle0' });
+
+  // Click "Foreclosure" filter if available
+  // Optionally: go directly to the filtered page (if URL supports query)
+
+  const links = await page.$$eval('.notice-archive-entry h3 a', as =>
+    as.map(a => ({
+      title: a.innerText,
+      url: a.href
+    }))
+  );
+
+  const results = [];
+
+  for (const link of links) {
+    await page.goto(link.url, { waitUntil: 'networkidle0' });
+
+    const content = await page.$eval('.entry-content', el => el.innerText);
+
+    // Extract data using regex or pattern matching
+    const caseNumberMatch = content.match(/CASE NO\.?\s*:?\s*([^\n]+)/i);
+    const addressMatch = content.match(/property located at ([^\n.]+)/i);
+    const dateMatch = content.match(/will be held on (.*?)(?: at|\.)/i);
+    const attorneyMatch = content.match(/attorney.*?:\s*(.*)/i);
+
+    results.push({
+      title: link.title,
+      url: link.url,
+      address: addressMatch?.[1]?.trim() || null,
+      auctionDate: dateMatch?.[1]?.trim() || null,
+      caseNumber: caseNumberMatch?.[1]?.trim() || null,
+      attorney: attorneyMatch?.[1]?.trim() || null,
+      fullText: content.slice(0, 1000) + '...' // for review/debug
+    });
+  }
+
+  await browser.close();
+  return results;
+}
+
+module.exports = scrapeOahuForeclosures;
+✅ Next.js API Integration
+ts
+Copy
+Edit
+// pages/api/leads/oahu-foreclosures.js
+import scrapeOahuForeclosures from '../../../scripts/scrapeOahuForeclosures';
+
+export default async function handler(req, res) {
+  try {
+    const leads = await scrapeOahuForeclosures();
+    res.status(200).json(leads);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+🔌 Optional: Save to MongoDB
+ts
+Copy
+Edit
+import { connectToDB } from '../../../lib/mongo';
+
+const db = await connectToDB();
+await db.collection('leads').insertMany(leads.map(lead => ({
+  ...lead,
+  island: 'Oahu',
+  source: 'Foreclosure',
+  status: 'new',
+  createdAt: new Date()
+})));
+✅ What You Can Do With This Data
+Auto-match to your investor buy box
+
+Notify bird dogs by island
+
+Filter by auction date proximity
+
+Create daily alert campaigns
+
