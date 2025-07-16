@@ -1,0 +1,103 @@
+🌍 1. Understand the Two Risk Layers
+A. City Development Plans
+You want to find out if a property is:
+
+In a future rezoning or upzoning area
+
+In a planned development corridor (transit, infrastructure)
+
+Near a future school, mall, or hospital
+
+🛠 Sources:
+
+County planning department GIS portals
+
+Hawaii Office of Planning and Sustainable Development (OPSD)
+
+Zoning amendment proposals (often on city council agendas)
+
+B. Natural Disaster Risk (e.g., Wildfires)
+You want to calculate if a property is at increased risk due to:
+
+Wildfire-prone zones
+
+Flood zones (FEMA maps)
+
+Lava zones (Hawai‘i-specific)
+
+Tsunami evacuation areas
+
+Historical disaster frequency
+
+🛠 Sources:
+
+Hawaii State Hazard Mitigation Plan
+
+FEMA Flood Map Service Center
+
+USDA Wildfire Risk Map
+
+USGS Lava Flow Hazard Zones
+
+🧠 2. How to Score It in Sub2Leads
+🔧 Add to your Supabase schema (leads table):
+sql
+Copy
+Edit
+ALTER TABLE leads
+ADD COLUMN zoning_change_potential BOOLEAN DEFAULT false,
+ADD COLUMN development_zone_risk TEXT DEFAULT 'None',
+ADD COLUMN natural_disaster_risk TEXT DEFAULT 'Unknown';
+📈 3. Inngest Job: Score Lead Risk
+ts
+Copy
+Edit
+// inngest/functions/scoreLeadRisk.ts
+import { getLeadLocationData } from "@/lib/db"
+import { fetchDisasterRisk, fetchDevelopmentPlans } from "@/lib/risk"
+
+export const scoreLeadRisk = inngest.createFunction(
+  { id: "score-lead-risk" },
+  { event: "lead/created" },
+  async ({ event }) => {
+    const lead = await getLeadLocationData(event.data.leadId)
+
+    const naturalDisasterRisk = await fetchDisasterRisk(lead.address)
+    const developmentPlanInfo = await fetchDevelopmentPlans(lead.address)
+
+    await updateLeadRisk(lead.id, {
+      naturalDisasterRisk: naturalDisasterRisk || "Unknown",
+      development_zone_risk: developmentPlanInfo?.riskZone || "None",
+      zoning_change_potential: developmentPlanInfo?.zoningChange || false,
+    })
+
+    return { leadId: lead.id }
+  }
+)
+🔌 4. API/Data Pipeline Ideas
+Data Type	Source	How to Use
+Wildfire zones	USDA Wildfire API	Match lat/lng and classify
+Flood zones	FEMA Flood API	Query zone by address
+Lava hazard zones	USGS or Hawaii GIS	Static zone overlays
+City zoning plans	County GIS / city open data	Scrape or subscribe to updates
+Climate risk (long term)	ClimateCheck, First Street Foundation	Partner or scrape summaries
+
+🧪 Example Output:
+A lead might be scored like this:
+
+json
+Copy
+Edit
+{
+  "zoning_change_potential": true,
+  "development_zone_risk": "Transit-Oriented Development",
+  "natural_disaster_risk": "High Wildfire Risk"
+}
+This could affect your:
+
+Lead Score
+
+Buyer targeting
+
+Deal priority
+
