@@ -253,6 +253,9 @@ export type InsertAIInteraction = typeof aiInteractions.$inferInsert;
 export type PDFBinder = typeof pdfBinders.$inferSelect;
 export type InsertPDFBinder = typeof pdfBinders.$inferInsert;
 
+export type Activity = typeof activities.$inferSelect;
+export type InsertActivity = typeof activities.$inferInsert;
+
 // Zod schemas
 export const insertPropertySchema = createInsertSchema(properties);
 export const insertContactSchema = createInsertSchema(contacts);

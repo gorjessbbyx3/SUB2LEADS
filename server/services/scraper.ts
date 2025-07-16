@@ -62,17 +62,21 @@ class ScraperService {
         message: `Successfully scraped ${properties.length} properties from ${source}`,
         propertiesFound: properties.length,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Scraping job error:', error);
 
       // Update job with error
       await storage.updateScrapingJob(job.id, {
         status: 'failed',
         completedAt: new Date(),
-        errorMessage: error.message,
+        errorMessage: error?.message || 'Unknown scraping error',
       });
 
-      throw error;
+      return {
+        success: false,
+        message: `Scraping failed: ${error?.message || 'Unknown error'}`,
+        propertiesFound: 0,
+      };
     }
   }
 
@@ -83,6 +87,16 @@ class ScraperService {
 
       let output = '';
       let errorOutput = '';
+      let isResolved = false;
+
+      // Set timeout for Python scraper execution (5 minutes)
+      const timeout = setTimeout(() => {
+        if (!isResolved) {
+          isResolved = true;
+          pythonProcess.kill('SIGTERM');
+          reject(new Error(`Scraper timeout: ${scriptName} exceeded 5 minute limit`));
+        }
+      }, 300000); // 5 minutes
 
       pythonProcess.stdout.on('data', (data) => {
         output += data.toString();
@@ -93,6 +107,10 @@ class ScraperService {
       });
 
       pythonProcess.on('close', (code) => {
+        if (isResolved) return;
+        isResolved = true;
+        clearTimeout(timeout);
+
         if (code === 0) {
           try {
             // Try to parse JSON output from Python script
@@ -103,7 +121,7 @@ class ScraperService {
               const data = JSON.parse(jsonLine);
               resolve(Array.isArray(data) ? data : [data]);
             } else {
-              // Fallback to mock data if parsing fails
+              console.warn(`No valid JSON output from ${scriptName}`);
               resolve([]);
             }
           } catch (error) {
@@ -111,9 +129,16 @@ class ScraperService {
             resolve([]);
           }
         } else {
-          console.error(`Python script ${scriptName} failed:`, errorOutput);
-          reject(new Error(`Script failed with code ${code}: ${errorOutput}`));
+          console.error(`Python script ${scriptName} failed with exit code ${code}:`, errorOutput);
+          reject(new Error(`Script failed with code ${code}: ${errorOutput.slice(0, 500)}`));
         }
+      });
+
+      pythonProcess.on('error', (error) => {
+        if (isResolved) return;
+        isResolved = true;
+        clearTimeout(timeout);
+        reject(new Error(`Failed to start Python script ${scriptName}: ${error.message}`));
       });
     });
   }

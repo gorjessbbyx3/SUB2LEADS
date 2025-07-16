@@ -27,6 +27,8 @@ import {
   type InsertAIInteraction,
   type PDFBinder,
   type InsertPDFBinder,
+  type Activity,
+  type InsertActivity,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, gte, lte, count, sql } from "drizzle-orm";
@@ -98,21 +100,10 @@ export interface IStorage {
   getPDFBinders(propertyId: number): Promise<PDFBinder[]>;
 
   // Activity operations
-  createActivity(data: {
-    leadId?: number;
-    propertyId?: number;
-    userId: string;
-    type: string;
-    title: string;
-    description?: string;
-    metadata?: string;
-  }): Promise<any>; // Type any because activities schema is not defined
-
-  getActivitiesByLead(leadId: number, limit?: number): Promise<any>; // Type any because activities schema is not defined
-
-  getActivitiesByProperty(propertyId: number, limit?: number): Promise<any>; // Type any because activities schema is not defined
-
-  getRecentActivities(userId: string, limit?: number): Promise<any>; // Type any because activities schema is not defined
+  createActivity(data: InsertActivity): Promise<Activity>;
+  getActivitiesByLead(leadId: number, limit?: number): Promise<Activity[]>;
+  getActivitiesByProperty(propertyId: number, limit?: number): Promise<Activity[]>;
+  getRecentActivities(userId: string, limit?: number): Promise<Activity[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -418,22 +409,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Activities for CRM Timeline
-  async createActivity(data: {
-    leadId?: number;
-    propertyId?: number;
-    userId: string;
-    type: string;
-    title: string;
-    description?: string;
-    metadata?: string;
-  }) {
-    // Assuming 'activities' table exists in your database
+  async createActivity(data: InsertActivity): Promise<Activity> {
     const [activity] = await db.insert(activities).values(data).returning();
     return activity;
   }
 
-  async getActivitiesByLead(leadId: number, limit = 100) {
-    return db
+  async getActivitiesByLead(leadId: number, limit = 100): Promise<Activity[]> {
+    return await db
       .select()
       .from(activities)
       .where(eq(activities.leadId, leadId))
@@ -441,8 +423,8 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async getActivitiesByProperty(propertyId: number, limit = 100) {
-    return db
+  async getActivitiesByProperty(propertyId: number, limit = 100): Promise<Activity[]> {
+    return await db
       .select()
       .from(activities)
       .where(eq(activities.propertyId, propertyId))
@@ -450,8 +432,8 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async getRecentActivities(userId: string, limit = 50) {
-    return db
+  async getRecentActivities(userId: string, limit = 50): Promise<Activity[]> {
+    return await db
       .select()
       .from(activities)
       .where(eq(activities.userId, userId))

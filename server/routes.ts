@@ -141,14 +141,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/leads/:id", isAuthenticated, async (req, res) => {
     try {
       const leadId = parseInt(req.params.id);
-      const lead = await storage.updateLead(leadId, req.body);
+      const updates = req.body;
+
+      // Input validation
+      if (!leadId || !Number.isInteger(leadId)) {
+        return res.status(400).json({ message: "Valid lead ID is required" });
+      }
+
+      // Add timestamp for status changes
+      if (updates.status) {
+        updates.lastStatusChange = new Date();
+      }
+
+      const lead = await storage.updateLead(leadId, updates);
       if (!lead) {
         return res.status(404).json({ message: "Lead not found" });
       }
+      
       res.json(lead);
     } catch (error) {
       console.error("Error updating lead:", error);
-      res.status(500).json({ message: "Failed to update lead" });
+      res.status(500).json({ 
+        message: "Failed to update lead",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
@@ -372,23 +388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update lead
-  app.put('/api/leads/:id', async (req, res) => {
-    try {
-      const leadId = parseInt(req.params.id);
-      const updates = req.body;
 
-      // Add timestamp for status changes
-      if (updates.status) {
-        updates.lastStatusChange = new Date();
-      }
-
-      const lead = await storage.updateLead(leadId, updates);
-      res.json(lead);
-    } catch (error) {
-      console.error('Lead update error:', error);
-      res.status(500).json({ error: 'Failed to update lead' });
-    }
-  });
 
   // Generate mailto link for lead
   app.post('/api/leads/:id/generate-mailto', async (req, res) => {

@@ -90,25 +90,36 @@ export class ContactEnrichmentService {
     }
   }
 
-  async batchEnrichContacts() {
+
+
+  async batchEnrichContacts(): Promise<{ processed: number; failed: number }> {
     try {
-      // Find contacts that need enrichment
-      const allProperties = await storage.getProperties({ limit: 1000 });
-      
-      for (const property of allProperties) {
-        const contacts = await storage.getContactsByProperty(property.id);
-        
-        for (const contact of contacts) {
-          if (contact.enrichmentStatus === 'pending' || !contact.enrichmentStatus) {
-            // Add delay to avoid rate limiting
-            setTimeout(() => {
-              this.enrichContact(contact.id);
-            }, Math.random() * 5000);
+      // Get contacts that need enrichment (no enrichment status or failed status)
+      const contactsToEnrich = await storage.getProperties({ limit: 100 })
+        .then(properties => properties.flatMap(p => p.contacts || []))
+        .catch(() => []);
+
+      let processed = 0;
+      let failed = 0;
+
+      for (const contact of contactsToEnrich) {
+        if (!contact.enrichmentStatus || contact.enrichmentStatus === 'failed') {
+          try {
+            await this.enrichContact(contact.id);
+            processed++;
+          } catch (error) {
+            console.error(`Failed to enrich contact ${contact.id}:`, error);
+            failed++;
           }
+          // Add delay to prevent overwhelming external APIs
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
+
+      return { processed, failed };
     } catch (error) {
-      console.error('Error in batch contact enrichment:', error);
+      console.error('Batch enrichment error:', error);
+      return { processed: 0, failed: 0 };
     }
   }
 }
