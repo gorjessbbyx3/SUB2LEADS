@@ -1,0 +1,101 @@
+✅ CLEAN, REAL-DATA-ONLY IMPLEMENTATION PLAN
+🔧 1. Supabase Schema: Investors Table
+sql
+Copy
+Edit
+ALTER TABLE investors
+ADD COLUMN preferred_strategy TEXT DEFAULT 'Unknown',
+ADD COLUMN background_report TEXT DEFAULT 'No data available';
+⚙️ 2. Inngest Job: Detect Investor Strategy (Real AI via Grok)
+Trigger: When a lead is created with an investor attached
+Process: Analyze the real submitted lead data
+Returns: Only Grok-based AI result or “Unknown” (no guessing)
+
+ts
+Copy
+Edit
+// inngest/functions/investorDetectStrategy.ts
+import { inngest } from "@/inngest/client"
+import { getLeadWithInvestor, updateInvestorStrategy } from "@/lib/db"
+import { askGrok } from "@/lib/grok"
+
+export const detectInvestorStrategy = inngest.createFunction(
+  { id: "investor-strategy-ai" },
+  { event: "lead/created" },
+  async ({ event }) => {
+    const { lead, investor } = await getLeadWithInvestor(event.data.leadId)
+
+    const prompt = `
+A real estate investor submitted a lead with the following details:
+- Purchase Price: ${lead.price}
+- After Repair Value (ARV): ${lead.arv}
+- Property Condition: ${lead.condition}
+- Uploaded Contract Type: ${lead.contractType || "None"}
+- Notes: ${lead.notes || "None"}
+
+Based on these facts, what is the investor’s likely acquisition strategy?
+Respond with one of: fix_and_flip, buy_and_hold, wholesale, subject_to, owner_occupied.
+If unsure, respond with: Unknown.
+`.trim()
+
+    const strategy = await askGrok(prompt)
+    await updateInvestorStrategy(investor.id, strategy || "Unknown")
+    return { investorId: investor.id, strategy }
+  }
+)
+⚙️ 3. Inngest Job: Run Background Report (Only Real Data)
+Trigger: investor/created
+Rules:
+
+Try matching known public sources
+
+If no info is found, return only "No data available" — no assumptions
+
+ts
+Copy
+Edit
+// inngest/functions/investorBackgroundCheck.ts
+import { inngest } from "@/inngest/client"
+import { getInvestorDetails, updateInvestorBackground } from "@/lib/db"
+import { searchPublicInvestorInfo } from "@/lib/search"
+
+export const runInvestorBackgroundCheck = inngest.createFunction(
+  { id: "real-investor-background" },
+  { event: "investor/created" },
+  async ({ event }) => {
+    const investor = await getInvestorDetails(event.data.investorId)
+
+    const report = await searchPublicInvestorInfo({
+      email: investor.email,
+      phone: investor.phone,
+      name: investor.name,
+    })
+
+    await updateInvestorBackground(investor.id, report || "No data available")
+    return { investorId: investor.id, reportFound: !!report }
+  }
+)
+🔎 4. searchPublicInvestorInfo() (Real Data Only Stub)
+You’ll integrate this with tools like:
+
+Clearbit (email/phone-based enrichment)
+
+Apollo.io (B2B lead lookup)
+
+Facebook/Craigslist scraping
+
+Any Hawaii REI group data
+
+ts
+Copy
+Edit
+// lib/search.ts
+export async function searchPublicInvestorInfo({ email, phone, name }) {
+  // Placeholder for real data sources only
+  // Implement Clearbit, Facebook group scraping, etc. here
+  return null // if nothing is found
+}
+✅ Strict Fallback Rule:
+❌ No AI-guessing
+❌ No mocked assumptions
+✅ Only "Unknown" or "No data available" if Grok or real s
