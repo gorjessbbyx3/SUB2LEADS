@@ -7,6 +7,7 @@ import { matchingService } from './services/matchingService';
 import { schedulerService } from './services/scheduler';
 import { scraperService } from './services/scraper';
 import { aiService } from './services/aiService';
+import { grokService } from './services/grokService';
 import { contactEnrichmentService } from './services/contactEnrichment';
 import { PropertyPDFGenerator } from './services/pdfGenerator';
 import { validateRequest, validateQuery, rateLimit } from './middleware/validation';
@@ -214,6 +215,68 @@ export async function registerRoutes(app: Express) {
     } catch (error) {
       console.error("Error handling AI chat:", error);
       res.status(500).json({ error: "Failed to process chat message" });
+    }
+  });
+
+  // Grok AI Analysis routes
+  app.post("/api/grok/analyze-property/:id", isAuthenticated, rateLimit(60000, 5), async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      const property = await storage.getProperty(propertyId);
+      
+      if (!property) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      const analysis = await grokService.analyzePropertyMarket(property);
+      res.json({ analysis });
+    } catch (error) {
+      console.error("Error analyzing property with Grok:", error);
+      res.status(500).json({ error: "Failed to analyze property" });
+    }
+  });
+
+  app.get("/api/grok/market-trends", isAuthenticated, rateLimit(300000, 2), async (req, res) => {
+    try {
+      const analysis = await grokService.predictMarketTrends();
+      res.json({ analysis });
+    } catch (error) {
+      console.error("Error getting market trends from Grok:", error);
+      res.status(500).json({ error: "Failed to get market trends" });
+    }
+  });
+
+  app.post("/api/grok/investor-match/:id", isAuthenticated, rateLimit(60000, 5), async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      const property = await storage.getProperty(propertyId);
+      
+      if (!property) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      const user = req.user as any;
+      const investors = await storage.getInvestors(user?.claims?.sub, { limit: 100 });
+      
+      const analysis = await grokService.analyzeInvestorMatch(property, investors);
+      res.json({ analysis });
+    } catch (error) {
+      console.error("Error analyzing investor matches with Grok:", error);
+      res.status(500).json({ error: "Failed to analyze investor matches" });
+    }
+  });
+
+  app.get("/api/grok/deal-flow", isAuthenticated, rateLimit(300000, 2), async (req, res) => {
+    try {
+      const user = req.user as any;
+      const properties = await storage.getProperties({ limit: 1000 });
+      const leads = await storage.getLeads({ userId: user?.claims?.sub, limit: 1000 });
+      
+      const analysis = await grokService.analyzeDealFlow(properties, leads);
+      res.json({ analysis });
+    } catch (error) {
+      console.error("Error analyzing deal flow with Grok:", error);
+      res.status(500).json({ error: "Failed to analyze deal flow" });
     }
   });
 

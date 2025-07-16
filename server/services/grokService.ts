@@ -1,34 +1,31 @@
 
-import { Grok } from '@xai/grok-sdk';
+import { xai } from '@ai-sdk/xai';
+import { generateText } from 'ai';
 import { storage } from '../storage';
 import type { Property, Contact, Lead } from '@shared/schema';
 
 class GrokService {
-  private grok: Grok | null = null;
+  private isConfigured: boolean = false;
 
   constructor() {
-    if (process.env.GROK_API_KEY) {
-      this.grok = new Grok({
-        apiKey: process.env.GROK_API_KEY,
-      });
-    }
+    this.isConfigured = !!process.env.XAI_API_KEY;
   }
 
   private getFallbackResponse(type: string): string {
     switch (type) {
       case 'analysis':
-        return 'Grok AI analysis unavailable - API key required for detailed market insights.';
+        return 'Grok AI analysis unavailable - XAI_API_KEY required for detailed market insights.';
       case 'prediction':
         return 'Market prediction requires Grok AI configuration.';
       case 'summary':
-        return 'Advanced property analysis unavailable - Grok API key required.';
+        return 'Advanced property analysis unavailable - XAI_API_KEY required.';
       default:
-        return 'Grok AI functionality requires API key configuration.';
+        return 'Grok AI functionality requires XAI_API_KEY configuration.';
     }
   }
 
   async analyzePropertyMarket(property: Property): Promise<string> {
-    if (!this.grok) {
+    if (!this.isConfigured) {
       return this.getFallbackResponse('analysis');
     }
 
@@ -53,17 +50,14 @@ Provide a comprehensive analysis including:
 
 Keep analysis under 300 words but detailed.`;
 
-      const completion = await this.grok.chat.completions.create({
-        model: "grok-beta",
-        messages: [
-          { role: "system", content: "You are a Hawaii real estate investment expert with access to current market data. Provide detailed, actionable analysis." },
-          { role: "user", content: prompt }
-        ],
-        max_tokens: 500,
+      const { text } = await generateText({
+        model: xai('grok-2-1212'),
+        prompt,
+        maxTokens: 500,
         temperature: 0.3,
       });
 
-      return completion.choices[0].message.content || this.getFallbackResponse('analysis');
+      return text || this.getFallbackResponse('analysis');
     } catch (error) {
       console.error('Grok property analysis error:', error);
       return this.getFallbackResponse('analysis');
@@ -71,7 +65,7 @@ Keep analysis under 300 words but detailed.`;
   }
 
   async predictMarketTrends(): Promise<string> {
-    if (!this.grok) {
+    if (!this.isConfigured) {
       return this.getFallbackResponse('prediction');
     }
 
@@ -88,17 +82,14 @@ Focus on:
 
 Provide actionable insights for real estate investors in Hawaii.`;
 
-      const completion = await this.grok.chat.completions.create({
-        model: "grok-beta",
-        messages: [
-          { role: "system", content: "You are a Hawaii real estate market analyst with access to real-time data. Provide evidence-based predictions." },
-          { role: "user", content: prompt }
-        ],
-        max_tokens: 600,
+      const { text } = await generateText({
+        model: xai('grok-2-1212'),
+        prompt,
+        maxTokens: 600,
         temperature: 0.4,
       });
 
-      return completion.choices[0].message.content || this.getFallbackResponse('prediction');
+      return text || this.getFallbackResponse('prediction');
     } catch (error) {
       console.error('Grok market prediction error:', error);
       return this.getFallbackResponse('prediction');
@@ -106,13 +97,13 @@ Provide actionable insights for real estate investors in Hawaii.`;
   }
 
   async analyzeInvestorMatch(property: Property, investors: any[]): Promise<string> {
-    if (!this.grok) {
-      return 'Investor matching analysis requires Grok AI configuration.';
+    if (!this.isConfigured) {
+      return 'Investor matching analysis requires XAI_API_KEY configuration.';
     }
 
     try {
       const investorSummary = investors.map(inv => 
-        `${inv.name}: Budget ${inv.budget}, Strategy: ${inv.strategy}, Location: ${inv.preferredLocation || 'Any'}`
+        `${inv.name}: Budget ${inv.budget || 'Unknown'}, Strategy: ${inv.strategy || 'Unknown'}, Location: ${inv.preferredLocation || 'Any'}`
       ).join('\n');
 
       const prompt = `Analyze the best investor matches for this Hawaii property:
@@ -135,17 +126,14 @@ Provide:
 
 Keep analysis concise but detailed.`;
 
-      const completion = await this.grok.chat.completions.create({
-        model: "grok-beta",
-        messages: [
-          { role: "system", content: "You are a real estate investment matching expert. Analyze compatibility between properties and investors." },
-          { role: "user", content: prompt }
-        ],
-        max_tokens: 400,
+      const { text } = await generateText({
+        model: xai('grok-2-1212'),
+        prompt,
+        maxTokens: 400,
         temperature: 0.3,
       });
 
-      return completion.choices[0].message.content || 'Unable to analyze investor matches.';
+      return text || 'Unable to analyze investor matches.';
     } catch (error) {
       console.error('Grok investor matching error:', error);
       return 'Error analyzing investor matches.';
@@ -153,8 +141,8 @@ Keep analysis concise but detailed.`;
   }
 
   async analyzeDealFlow(properties: Property[], leads: Lead[]): Promise<string> {
-    if (!this.grok) {
-      return 'Deal flow analysis requires Grok AI configuration.';
+    if (!this.isConfigured) {
+      return 'Deal flow analysis requires XAI_API_KEY configuration.';
     }
 
     try {
@@ -179,17 +167,14 @@ Provide analysis on:
 
 Focus on actionable insights for improving deal flow.`;
 
-      const completion = await this.grok.chat.completions.create({
-        model: "grok-beta",
-        messages: [
-          { role: "system", content: "You are a real estate deal flow analyst. Provide strategic insights for optimizing investment pipelines." },
-          { role: "user", content: prompt }
-        ],
-        max_tokens: 500,
+      const { text } = await generateText({
+        model: xai('grok-2-1212'),
+        prompt,
+        maxTokens: 500,
         temperature: 0.4,
       });
 
-      return completion.choices[0].message.content || 'Unable to analyze deal flow.';
+      return text || 'Unable to analyze deal flow.';
     } catch (error) {
       console.error('Grok deal flow analysis error:', error);
       return 'Error analyzing deal flow.';
