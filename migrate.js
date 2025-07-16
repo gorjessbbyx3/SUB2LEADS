@@ -1,5 +1,5 @@
 
-const { Pool } = require('@neondatabase/serverless');
+import { Pool } from '@neondatabase/serverless';
 
 async function runMigration() {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });

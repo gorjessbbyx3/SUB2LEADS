@@ -288,3 +288,147 @@ Hawaii Investment Team
 }
 
 export const resendService = ResendService;
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export interface EmailTemplate {
+  subject: string;
+  html: string;
+}
+
+class ResendService {
+  async sendHotLeadAlert(lead: any, buyers: any[]): Promise<void> {
+    const template = this.createHotLeadTemplate(lead);
+
+    for (const buyer of buyers) {
+      try {
+        await resend.emails.send({
+          from: 'Sub2Leads Hawaii <edifyhawaii@gmail.com>',
+          to: buyer.email,
+          subject: template.subject,
+          html: template.html.replace('{{buyer_name}}', buyer.name || 'Investor')
+        });
+
+        console.log(`Hot lead alert sent to ${buyer.email}`);
+      } catch (error) {
+        console.error(`Failed to send alert to ${buyer.email}:`, error);
+      }
+    }
+  }
+
+  async sendMotivationAlert(lead: any): Promise<void> {
+    const template = this.createMotivationAlertTemplate(lead);
+
+    try {
+      await resend.emails.send({
+        from: 'Sub2Leads Hawaii <edifyhawaii@gmail.com>',
+        to: 'edifyhawaii@gmail.com', // Send to yourself
+        subject: template.subject,
+        html: template.html
+      });
+
+      console.log(`Motivation alert sent for lead ${lead.id}`);
+    } catch (error) {
+      console.error(`Failed to send motivation alert:`, error);
+    }
+  }
+
+  async sendFollowUpEmail(lead: any, sequence: string): Promise<void> {
+    const template = this.createFollowUpTemplate(lead, sequence);
+
+    try {
+      await resend.emails.send({
+        from: 'Sub2Leads Hawaii <edifyhawaii@gmail.com>',
+        to: lead.email,
+        subject: template.subject,
+        html: template.html
+      });
+
+      console.log(`Follow-up email sent to lead ${lead.id}`);
+    } catch (error) {
+      console.error(`Failed to send follow-up email:`, error);
+    }
+  }
+
+  private createHotLeadTemplate(lead: any): EmailTemplate {
+    return {
+      subject: `🔥 HOT Hawaii Lead: ${lead.address}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #e74c3c;">🔥 High-Priority Hawaii Lead Alert</h2>
+          
+          <p>Hello {{buyer_name}},</p>
+          
+          <p>A new highly motivated seller has been detected in your target area:</p>
+          
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="margin-top: 0;">${lead.address}</h3>
+            <p><strong>Motivation Score:</strong> ${lead.motivation_score}/100</p>
+            <p><strong>AI Analysis:</strong> ${lead.motivation_reason}</p>
+            <p><strong>Island:</strong> ${lead.island || 'Oahu'}</p>
+            <p><strong>Property Type:</strong> ${lead.type || 'Unknown'}</p>
+            ${lead.str_score ? `<p><strong>STR Potential:</strong> ${lead.str_score}/100</p>` : ''}
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://sub2leads.replit.app/leads/${lead.id}" 
+               style="background: #3498db; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              View Full Lead Details →
+            </a>
+          </div>
+          
+          <p><small>This alert was generated automatically based on our AI analysis of Hawaii property data.</small></p>
+        </div>
+      `
+    };
+  }
+
+  private createMotivationAlertTemplate(lead: any): EmailTemplate {
+    return {
+      subject: `High Motivation Alert: ${lead.address}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #f39c12;">High Motivation Seller Detected</h2>
+          
+          <div style="background: #fff3cd; padding: 15px; border-radius: 6px; margin: 20px 0;">
+            <p><strong>Property:</strong> ${lead.address}</p>
+            <p><strong>Motivation Score:</strong> ${lead.motivation_score}/100</p>
+            <p><strong>Analysis:</strong> ${lead.motivation_reason}</p>
+            <p><strong>Recommended Action:</strong> Contact within 24 hours</p>
+          </div>
+          
+          <a href="https://sub2leads.replit.app/leads/${lead.id}">View Lead →</a>
+        </div>
+      `
+    };
+  }
+
+  private createFollowUpTemplate(lead: any, sequence: string): EmailTemplate {
+    const templates = {
+      day3: {
+        subject: `Following up on your Hawaii property - ${lead.address}`,
+        html: `
+          <p>Hi ${lead.name || 'there'},</p>
+          <p>I wanted to follow up regarding your property at ${lead.address}. We specialize in helping Hawaii property owners with quick, hassle-free sales.</p>
+          <p>Would you be interested in a free, no-obligation consultation?</p>
+          <p>Best regards,<br>Sub2Leads Hawaii Team</p>
+        `
+      },
+      week1: {
+        subject: `Quick question about ${lead.address}`,
+        html: `
+          <p>Hi ${lead.name || 'there'},</p>
+          <p>I hope you're doing well. I wanted to check in about your property at ${lead.address}.</p>
+          <p>If you're still considering your options, we'd love to present you with a fair cash offer with a flexible closing timeline.</p>
+          <p>Would a quick 10-minute call work for you this week?</p>
+          <p>Best,<br>Sub2Leads Hawaii</p>
+        `
+      }
+    };
+
+    return templates[sequence as keyof typeof templates] || templates.day3;
+  }
+}
+
+export const resendService = new ResendService();

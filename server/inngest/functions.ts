@@ -51,28 +51,87 @@ export const schedulePropertyScraping = inngest.createFunction(
   }
 );
 
-// NEW: Seller Motivation Predictor
+// NEW: Comprehensive Lead Scoring with XAI Grok
 export const analyzeSellerMotivation = inngest.createFunction(
   { id: "analyze-seller-motivation" },
   { event: "lead/analyze.motivation" },
   async ({ event, step }) => {
     const { leadId } = event.data;
 
-    const motivation = await step.run("predict-motivation", async () => {
-      return await motivationPredictor.predictSellerMotivation(leadId);
+    const analysis = await step.run("grok-motivation-analysis", async () => {
+      const lead = await storage.getLead(leadId);
+      const { grokService } = await import('../services/grokService');
+      
+      const grokAnalysis = await grokService.getLeadMotivationScore(lead);
+      
+      // Update lead with Grok analysis
+      await storage.updateLead(leadId, {
+        motivation_score: grokAnalysis.score,
+        motivation_reason: grokAnalysis.reason,
+        last_xai_updated: new Date().toISOString()
+      });
+
+      return grokAnalysis;
     });
 
-    // If high urgency, trigger immediate follow-up
-    if (motivation.urgencyLevel === 'critical' || motivation.urgencyLevel === 'high') {
-      await step.run("trigger-urgent-followup", async () => {
-        await inngest.send({
-          name: "lead/urgent.followup",
-          data: { leadId, motivationScore: motivation.score }
-        });
+    // If high motivation, trigger alerts
+    if (analysis.score >= 70) {
+      await step.run("send-motivation-alerts", async () => {
+        const { resendService } = await import('../services/resendService');
+        const lead = await storage.getLead(leadId);
+        
+        // Send alert to yourself
+        await resendService.sendMotivationAlert(lead);
+        
+        // Get interested buyers and send hot lead alerts
+        const buyers = await storage.getInvestors({ limit: 10 });
+        if (buyers.length > 0) {
+          await resendService.sendHotLeadAlert(lead, buyers);
+        }
       });
     }
 
-    return { leadId, motivationScore: motivation.score, urgency: motivation.urgencyLevel };
+    return { leadId, score: analysis.score, reason: analysis.reason };
+  }
+);
+
+// NEW: Comprehensive Lead Creation Workflow
+export const processNewLead = inngest.createFunction(
+  { id: "process-new-lead" },
+  { event: "lead/created" },
+  async ({ event, step }) => {
+    const { leadId } = event.data;
+
+    // Step 1: AI Motivation Analysis
+    const motivationAnalysis = await step.run("analyze-motivation", async () => {
+      await inngest.send({
+        name: "lead/analyze.motivation",
+        data: { leadId }
+      });
+      return { triggered: true };
+    });
+
+    // Step 2: STR Potential Analysis
+    const strAnalysis = await step.run("analyze-str-potential", async () => {
+      const lead = await storage.getLead(leadId);
+      if (lead.propertyId) {
+        await inngest.send({
+          name: "property/analyze.str",
+          data: { propertyId: lead.propertyId }
+        });
+      }
+      return { triggered: true };
+    });
+
+    // Step 3: Advanced Lead Scoring
+    await step.run("calculate-lead-score", async () => {
+      await inngest.send({
+        name: "lead/score.advanced",
+        data: { leadId }
+      });
+    });
+
+    return { leadId, processed: true };
   }
 );
 
@@ -84,7 +143,17 @@ export const analyzePropertySTR = inngest.createFunction(
     const { propertyId } = event.data;
 
     const analysis = await step.run("perform-str-analysis", async () => {
-      return await strAnalyzer.analyzeProperty(propertyId);
+      const { strAnalyzer } = await import('../services/strAnalyzer');
+      const strAnalysis = await strAnalyzer.analyzeProperty(propertyId);
+      
+      // Update property with STR data
+      await storage.updateProperty(propertyId, {
+        str_score: strAnalysis.score,
+        str_income_estimate: strAnalysis.projectedAnnualIncome,
+        roi_estimate: strAnalysis.projectedAnnualIncome * 0.1 // Simplified ROI
+      });
+
+      return strAnalysis;
     });
 
     return { propertyId, strScore: analysis.score, projectedIncome: analysis.projectedAnnualIncome };

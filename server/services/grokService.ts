@@ -203,3 +203,125 @@ Focus on actionable insights for improving deal flow.`;
 }
 
 export const grokService = new GrokService();
+import { xai } from '@ai-sdk/xai';
+import { generateText } from 'ai';
+
+export interface GrokAnalysisResponse {
+  score: number;
+  reason: string;
+  confidence: number;
+}
+
+class GrokService {
+  private model = xai('grok-beta');
+
+  async analyzeWithGrok(prompt: string, analysisType: string): Promise<string> {
+    try {
+      const { text } = await generateText({
+        model: this.model,
+        prompt,
+        maxTokens: 500,
+        temperature: 0.3,
+      });
+
+      return text;
+    } catch (error) {
+      console.error(`Grok ${analysisType} analysis failed:`, error);
+      throw error;
+    }
+  }
+
+  async getLeadMotivationScore(lead: any): Promise<GrokAnalysisResponse> {
+    const prompt = `
+Given the following Hawaii property details, predict how motivated the seller is to sell (0-100 scale):
+
+Address: ${lead.address}
+Time Owned: ${lead.years_owned || 'Unknown'} years
+Tax Delinquent: ${lead.tax_delinquent ? "Yes" : "No"}
+Owner Type: ${lead.owner_type || 'Unknown'}
+Absentee Owner: ${lead.absentee_owner ? "Yes" : "No"}
+Foreclosure Notice: ${lead.foreclosure_notice ? "Yes" : "No"}
+Property Condition: ${lead.property_condition || 'Unknown'}
+Island: ${lead.island || 'Oahu'}
+Neighborhood: ${lead.neighborhood || 'Unknown'}
+
+Consider Hawaii-specific factors:
+- Distance from mainland (absentee challenges)
+- Tourist rental potential
+- Natural disaster risks (hurricanes, volcanos)
+- Cultural significance of land
+- Local economic conditions
+- Tax burden on out-of-state owners
+
+Output format (JSON):
+{
+  "score": [number 0-100],
+  "reason": "[one clear sentence explaining the motivation]",
+  "confidence": [number 0-100]
+}`;
+
+    try {
+      const response = await this.analyzeWithGrok(prompt, 'motivation_scoring');
+      const analysis = JSON.parse(response);
+      
+      return {
+        score: Math.min(100, Math.max(0, analysis.score || 50)),
+        reason: analysis.reason || 'Analysis unavailable',
+        confidence: Math.min(100, Math.max(0, analysis.confidence || 60))
+      };
+    } catch (error) {
+      console.error('Grok motivation analysis failed:', error);
+      return {
+        score: 50,
+        reason: 'Unable to analyze - manual review required',
+        confidence: 30
+      };
+    }
+  }
+
+  async analyzeSTRPotential(property: any): Promise<GrokAnalysisResponse> {
+    const prompt = `
+Analyze this Hawaii property for Short-Term Rental (STR) potential:
+
+Address: ${property.address}
+Property Type: ${property.type || 'Unknown'}
+Island: ${property.island || 'Oahu'}
+Neighborhood: ${property.neighborhood || 'Unknown'}
+
+Consider Hawaii STR factors:
+- Tourist destination appeal
+- Local STR regulations and restrictions
+- Seasonal demand patterns
+- Competition from hotels/resorts
+- Transportation accessibility
+- Beach/attraction proximity
+- Permit availability
+
+Output format (JSON):
+{
+  "score": [number 0-100],
+  "reason": "[one sentence about STR viability]",
+  "confidence": [number 0-100]
+}`;
+
+    try {
+      const response = await this.analyzeWithGrok(prompt, 'str_analysis');
+      const analysis = JSON.parse(response);
+      
+      return {
+        score: Math.min(100, Math.max(0, analysis.score || 50)),
+        reason: analysis.reason || 'STR analysis unavailable',
+        confidence: Math.min(100, Math.max(0, analysis.confidence || 60))
+      };
+    } catch (error) {
+      console.error('Grok STR analysis failed:', error);
+      return {
+        score: 40,
+        reason: 'STR potential requires manual evaluation',
+        confidence: 30
+      };
+    }
+  }
+}
+
+export const grokService = new GrokService();
