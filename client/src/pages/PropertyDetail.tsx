@@ -216,9 +216,10 @@ export default function PropertyDetail() {
               <Button
                 onClick={() => generatePdfMutation.mutate()}
                 disabled={generatePdfMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 <Download className="h-4 w-4 mr-2" />
-                {generatePdfMutation.isPending ? 'Generating...' : 'Download Binder'}
+                {generatePdfMutation.isPending ? 'Creating Presentation...' : 'Generate Investor Presentation'}
               </Button>
             </div>
           </div>

@@ -85,7 +85,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Contacts API
   app.get("/api/properties/:propertyId/contacts", isAuthenticated, async (req, res) => {
     try {
-      const contacts = await storage.getContactsByProperty(parseInt(req.params.propertyId));
+      const propertyId = parseInt(req.params.propertyId);
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ message: "Invalid property ID" });
+      }
+      const contacts = await storage.getContactsByProperty(propertyId);
       res.json(contacts);
     } catch (error) {
       console.error("Error fetching contacts:", error);
@@ -773,6 +777,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate enhanced PDF presentation for property
+  app.post('/api/properties/:id/generate-pdf', async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      const property = await storage.getProperty(propertyId);
+
+      if (!property) {
+        return res.status(404).json({ message: 'Property not found' });
+      }
+
+      // Generate professional investor presentation
+      const pdfPath = await pdfGeneratorService.generatePropertyBinder(property, req.user.id);
+
+      // Calculate file size (mock for now)
+      const fs = await import('fs/promises');
+      const stats = await fs.stat(`./pdfs/${pdfPath.split('/').pop()}`);
+
+      // Save PDF record
+      await storage.savePDFBinder({
+        propertyId,
+        userId: req.user.id,
+        fileName: `investor-presentation-${propertyId}.pdf`,
+        filePath: pdfPath,
+        fileSize: stats.size
+      });
+
+      res.json({ 
+        message: 'Professional investor presentation generated successfully',
+        pdfPath,
+        downloadUrl: pdfPath,
+        fileSize: stats.size,
+        fileName: `investor-presentation-${propertyId}.pdf`
+      });
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      res.status(500).json({ message: 'Failed to generate investor presentation PDF' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
+```
+This code adds an enhanced PDF generation endpoint, creating professional investor presentations for properties.
