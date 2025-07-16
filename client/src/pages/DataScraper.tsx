@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,7 +47,7 @@ export default function DataScraper() {
 
   const { data: scrapingStats } = useQuery({
     queryKey: ['scraping-stats'],
-    queryFn: () => apiRequest('/api/scraper/stats'),
+    queryFn: () => apiRequest('GET', '/api/scraper/stats'),
   });
 
   const runScraperMutation = useMutation({
@@ -160,13 +159,13 @@ export default function DataScraper() {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
-      
+
       <main className="flex-1 ml-64 overflow-y-auto">
         <Header 
           title="Data Scraper" 
           subtitle="Automated property data collection from public sources"
         />
-        
+
         <div className="p-6 space-y-6">
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -183,7 +182,7 @@ export default function DataScraper() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -197,7 +196,7 @@ export default function DataScraper() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -211,7 +210,7 @@ export default function DataScraper() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -256,7 +255,7 @@ export default function DataScraper() {
                       )}
                       {runAllScrapersMutation.isPending ? 'Running All...' : 'Run All Scrapers'}
                     </Button>
-                    
+
                     <Button variant="outline" disabled>
                       <Download className="h-4 w-4 mr-2" />
                       Export Results
@@ -270,7 +269,7 @@ export default function DataScraper() {
                 {sources.map((source) => {
                   const isRunning = activeSource === source.id || runAllScrapersMutation.isPending;
                   const IconComponent = source.icon;
-                  
+
                   return (
                     <Card key={source.id}>
                       <CardContent className="p-6">
@@ -295,7 +294,7 @@ export default function DataScraper() {
                               </div>
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center gap-2">
                             <Button
                               onClick={() => runScraperMutation.mutate(source.id)}
@@ -348,7 +347,7 @@ export default function DataScraper() {
                               </p>
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center gap-4">
                             <div className="text-right">
                               <p className="text-sm font-medium">
@@ -365,7 +364,7 @@ export default function DataScraper() {
                                 </p>
                               )}
                             </div>
-                            
+
                             <Badge 
                               variant="outline" 
                               className={`${getStatusColor(job.status)} text-white border-none`}
@@ -392,3 +391,4 @@ export default function DataScraper() {
     </div>
   );
 }
+```Fixed apiRequest parameter order for scraper stats.

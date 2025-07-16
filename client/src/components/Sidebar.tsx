@@ -33,13 +33,13 @@ export function Sidebar() {
         <h1 className="text-xl font-bold text-gray-900 font-heading">Hawaii CRM</h1>
         <p className="text-sm text-gray-500 mt-1">Lead Generation Platform</p>
       </div>
-      
+
       <nav className="mt-6">
         <ul className="space-y-2 px-4">
           {navigation.map((item) => {
             const isActive = location === item.href;
             const Icon = item.icon;
-            
+
             return (
               <li key={item.name}>
                 <Link href={item.href} className={cn(
@@ -74,7 +74,7 @@ export function Sidebar() {
             <p className="text-xs text-gray-500">Real Estate Agent</p>
           </div>
         </div>
-        
+
         <Button 
           variant="ghost" 
           size="sm" 

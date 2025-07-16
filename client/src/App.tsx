@@ -3,12 +3,14 @@ import { Switch, Route } from "wouter";
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { queryClient } from '@/lib/queryClient';
-import Dashboard from '@/pages/Dashboard';
-import Properties from '@/pages/Properties';
-import PropertyDetail from '@/pages/PropertyDetail';
-import LeadManagement from '@/pages/LeadManagement';
+import Dashboard from "@/pages/Dashboard";
+import Properties from "@/pages/Properties";
+import PropertyDetail from "@/pages/PropertyDetail";
+import LeadManagement from "@/pages/LeadManagement";
 import DataScraper from "@/pages/DataScraper";
-import NotFound from '@/pages/not-found';
+import Outreach from "@/pages/Outreach";
+import Landing from "@/pages/Landing";
+import NotFound from "@/pages/not-found";
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, login } = useAuth();
@@ -47,6 +49,7 @@ function AppRoutes() {
         <Route path="/properties/:id" component={PropertyDetail} />
         <Route path="/leads" component={LeadManagement} />
         <Route path="/scraper" component={DataScraper} />
+        <Route path="/outreach" component={Outreach} />
         <Route component={NotFound} />
       </Switch>
       <Toaster />
