@@ -22,6 +22,7 @@ import {
   ExternalLink,
   Bot
 } from "lucide-react";
+import { GrokAnalysis } from '@/components/GrokAnalysis';
 
 interface PropertyModalProps {
   propertyId: number | null;
@@ -120,10 +121,11 @@ export function PropertyModal({ propertyId, isOpen, onClose }: PropertyModalProp
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="contact">Contact</TabsTrigger>
             <TabsTrigger value="analysis">Analysis</TabsTrigger>
+            <TabsTrigger value="grok">Grok AI</TabsTrigger>
             <TabsTrigger value="actions">Actions</TabsTrigger>
           </TabsList>
 
@@ -145,7 +147,7 @@ export function PropertyModal({ propertyId, isOpen, onClose }: PropertyModalProp
                     </div>
                   )}
                 </div>
-                
+
                 {mapData?.mapImageUrl && (
                   <div className="bg-gray-100 rounded-lg h-48 flex items-center justify-center">
                     <img 
@@ -235,7 +237,7 @@ export function PropertyModal({ propertyId, isOpen, onClose }: PropertyModalProp
                       <span className="font-medium">{contact.contactScore || 0}% Complete</span>
                     </div>
                   </div>
-                  
+
                   {contact.isLLC && (
                     <div className="bg-blue-50 p-3 rounded-lg">
                       <p className="text-sm text-blue-800">
@@ -334,6 +336,10 @@ export function PropertyModal({ propertyId, isOpen, onClose }: PropertyModalProp
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="grok" className="space-y-4">
+            <GrokAnalysis propertyId={property.id} showAllAnalytics={false} />
           </TabsContent>
 
           <TabsContent value="actions" className="space-y-4">

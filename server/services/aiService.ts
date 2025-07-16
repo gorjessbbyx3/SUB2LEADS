@@ -74,7 +74,7 @@ class AIService {
       Keep responses concise and actionable.${contextData}`;
 
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: process.env.XAI_API_KEY ? "grok-beta" : "gpt-4o",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: message }
@@ -149,7 +149,7 @@ Create an email that:
 Format: Include "Subject: [subject line]" at the top, then the email body.`;
 
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: process.env.XAI_API_KEY ? "grok-beta" : "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 400,
         temperature: 0.7,
@@ -187,7 +187,7 @@ Provide a concise investment analysis covering:
 Keep it under 150 words.`;
 
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: process.env.XAI_API_KEY ? "grok-beta" : "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 300,
         temperature: 0.7,
@@ -223,7 +223,7 @@ Requirements:
 - Clear call to action`;
 
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: process.env.XAI_API_KEY ? "grok-beta" : "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         max_tokens: templateType === 'email' ? 300 : 100,
         temperature: 0.7,
@@ -256,7 +256,7 @@ Consider:
 Keep it under 200 words and actionable.`;
 
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: process.env.XAI_API_KEY ? "grok-beta" : "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 350,
         temperature: 0.7,
