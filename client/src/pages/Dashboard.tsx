@@ -97,17 +97,17 @@ export default function Dashboard() {
     return <DashboardSkeleton />;
   }
 
-  const mockStats: DashboardStats = {
-    totalProperties: stats?.totalProperties || 247,
-    activeLeads: stats?.activeLeads || 89,
-    totalInvestors: stats?.totalInvestors || 156,
-    matchScore: stats?.matchScore || 94,
-    revenue: stats?.revenue || {
+  const mockStats: DashboardStats = stats || {
+    totalProperties: 247,
+    activeLeads: 89,
+    totalInvestors: 156,
+    matchScore: 94,
+    revenue: {
       current: 125000,
       previous: 98000,
       change: 27.6
     },
-    deals: stats?.deals || {
+    deals: {
       pending: 12,
       closed: 8,
       pipeline: 34
@@ -187,10 +187,10 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-blue-100 text-sm font-medium">Total Revenue</p>
-                    <p className="text-3xl font-bold">${((mockStats.revenue.current || 0) / 1000).toFixed(0)}K</p>
+                    <p className="text-3xl font-bold">${(mockStats?.revenue?.current ? (mockStats.revenue.current / 1000).toFixed(0) : '0')}K</p>
                     <div className="flex items-center mt-2">
                       <TrendingUp className="w-4 h-4 mr-1" />
-                      <span className="text-sm">+{mockStats.revenue.change || 0}% from last month</span>
+                      <span className="text-sm text-blue-200">+{mockStats?.revenue?.change || 0}% from last month</span>
                     </div>
                   </div>
                   <DollarSign className="w-12 h-12 text-blue-200" />
