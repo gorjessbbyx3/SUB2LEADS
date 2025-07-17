@@ -247,35 +247,8 @@ class MatchingService {
       const investors = await storage.getInvestors(undefined, { limit: 100 });
 
       if (!properties.length || !investors.length) {
-        // Return mock data if no real data exists
-        return [
-          {
-            leadId: 1,
-            investorId: 1,
-            property: {
-              id: 1,
-              address: "123 Foreclosure Ave, Honolulu, HI 96815",
-              estimatedValue: 650000,
-              daysUntilAuction: 15,
-              priority: "high",
-              propertyType: "Single Family",
-              status: "foreclosure"
-            },
-            investor: {
-              id: 1,
-              name: "Hawaii Cash Buyers LLC",
-              email: "invest@hawaiicash.com",
-              phone: "(808) 555-0123",
-              company: "Hawaii Cash Buyers",
-              strategies: ["Fix & Flip", "Buy & Hold"],
-              preferredIslands: ["Oahu"],
-              minBudget: 400000,
-              maxBudget: 800000
-            },
-            matchScore: 85,
-            matchReasons: ["Location match: Oahu", "Price in range", "Property type alignment", "Auction urgency"]
-          }
-        ];
+        console.log('No properties or investors found in database');
+        return [];
       }
 
       const matches: MatchResult[] = [];
@@ -327,12 +300,32 @@ class MatchingService {
     }
   }
 
-  async getMatchingStats() {
+  async getMatchingStats(): Promise<{
+    totalMatches: number;
+    matchesByInvestor: Record<string, number>;
+    matchesByProperty: Record<string, number>;
+    averageMatchScore: number;
+  }> {
+    const allMatches = await this.getAllMatches();
+
+    const matchesByInvestor: Record<string, number> = {};
+    const matchesByProperty: Record<string, number> = {};
+    let totalScore = 0;
+
+    for (const match of allMatches) {
+      const investorKey = `${match.investor.name} (${match.investor.id})`;
+      const propertyKey = `${match.property.address} (${match.property.id})`;
+
+      matchesByInvestor[investorKey] = (matchesByInvestor[investorKey] || 0) + 1;
+      matchesByProperty[propertyKey] = (matchesByProperty[propertyKey] || 0) + 1;
+      totalScore += match.matchScore;
+    }
+
     return {
-      totalMatches: 15,
-      matchesByInvestor: { "1": 5, "2": 3, "3": 7 },
-      matchesByProperty: { "1": 2, "2": 1, "3": 4 },
-      averageMatchScore: 72
+      totalMatches: allMatches.length,
+      matchesByInvestor,
+      matchesByProperty,
+      averageMatchScore: allMatches.length > 0 ? totalScore / allMatches.length : 0
     };
   }
 

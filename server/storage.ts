@@ -543,7 +543,11 @@ export class DatabaseStorage implements IStorage {
     offset?: number;
   }): Promise<Investor[]> {
     try {
-      const conditions = [eq(investors.userId, userId)];
+      const conditions = [];
+      
+      if (userId) {
+        conditions.push(eq(investors.userId, userId));
+      }
 
       if (filters?.island && filters.island !== 'all') {
         conditions.push(sql`preferred_islands @> ${[filters.island]}`);
