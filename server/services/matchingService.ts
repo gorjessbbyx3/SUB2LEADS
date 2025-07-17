@@ -11,32 +11,104 @@ interface MatchResult {
 }
 
 class MatchingService {
-  async findMatchesForLead(leadId: number): Promise<MatchResult[]> {
-    const lead = await storage.getLead(leadId);
-    if (!lead) return [];
+  async findMatchesForLead(leadId: number): Promise<any[]> {
+    try {
+      const lead = await storage.getLead(leadId);
+      if (!lead) {
+        console.log(`Lead ${leadId} not found`);
+        return [];
+      }
 
-    const property = await storage.getProperty(lead.propertyId);
-    if (!property) return [];
+      const property = await storage.getProperty(lead.propertyId);
+      if (!property) {
+        console.log(`Property ${lead.propertyId} not found for lead ${leadId}`);
+        return [];
+      }
 
-    const investors = await storage.getInvestors({ limit: 1000 });
-    const matches: MatchResult[] = [];
+      const investors = await storage.getInvestors(lead.userId);
 
-    for (const investor of investors) {
-      const matchResult = this.calculateMatch(property, investor);
-      if (matchResult.matchScore > 0) {
-        matches.push({
+      if (!investors || investors.length === 0) {
+        console.log(`No investors found for user ${lead.userId}`);
+        return [];
+      }
+
+      const matches = investors.map(investor => {
+        const score = this.calculateMatchScore(property, investor);
+        const reasons = this.getMatchReasons(property, investor);
+
+        return {
           leadId,
           investorId: investor.id,
-          property,
           investor,
-          matchScore: matchResult.matchScore,
-          matchReasons: matchResult.reasons
-        });
+          matchScore: score,
+          matchReasons: reasons,
+          createdAt: new Date().toISOString()
+        };
+      }).filter(match => match.matchScore >= 30) // Lower threshold for better results
+        .sort((a, b) => b.matchScore - a.matchScore);
+
+      console.log(`Found ${matches.length} matches for lead ${leadId} with property ${property.address}`);
+      return matches;
+    } catch (error) {
+      console.error('Error finding matches for lead:', error);
+      return [];
+    }
+  }
+
+  private getMatchReasons(property: any, investor: any): string[] {
+    const reasons = [];
+
+    // Location matching
+    if (investor.preferredIslands && property.city) {
+      const propertyIsland = this.getIslandFromCity(property.city);
+      if (investor.preferredIslands.includes(propertyIsland)) {
+        reasons.push(`Investor active in ${propertyIsland}`);
       }
     }
 
-    // Sort by match score (highest first)
-    return matches.sort((a, b) => b.matchScore - a.matchScore);
+    // Budget matching
+    if (investor.maxBudget && property.estimatedValue) {
+      if (property.estimatedValue <= investor.maxBudget) {
+        reasons.push('Within investor budget range');
+      }
+    }
+
+    // Property type matching
+    if (investor.propertyTypes && property.propertyType) {
+      if (investor.propertyTypes.includes(property.propertyType)) {
+        reasons.push(`Matches preferred property type: ${property.propertyType}`);
+      }
+    }
+
+    // Strategy matching
+    if (investor.strategies && property.status) {
+      if (property.status === 'foreclosure' && investor.strategies.includes('Fix & Flip')) {
+        reasons.push('Foreclosure property matches fix & flip strategy');
+      }
+      if (property.status === 'distressed' && investor.strategies.includes('Buy & Hold')) {
+        reasons.push('Distressed property good for buy & hold');
+      }
+    }
+
+    if (reasons.length === 0) {
+      reasons.push('General investment criteria match');
+    }
+
+    return reasons;
+  }
+
+  private getIslandFromCity(city: string): string {
+    const cityLower = city.toLowerCase();
+    if (cityLower.includes('honolulu') || cityLower.includes('kapolei') || cityLower.includes('kaneohe')) {
+      return 'Oahu';
+    } else if (cityLower.includes('lahaina') || cityLower.includes('kihei') || cityLower.includes('maui')) {
+      return 'Maui';
+    } else if (cityLower.includes('hilo') || cityLower.includes('kona')) {
+      return 'Big Island';
+    } else if (cityLower.includes('lihue') || cityLower.includes('kauai')) {
+      return 'Kauai';
+    }
+    return 'Oahu'; // Default
   }
 
   async findMatchesForAllLeads(): Promise<MatchResult[]> {

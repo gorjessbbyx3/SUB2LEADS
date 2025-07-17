@@ -575,31 +575,7 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  // AI Chat
-  app.post("/api/ai/chat", async (req, res) => {
-    try {
-      if (!req.user?.id) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      const { message, context } = req.body;
-      const response = await aiService.processQuery(message, context);
-
-      // Store the interaction
-      await storage.createAIInteraction({
-        userId: req.user.id,
-        query: message,
-        response: response.response,
-        suggestions: response.suggestions,
-        context: context || null
-      });
-
-      res.json(response);
-    } catch (error) {
-      console.error("AI chat error:", error);
-      res.status(500).json({ error: "Failed to process AI request" });
-    }
-  });
+  
 
   // Import wholesale listings as leads and find investor matches
   app.post('/api/wholesaler-listings/import', isAuthenticated, async (req, res) => {

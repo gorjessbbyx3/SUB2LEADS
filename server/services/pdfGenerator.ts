@@ -597,6 +597,69 @@ export class PropertyPDFGenerator {
       .rect(x + width/2 - 15, y + height/2 - 30, 30, 20)
       .stroke('#9ca3af');
   }
+
+  async generatePropertyPresentation(property: any, options: any = {}): Promise<Buffer> {
+    try {
+      if (!property || !property.address) {
+        throw new Error('Invalid property data provided');
+      }
+
+      const doc = new PDFDocument({ margin: 50 });
+      const chunks: Buffer[] = [];
+
+      doc.on('data', chunk => chunks.push(chunk));
+
+      // Add comprehensive property information
+      doc.fontSize(20).text('Property Investment Analysis', { align: 'center' });
+      doc.moveDown();
+
+      doc.fontSize(14).text(`Address: ${property.address || 'N/A'}`);
+      doc.text(`Estimated Value: $${property.estimatedValue?.toLocaleString() || 'Not Available'}`);
+      doc.text(`Status: ${property.status || 'Unknown'}`);
+      doc.text(`Priority: ${property.priority || 'Medium'}`);
+
+      if (property.amountOwed) {
+        doc.text(`Amount Owed: $${property.amountOwed.toLocaleString()}`);
+      }
+
+      if (property.auctionDate) {
+        doc.text(`Auction Date: ${new Date(property.auctionDate).toLocaleDateString()}`);
+      }
+
+      doc.moveDown();
+      doc.text('Investment Analysis:', { underline: true });
+      doc.text('This property represents a potential investment opportunity in the Hawaii real estate market.');
+
+      if (options.includeMatches && options.matches && options.matches.length > 0) {
+        doc.moveDown();
+        doc.text('Potential Investor Matches:', { underline: true });
+        options.matches.forEach((match: any, index: number) => {
+          doc.text(`${index + 1}. ${match.name} - ${match.strategy}`);
+        });
+      }
+
+      doc.end();
+
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('PDF generation timeout'));
+        }, 30000); // 30 second timeout
+
+        doc.on('end', () => {
+          clearTimeout(timeout);
+          resolve(Buffer.concat(chunks));
+        });
+
+        doc.on('error', (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        });
+      });
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      throw new Error(`Failed to generate PDF presentation: ${error.message}`);
+    }
+  }
 }
 
 export const pdfGenerator = new PropertyPDFGenerator();
