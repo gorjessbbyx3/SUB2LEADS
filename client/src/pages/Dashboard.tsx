@@ -102,8 +102,16 @@ export default function Dashboard() {
     activeLeads: 89,
     totalInvestors: 156,
     matchScore: 94,
-    revenue: { current: 125000, previous: 98000, change: 27.6 },
-    deals: { pending: 12, closed: 8, pipeline: 34 }
+    revenue: {
+      current: 125000,
+      previous: 98000,
+      change: 27.6
+    },
+    deals: {
+      pending: 12,
+      closed: 8,
+      pipeline: 34
+    }
   };
 
   const mockProperties: Property[] = properties || [
@@ -178,10 +186,10 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-blue-100 text-sm font-medium">Total Revenue</p>
-                    <p className="text-3xl font-bold">${(mockStats.revenue.current / 1000).toFixed(0)}K</p>
+                    <p className="text-3xl font-bold">${((mockStats.revenue?.current || 0) / 1000).toFixed(0)}K</p>
                     <div className="flex items-center mt-2">
                       <TrendingUp className="w-4 h-4 mr-1" />
-                      <span className="text-sm">+{mockStats.revenue.change}% from last month</span>
+                      <span className="text-sm">+{mockStats.revenue?.change || 0}% from last month</span>
                     </div>
                   </div>
                   <DollarSign className="w-12 h-12 text-blue-200" />
