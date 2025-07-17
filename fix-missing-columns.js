@@ -1,12 +1,11 @@
-
 import postgres from 'postgres';
 
 async function fixMissingColumns() {
   const sql = postgres(process.env.DATABASE_URL);
-  
+
   try {
     console.log('Adding missing columns...');
-    
+
     // Add missing columns to properties table
     await sql`
       ALTER TABLE properties 
@@ -29,7 +28,7 @@ async function fixMissingColumns() {
       ADD COLUMN IF NOT EXISTS lead_source TEXT,
       ADD COLUMN IF NOT EXISTS time_found TIMESTAMP;
     `;
-    
+
     // Add missing columns to investors table
     await sql`
       ALTER TABLE investors 
@@ -41,20 +40,20 @@ async function fixMissingColumns() {
       ADD COLUMN IF NOT EXISTS deals_completed INTEGER DEFAULT 0,
       ADD COLUMN IF NOT EXISTS last_contact_date TIMESTAMP;
     `;
-    
+
     // Add missing columns to leads table
     await sql`
       ALTER TABLE leads 
       ADD COLUMN IF NOT EXISTS last_contact_date DATE,
       ADD COLUMN IF NOT EXISTS company TEXT;
     `;
-    
+
     // Add missing columns to contacts table
     await sql`
       ALTER TABLE contacts 
       ADD COLUMN IF NOT EXISTS company TEXT;
     `;
-    
+
     // Update existing investors to have proper default values
     await sql`
       UPDATE investors SET 
@@ -65,7 +64,24 @@ async function fixMissingColumns() {
         deals_completed = COALESCE(deals_completed, 0)
       WHERE max_budget IS NULL OR min_budget IS NULL OR status IS NULL;
     `;
-    
+
+    // Add missing columns to investors table if they don't exist
+    await sql`
+      ALTER TABLE investors 
+      ADD COLUMN IF NOT EXISTS preferred_islands TEXT[] DEFAULT ARRAY['Oahu'],
+      ADD COLUMN IF NOT EXISTS strategies TEXT[] DEFAULT ARRAY['Buy & Hold']
+    `;
+    console.log('✓ Added missing array columns to investors table');
+
+    // Update existing investors to have default values for array columns
+    await sql`
+      UPDATE investors SET 
+        preferred_islands = COALESCE(preferred_islands, ARRAY['Oahu']),
+        strategies = COALESCE(strategies, ARRAY['Buy & Hold'])
+      WHERE preferred_islands IS NULL OR strategies IS NULL
+    `;
+    console.log('✓ Updated existing investors with default array values');
+
     console.log('Successfully added all missing columns');
   } catch (error) {
     console.error('Error adding columns:', error);

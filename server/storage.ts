@@ -541,11 +541,11 @@ export class DatabaseStorage implements IStorage {
       const conditions = [eq(investors.userId, userId)];
 
       if (filters?.island && filters.island !== 'all') {
-        conditions.push(sql`${investors.preferredIslands} @> ${[filters.island]}`);
+        conditions.push(sql`preferred_islands @> ${[filters.island]}`);
       }
 
       if (filters?.strategy && filters.strategy !== 'all') {
-        conditions.push(sql`${investors.strategies} @> ${[filters.strategy]}`);
+        conditions.push(sql`strategies @> ${[filters.strategy]}`);
       }
 
       if (filters?.priority && filters.priority !== 'all') {
