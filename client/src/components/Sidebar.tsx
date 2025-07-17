@@ -1,27 +1,21 @@
-import { 
-  Building2, 
-  Users, 
-  Target, 
-  BarChart3, 
-  Globe, 
-  Gavel, 
-  Mail, 
-  Database, 
-  FileText, 
-  StickyNote, 
-  Truck, 
-  Menu,
-  Building,
-  Home, 
-  AlertTriangle,
-  Settings,
-  LogOut,
-  DollarSign,
-  Search
-} from "lucide-react";
+import { Building2, Users, Target, BarChart3, Globe, Gavel, Mail, Database, FileText, StickyNote, Truck, Menu } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { 
+  Building,
+  Home, 
+  Users, 
+  Target, 
+  AlertTriangle,
+  Mail, 
+  FileText,
+  Settings,
+  LogOut,
+  DollarSign,
+  Search,
+  Shield
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
