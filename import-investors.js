@@ -2,13 +2,16 @@
 const { storage } = require('./server/storage');
 
 // Paste your investor data here in this format:
+// This script will automatically filter for Hawaii investors (mailing address state = HI)
 const investorData = [
-  // Example format - replace with your actual data
+  // Example format - replace with your actual data from the Google Sheets/CSV
   {
     name: "John Smith",
     email: "john@example.com",
     phone: "808-555-0123",
     company: "Smith Real Estate LLC",
+    mailingAddressState: "HI",
+    mailingAddress: "123 Main St, Honolulu, HI 96813",
     minBudget: 200000,
     maxBudget: 500000,
     preferredIslands: ["Oahu"],
@@ -21,13 +24,27 @@ const investorData = [
   // Add more investors here...
 ];
 
+// Function to filter only Hawaii investors
+function filterHawaiiInvestors(investors) {
+  return investors.filter(investor => {
+    const state = investor.mailingAddressState || investor.state || '';
+    return state.toUpperCase() === 'HI' || state.toLowerCase() === 'hawaii';
+  });
+}
+
 async function importInvestors() {
-  console.log('Starting investor import...');
+  console.log('Starting Hawaii investor import...');
+  
+  // Filter for only Hawaii investors
+  const hawaiiInvestors = filterHawaiiInvestors(investorData);
+  
+  console.log(`Found ${hawaiiInvestors.length} Hawaii investors out of ${investorData.length} total investors`);
   
   const results = {
     imported: 0,
     duplicates: 0,
-    errors: 0
+    errors: 0,
+    filteredOut: investorData.length - hawaiiInvestors.length
   };
 
   // Replace with your actual user ID from the database
@@ -36,7 +53,7 @@ async function importInvestors() {
   try {
     const existingInvestors = await storage.getInvestors(userId, { limit: 1000 });
     
-    for (const investor of investorData) {
+    for (const investor of hawaiiInvestors) {
       try {
         // Check for duplicates
         const isDuplicate = existingInvestors.some(existing =>
