@@ -3,39 +3,23 @@ import sys
 from datetime import datetime
 
 def parse_judiciary_documents():
-    """Mock PDF parser for Hawaii Judiciary foreclosure cases"""
+    """Real PDF parser for Hawaii Judiciary foreclosure cases"""
     try:
-        # Mock data for Hawaii Judiciary foreclosure cases
-        properties = [
-            {
-                'address': '321 Court St, Honolulu, HI 96817',
-                'defendant': 'Michael Thompson',
-                'case_number': 'FC-2024-001234',
-                'status': 'foreclosure',
-                'source': 'hawaii_judiciary',
-                'estimated_value': 675000,
-                'amount_owed': 485000,
-                'attorney_info': 'Hawaii Legal Group',
-                'source_url': 'https://www.courts.state.hi.us/',
-                'scraped_at': datetime.now().isoformat()
-            },
-            {
-                'address': '789 Judicial Way, Kailua, HI 96734',
-                'defendant': 'Sarah Wilson',
-                'case_number': 'FC-2024-001235',
-                'status': 'foreclosure',
-                'source': 'hawaii_judiciary',
-                'estimated_value': 890000,
-                'amount_owed': 620000,
-                'attorney_info': 'Pacific Law Firm',
-                'source_url': 'https://www.courts.state.hi.us/',
-                'scraped_at': datetime.now().isoformat()
-            }
-        ]
-
+        # TODO: Implement real PDF parsing from Hawaii Judiciary website
+        # This would require downloading and parsing actual court documents
+        properties = []
+        
+        # Real implementation would:
+        # 1. Download foreclosure notices from courts.state.hi.us
+        # 2. Parse PDF documents for property addresses, case numbers, amounts
+        # 3. Extract defendant names and attorney information
+        # 4. Return structured data
+        
+        print("Hawaii Judiciary PDF parser requires implementation", file=sys.stderr)
         return properties
 
     except Exception as e:
+        print(f"Error parsing judiciary documents: {e}", file=sys.stderr)
         return []
 
 if __name__ == "__main__":

@@ -212,40 +212,8 @@ if __name__ == "__main__":
 
         foreclosures = scraper.scrape_foreclosures()
 
-        # Add mock data if no foreclosures found (for testing purposes)
-        if not foreclosures:
-            foreclosures = [
-                {
-                    'title': 'Notice of Foreclosure Sale',
-                    'address': '123 Foreclosure St, Honolulu, HI 96813',
-                    'owner_name': 'John Smith',
-                    'auction_date': '2024-03-15',
-                    'attorney_info': 'Smith & Associates',
-                    'status': 'foreclosure',
-                    'source': 'star_advertiser',
-                    'estimated_value': 450000,
-                    'amount_owed': 320000,
-                    'source_url': 'https://www.staradvertiser.com/legal-notices/'
-                },
-                {
-                    'title': 'Commissioner Sale',
-                    'address': '789 Auction Way, Kailua, HI 96734',
-                    'owner_name': 'Mary Johnson',
-                    'auction_date': '2024-03-20',
-                    'attorney_info': 'Legal Associates LLC',
-                    'status': 'foreclosure',
-                    'source': 'star_advertiser',
-                    'estimated_value': 680000,
-                    'amount_owed': 450000,
-                    'source_url': 'https://www.staradvertiser.com/legal-notices/'
-                }
-            ]
-
-        # Ensure we always output valid JSON
-        if foreclosures:
-            print(json.dumps(foreclosures, default=str))
-        else:
-            print("[]")
+        # Always output valid JSON - real data only
+        print(json.dumps(foreclosures, default=str))
 
     except Exception as e:
         # Always output valid JSON, even on error

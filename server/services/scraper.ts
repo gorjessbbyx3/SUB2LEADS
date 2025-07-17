@@ -263,19 +263,11 @@ class ScraperService {
     }
   }
 
-  private estimatePropertyValue(address: string): number {
-    // Simple estimation based on location patterns
-    const lowerAddress = address.toLowerCase();
-
-    if (lowerAddress.includes('kailua') || lowerAddress.includes('lanikai')) {
-      return Math.floor(Math.random() * 500000) + 700000; // $700k-$1.2M
-    } else if (lowerAddress.includes('honolulu') || lowerAddress.includes('waikiki')) {
-      return Math.floor(Math.random() * 400000) + 500000; // $500k-$900k
-    } else if (lowerAddress.includes('pearl city') || lowerAddress.includes('aiea')) {
-      return Math.floor(Math.random() * 300000) + 400000; // $400k-$700k
-    } else {
-      return Math.floor(Math.random() * 250000) + 350000; // $350k-$600k
-    }
+  private estimatePropertyValue(address: string): number | null {
+    // Property values should come from real estate APIs (Zillow, etc.)
+    // Return null to indicate no estimation available
+    console.log(`Property value estimation not available for ${address} - requires real estate API integration`);
+    return null;
   }
 
   private async processProperties(properties: any[]): Promise<number> {

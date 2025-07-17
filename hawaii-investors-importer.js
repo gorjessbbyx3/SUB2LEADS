@@ -53,18 +53,18 @@ function parseCSVForHawaiiInvestors(csvFilePath) {
         }
         
         return {
-          name: investor.name || investor.fullname || investor.investorname || '',
-          email: investor.email || investor.emailaddress || '',
-          phone: investor.phone || investor.phonenumber || investor.contactnumber || '',
+          name: investor.fullname || investor.name || investor.investorname || '',
+          email: investor.contact1email_1 || investor.email || investor.emailaddress || '',
+          phone: investor.contact1phone_1 || investor.phone || investor.phonenumber || investor.contactnumber || '',
           company: investor.company || investor.companyname || '',
           minBudget,
           maxBudget,
           preferredIslands: ['Oahu'], // Default to Oahu for Hawaii investors
           strategies: investor.strategy ? [investor.strategy] : ['Buy & Hold'],
-          propertyTypes: ['Single Family'],
+          propertyTypes: investor.isresidential === '1' ? ['Single Family'] : ['Commercial'],
           priority: 'medium',
           status: 'active',
-          notes: `Hawaii investor. ${investor.notes || investor.recentpurchase || ''}`
+          notes: `Hawaii investor. Portfolio: ${investor.portfolioownedcount || 0} properties. ${investor.notes || investor.recentpurchase || ''}`
         };
       });
     

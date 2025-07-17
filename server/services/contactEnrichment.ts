@@ -51,7 +51,7 @@ export class ContactEnrichmentService {
       // Only perform real contact enrichment - no mock data generation
       // TODO: Implement real contact enrichment APIs (PeopleDataLabs, FullContact, etc.)
       // For now, only calculate score and add metadata without generating fake contact info
-      
+
       console.log('Contact enrichment requires external API integration - skipping mock data generation');
 
       // Check if it's an LLC or corporation
@@ -82,6 +82,12 @@ export class ContactEnrichmentService {
       // Add contact quality score
       enrichedData.leadQuality = enrichedData.contactScore >= 80 ? 'hot' : 
                                 enrichedData.contactScore >= 60 ? 'warm' : 'cold';
+
+      // Only use real email data - no fake generation
+      const hasEmail = contact.email && contact.email.length > 0;
+      if (!hasEmail) {
+        console.log(`No email found for contact ${contact.id} - requires real contact enrichment API`);
+      }
 
       return enrichedData;
     } catch (error) {

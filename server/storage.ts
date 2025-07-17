@@ -649,22 +649,25 @@ export class DatabaseStorage implements IStorage {
 
   async getMatchedBuyers(propertyId: number): Promise<any[]> {
     try {
-      // In a real app, this would query the buyers table and matching logic
-      // For now, return mock matched buyers
-      return [
-        {
-          name: 'Wave Ventures LLC',
-          strategy: 'Fix & Flip',
-          maxPrice: 750000,
-          email: 'waves@ventures.com'
-        },
-        {
-          name: 'Aloha Holdings',
-          strategy: 'Buy & Hold',
-          maxPrice: 700000,
-          email: 'info@alohaholdings.com'
-        }
-      ];
+      // Query actual investors from database who might be interested in this property
+      const property = await this.getProperty(propertyId);
+      if (!property) return [];
+
+      const investors = await db.select().from(schema.investors)
+        .where(
+          and(
+            lte(schema.investors.minBudget, property.estimatedValue || 0),
+            gte(schema.investors.maxBudget, property.estimatedValue || 0)
+          )
+        )
+        .limit(10);
+
+      return investors.map(investor => ({
+        name: investor.name,
+        strategy: investor.strategies?.[0] || 'Investment',
+        maxPrice: investor.maxBudget,
+        email: investor.email
+      }));
     } catch (error) {
       console.error('Error fetching matched buyers:', error);
       return [];
@@ -676,19 +679,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOutreachCampaigns() {
-    // Return mock campaigns for now - replace with real DB query when outreach table is created
-    return [
-      {
-        id: 1,
-        name: "Foreclosure Outreach",
-        template: "Hi {ownerName}, I noticed your property at {address} may be going through foreclosure..."
-      },
-      {
-        id: 2, 
-        name: "Cash Offer Template",
-        template: "Hello {ownerName}, I'm interested in purchasing your property at {address}..."
-      }
-    ];
+    try {
+      // For now return basic templates until outreach_campaigns table is created
+      return [
+        {
+          id: 1,
+          name: "Foreclosure Outreach",
+          template: "Hi {ownerName}, I hope this message finds you well. I noticed your property at {address} and wanted to reach out to see if I might be able to help with your current situation. Would you be open to a brief conversation about potential options?"
+        },
+        {
+          id: 2, 
+          name: "Cash Offer Template", 
+          template: "Hello {ownerName}, I'm interested in making a cash offer for your property at {address}. No repairs needed, quick closing possible. Would you like to hear more about this opportunity?"
+        },
+        {
+          id: 3,
+          name: "Tax Lien Help",
+          template: "Hi {ownerName}, I understand there may be tax issues with your property at {address}. I work with property owners to find solutions. Would you be interested in discussing options?"
+        }
+      ];
+    } catch (error) {
+      console.error('Error fetching outreach campaigns:', error);
+      return [];
+    }
   }
 
   async createOutreachHistory(data: any) {

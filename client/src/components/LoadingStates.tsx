@@ -57,6 +57,9 @@ export function LeadKanbanSkeleton() {
   );
 }
 
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+
 export function DashboardSkeleton() {
   return (
     <div className="space-y-6 p-6">

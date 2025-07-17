@@ -253,16 +253,18 @@ export default function Investors() {
           });
           
           return {
-            name: investor.name,
-            email: investor.email,
-            phone: investor.phone,
-            mailingAddress: investor.mailingaddress,
-            strategy: investor.strategy,
-            budget: investor.budget,
-            notes: investor.notes,
-            recentPurchase: investor.recentpurchase
+            name: investor.name || investor.fullname || investor.FullName || '',
+            email: investor.email || investor.contact1email_1 || '',
+            phone: investor.phone || investor.contact1phone_1 || '',
+            mailingAddress: investor.mailingaddress || investor.MailingAddress || '',
+            mailingAddressState: investor.mailingaddressstate || investor.MailingAddressState || '',
+            strategy: investor.strategy || 'Buy & Hold',
+            budget: investor.budget || '',
+            notes: investor.notes || '',
+            recentPurchase: investor.recentpurchase || ''
           };
-        });
+        })
+        .filter(investor => investor.name); // Only include investors with names
 
       importInvestorsMutation.mutate({ investors });
     };

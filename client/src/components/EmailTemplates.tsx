@@ -1,4 +1,5 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -15,92 +16,97 @@ interface EmailTemplate {
 }
 
 interface EmailTemplatesProps {
-  onSelectTemplate: (templateId: string) => void;
+  onSelectTemplate?: (templateId: string) => void;
   selectedLead?: any;
+  onEmailSent?: () => void;
 }
 
-export function EmailTemplates({ onSelectTemplate, selectedLead }: EmailTemplatesProps) {
+export function EmailTemplates({ onSelectTemplate, selectedLead, onEmailSent }: EmailTemplatesProps) {
   const { toast } = useToast();
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
   
-  const templates: EmailTemplate[] = [
-    {
-      id: 'foreclosure',
-      name: 'Foreclosure Outreach',
-      description: 'For properties facing foreclosure',
-      type: 'foreclosure',
-      subject: 'Options for Your Property at {address}',
-      body: `Hi {ownerName},
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
 
-I noticed your property at {address} may be facing foreclosure. I work with homeowners to explore all available options before any final decisions are made.
-
-Would you be open to a brief conversation about potential solutions? I may be able to help you understand your choices.
-
-Best regards,
-[Your Name]
-[Your Phone Number]`
-    },
-    {
-      id: 'tax_lien',
-      name: 'Tax Lien Notice',
-      description: 'For tax delinquent properties',
-      type: 'tax_lien',
-      subject: 'Tax Lien Notice - {address}',
-      body: `Hi {ownerName},
-
-I wanted to reach out regarding the tax situation on your property at {address}. There may be options available to help resolve this matter.
-
-I'd be happy to discuss potential solutions if you're interested.
-
-Thank you,
-[Your Name]
-[Your Phone Number]`
-    },
-    {
-      id: 'general',
-      name: 'General Inquiry',
-      description: 'General property inquiry',
-      type: 'general',
-      subject: 'Regarding Your Property at {address}',
-      body: `Hi {ownerName},
-
-I hope this message finds you well. I wanted to reach out about your property at {address} to see if there are any ways I might be able to help with your current situation.
-
-Would you be open to a brief conversation?
-
-Best regards,
-[Your Name]
-[Your Phone Number]`
-    },
-    {
-      id: 'follow_up',
-      name: 'Follow Up',
-      description: 'Follow up with previous contacts',
-      type: 'follow_up',
-      subject: 'Following Up - {address}',
-      body: `Hi {ownerName},
-
-I wanted to follow up on our previous conversation about your property at {address}. 
-
-If you have any questions or would like to discuss your options further, please don't hesitate to reach out.
-
-Best regards,
-[Your Name]
-[Your Phone Number]`
-    }
-  ];
-
-  const generateMailtoLink = (template: EmailTemplate) => {
-    if (!selectedLead?.contact?.email) {
+  const fetchTemplates = async () => {
+    try {
+      const response = await fetch('/api/email-templates');
+      if (response.ok) {
+        const data = await response.json();
+        setTemplates(data);
+      }
+    } catch (error) {
+      console.error('Error fetching templates:', error);
       toast({
-        title: "No Email Address",
-        description: "This contact doesn't have an email address.",
+        title: "Error",
+        description: "Failed to load email templates",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendEmail = async (templateId: string) => {
+    if (!selectedLead?.id) {
+      toast({
+        title: "No Lead Selected",
+        description: "Please select a lead to send email to.",
         variant: "destructive",
       });
       return;
     }
 
-    const address = selectedLead.property?.address || '[Property Address]';
-    const ownerName = selectedLead.contact?.name || 'Property Owner';
+    setSendingEmail(templateId);
+    try {
+      const response = await fetch(`/api/leads/${selectedLead.id}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ templateId }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        if (result.mailtoLink) {
+          // Open mailto link
+          window.location.href = result.mailtoLink;
+          
+          toast({
+            title: "Email Ready",
+            description: "Your email client should open with the pre-filled template.",
+          });
+        } else {
+          toast({
+            title: "Email Sent",
+            description: "Email was sent successfully via our email service.",
+          });
+        }
+
+        onEmailSent?.();
+      } else {
+        throw new Error(result.error || 'Failed to send email');
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send email",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingEmail(null);
+    }
+  };
+
+  const copyToClipboard = (template: EmailTemplate) => {
+    const address = selectedLead?.property?.address || '[Property Address]';
+    const ownerName = selectedLead?.contact?.name || 'Property Owner';
 
     const subject = template.subject
       .replace('{address}', address)
@@ -110,23 +116,7 @@ Best regards,
       .replace(/{address}/g, address)
       .replace(/{ownerName}/g, ownerName);
 
-    const mailto = `mailto:${selectedLead.contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
-    window.location.href = mailto;
-    
-    toast({
-      title: "Email Opened",
-      description: "Your email client should open with the pre-filled template.",
-    });
-  };
-
-  const copyToClipboard = (template: EmailTemplate) => {
-    const address = selectedLead?.property?.address || '[Property Address]';
-    const ownerName = selectedLead?.contact?.name || 'Property Owner';
-
-    const fullEmail = `Subject: ${template.subject.replace('{address}', address).replace('{ownerName}', ownerName)}
-
-${template.body.replace(/{address}/g, address).replace(/{ownerName}/g, ownerName)}`;
+    const fullEmail = `Subject: ${subject}\n\n${body}`;
 
     navigator.clipboard.writeText(fullEmail);
     
@@ -145,6 +135,10 @@ ${template.body.replace(/{address}/g, address).replace(/{ownerName}/g, ownerName
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (loading) {
+    return <div className="p-4 text-center">Loading email templates...</div>;
+  }
 
   return (
     <div className="space-y-4">
@@ -181,19 +175,19 @@ ${template.body.replace(/{address}/g, address).replace(/{ownerName}/g, ownerName
               <div>
                 <p className="text-xs font-medium text-gray-700 mb-1">Preview:</p>
                 <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded line-clamp-3">
-                  {template.body}
+                  {template.body.substring(0, 150)}...
                 </p>
               </div>
               
               <div className="flex space-x-2">
                 <Button
                   size="sm"
-                  onClick={() => generateMailtoLink(template)}
-                  disabled={!selectedLead?.contact?.email}
+                  onClick={() => sendEmail(template.id)}
+                  disabled={!selectedLead || sendingEmail === template.id}
                   className="flex-1"
                 >
                   <Mail className="h-3 w-3 mr-1" />
-                  Send Email
+                  {sendingEmail === template.id ? 'Sending...' : 'Send Email'}
                 </Button>
                 
                 <Button

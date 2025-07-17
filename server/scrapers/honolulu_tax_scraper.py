@@ -166,30 +166,8 @@ if __name__ == "__main__":
         
         print(f"Debug: Found {len(properties)} properties from real scraping", file=sys.stderr)
         
-        # Add mock data if no properties found (for testing purposes)
-        if not properties:
-            print("Debug: No real properties found, using mock data", file=sys.stderr)
-            properties = [
-                {
-                    'address': '456 Tax Lien Ave, Pearl City, HI 96782',
-                    'status': 'tax_delinquent',
-                    'source': 'honolulu_tax',
-                    'priority': 'medium',
-                    'estimated_value': 380000,
-                    'amount_owed': 15000,
-                    'owner_name': 'Jane Doe',
-                    'parcel_number': '98765432',
-                    'source_url': 'https://www.honolulu.gov/bfs/treasury-division',
-                    'scraped_at': time.strftime('%Y-%m-%d %H:%M:%S')
-                },
-                {
-                    'address': '123 Delinquent Dr, Honolulu, HI 96813',
-                    'status': 'tax_delinquent',
-                    'source': 'honolulu_tax',
-                    'priority': 'high',
-                    'estimated_value': 520000,
-                    'amount_owed': 25000,
-                    'owner_name': 'Robert Chen',
+        # Output real scraped data only
+        print(f"Debug: Found {len(properties)} real properties from tax scraper", file=sys.stderr)
                     'parcel_number': '12345678',
                     'source_url': 'https://www.honolulu.gov/bfs/treasury-division',
                     'scraped_at': time.strftime('%Y-%m-%d %H:%M:%S')
