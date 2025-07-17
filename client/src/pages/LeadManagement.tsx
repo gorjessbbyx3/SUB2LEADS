@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Filter, Download, MoreHorizontal } from "lucide-react";
+import { Search, Filter, Download, MoreHorizontal, FileText } from "lucide-react";
 
 export default function LeadManagement() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
@@ -32,6 +32,31 @@ export default function LeadManagement() {
   const handlePropertyClick = (propertyId: number) => {
     setSelectedPropertyId(propertyId);
     setIsPropertyModalOpen(true);
+  };
+
+  const generatePDF = async (lead: any) => {
+    try {
+      const response = await fetch(`/api/leads/${lead.id}/generate-pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `investor-pitch-${lead.property?.address?.replace(/\s+/g, '-') || 'property'}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    }
   };
 
   const filteredLeads = leads.filter((lead: any) => {
@@ -197,9 +222,9 @@ export default function LeadManagement() {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Contact</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Property</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Status</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Contact & Ownership</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Property & Deal Type</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Status & Financing</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Priority</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Last Contact</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Actions</th>
@@ -216,6 +241,9 @@ export default function LeadManagement() {
                                 <div className="text-sm text-gray-500">
                                   {lead.contact?.email || 'No email'}
                                 </div>
+                                <div className="text-xs text-gray-400">
+                                  {lead.ownershipType && `${lead.ownershipType} ownership`}
+                                </div>
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -225,11 +253,19 @@ export default function LeadManagement() {
                               >
                                 {lead.property?.address || 'Unknown address'}
                               </button>
+                              <div className="text-xs text-gray-400">
+                                {lead.contractingType && `${lead.contractingType} deal`}
+                              </div>
                             </td>
                             <td className="px-4 py-3">
                               <Badge variant="outline">
                                 {lead.status.replace('_', ' ')}
                               </Badge>
+                              {lead.financingType && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {lead.financingType}
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-3">
                               <Badge 
@@ -249,9 +285,19 @@ export default function LeadManagement() {
                               }
                             </td>
                             <td className="px-4 py-3">
-                              <Button variant="ghost" size="sm">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
+                              <div className="flex items-center space-x-2">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => generatePDF(lead)}
+                                  title="Generate Investor Pitch PDF"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}

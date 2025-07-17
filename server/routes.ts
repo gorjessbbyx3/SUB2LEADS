@@ -719,6 +719,99 @@ export async function registerRoutes(app: Express) {
     }
   });
 
+  // Generate investor pitch PDF for a lead
+  app.post('/api/leads/:id/generate-pdf', isAuthenticated, async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.id);
+      const user = req.user as any;
+
+      // Get lead with property and contact details
+      const lead = await storage.getLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ error: 'Lead not found' });
+      }
+
+      const property = await storage.getProperty(lead.propertyId);
+      const contact = await storage.getContact(lead.contactId);
+
+      if (!property) {
+        return res.status(404).json({ error: 'Property not found' });
+      }
+
+      // Get matched investors for this lead
+      const matches = await matchingService.findMatchesForLead(leadId);
+
+      // Generate PDF using the property PDF generator
+      const pdfBuffer = await pdfGenerator.generatePropertyPDF(
+        {
+          id: property.id,
+          address: property.address,
+          island: property.city.includes('Honolulu') ? 'Oahu' : 
+                 property.city.includes('Hilo') ? 'Big Island' : 'Oahu',
+          city: property.city,
+          propertyType: property.propertyType,
+          auctionDate: property.auctionDate,
+          status: property.status,
+          estimatedValue: property.estimatedValue,
+          amountOwed: property.amountOwed,
+          notes: property.repairsNeeded || lead.notes,
+          priority: lead.priority,
+        },
+        contact ? {
+          name: contact.name,
+          email: contact.email,
+          phone: contact.phone,
+        } : undefined,
+        matches.slice(0, 5).map(match => ({
+          name: match.investor.name,
+          strategy: match.investor.strategies?.[0] || 'Investment',
+          maxPrice: match.investor.maxBudget,
+          email: match.investor.email,
+        })),
+        [], // TODO: Add comps data
+        {
+          includePhotos: true,
+          includeMap: true,
+          includeComps: true,
+          includeMatches: true,
+          companyName: 'Sub2Leads Hawaii',
+          contactInfo: 'leads@sub2leads.com\n(808) 555-0123\nwww.sub2leads.com',
+        }
+      );
+
+      // Create PDF binder record
+      const fileName = `investor-pitch-${property.address.replace(/\s+/g, '-')}-${Date.now()}.pdf`;
+      await storage.createPDFBinder({
+        propertyId: property.id,
+        userId: user?.claims?.sub,
+        fileName,
+        filePath: `/tmp/${fileName}`,
+        fileSize: pdfBuffer.length,
+      });
+
+      // Log activity
+      await storage.createActivity({
+        leadId,
+        propertyId: property.id,
+        userId: user?.claims?.sub,
+        type: 'pdf_generated',
+        title: 'Investor Pitch PDF Generated',
+        description: `Generated investor pitch PDF for ${property.address}`,
+      });
+
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Length': pdfBuffer.length,
+      });
+
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      res.status(500).json({ error: 'Failed to generate PDF' });
+    }
+  });
+
   // Get wholesale leads with their properties and potential matches
   app.get('/api/wholesaler-listings', isAuthenticated, async (req, res) => {
     try {

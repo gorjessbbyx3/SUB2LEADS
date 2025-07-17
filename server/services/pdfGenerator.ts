@@ -167,7 +167,7 @@ export class PropertyPDFGenerator {
     this.doc.addPage();
   }
 
-  private createDealOverview(property: PropertyData, contact?: ContactData) {
+  private createDealOverview(property: PropertyData, contact?: ContactData, leadDetails?: any) {
     this.addSectionHeader('DEAL OVERVIEW', '#dc2626');
 
     let yPos = 120;
@@ -192,6 +192,19 @@ export class PropertyPDFGenerator {
     yPos += 30;
 
     this.addKeyValuePair('Status:', property.status, leftCol, yPos);
+    yPos += 30;
+
+    // Financing details
+    if (leadDetails?.financingType) {
+      this.addKeyValuePair('Financing:', leadDetails.financingType, leftCol, yPos);
+      yPos += 30;
+    }
+
+    // Ownership details
+    if (leadDetails?.ownershipType) {
+      this.addKeyValuePair('Ownership:', leadDetails.ownershipType, leftCol, yPos);
+      yPos += 30;
+    }
 
     // Right column
     yPos = 120;
@@ -208,6 +221,12 @@ export class PropertyPDFGenerator {
 
     this.addKeyValuePair('Priority:', property.priority, rightCol, yPos);
     yPos += 30;
+
+    // Contracting details
+    if (leadDetails?.contractingType) {
+      this.addKeyValuePair('Deal Type:', leadDetails.contractingType, rightCol, yPos);
+      yPos += 30;
+    }
 
     // Calculate potential spread
     if (property.estimatedValue && property.amountOwed) {

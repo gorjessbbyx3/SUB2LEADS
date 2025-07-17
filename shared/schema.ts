@@ -119,6 +119,14 @@ export const leads = pgTable("leads", {
   emailsSent: integer("emails_sent").default(0),
   smsSent: integer("sms_sent").default(0),
   callsMade: integer("calls_made").default(0),
+  
+  // New fields for financing, ownership, and contracting
+  financingType: varchar("financing_type", { length: 50 }), // 'cash', 'conventional', 'hard_money', 'private_lender', 'owner_finance', 'other'
+  ownershipType: varchar("ownership_type", { length: 50 }), // 'individual', 'llc', 'corporation', 'trust', 'partnership', 'other'
+  ownershipDetails: text("ownership_details"), // Additional ownership information
+  contractingType: varchar("contracting_type", { length: 50 }), // 'wholesale', 'assignment', 'double_close', 'bird_dog', 'direct_purchase', 'other'
+  contractingDetails: text("contracting_details"), // Additional contracting information
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
