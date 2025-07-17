@@ -50,6 +50,10 @@ interface DashboardStats {
     closed: number;
     pipeline: number;
   };
+  conversionRate: {
+    current: number;
+    change: number;
+  };
 }
 
 interface Property {
@@ -111,6 +115,10 @@ export default function Dashboard() {
       pending: 12,
       closed: 8,
       pipeline: 34
+    },
+    conversionRate: {
+      current: 87,
+      change: 5
     }
   };
 
@@ -187,10 +195,10 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-blue-100 text-sm font-medium">Total Revenue</p>
-                    <p className="text-3xl font-bold">${(mockStats?.revenue?.current ? (mockStats.revenue.current / 1000).toFixed(0) : '0')}K</p>
+                    <p className="text-3xl font-bold">${(mockStats.revenue?.current ? (mockStats.revenue.current / 1000).toFixed(0) : '0')}K</p>
                     <div className="flex items-center mt-2">
                       <TrendingUp className="w-4 h-4 mr-1" />
-                      <span className="text-sm text-blue-200">+{mockStats?.revenue?.change || 0}% from last month</span>
+                      <span className="text-sm">+{mockStats.revenue?.change || 0}% from last month</span>
                     </div>
                   </div>
                   <DollarSign className="w-12 h-12 text-blue-200" />
@@ -449,7 +457,7 @@ export default function Dashboard() {
                   <CardContent>
                     <div className="space-y-4">
                       <div className="text-center">
-                        <div className="text-3xl font-bold text-green-600">87%</div>
+                        <div className="text-3xl font-bold text-green-600">{mockStats.conversionRate?.current || 0}%</div>
                         <div className="text-sm text-gray-500">Conversion Rate</div>
                       </div>
                       <Progress value={87} className="h-3" />
