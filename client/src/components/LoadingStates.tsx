@@ -57,11 +57,10 @@ export function LeadKanbanSkeleton() {
   );
 }
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-
-export function DashboardSkeleton() {
-  return (
+    import * as card from "@/components/ui/card";
+    import * as skeleton from "@/components/ui/skeleton";
+    export function DashboardSkeleton() {
+      return (
     <div className="space-y-6 p-6">
       {/* Stats cards skeleton */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
