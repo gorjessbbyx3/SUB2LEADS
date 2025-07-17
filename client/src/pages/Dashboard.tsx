@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,7 +32,7 @@ import {
   Settings
 } from "lucide-react";
 import { Header } from "@/components/Header";
-import { LoadingStates } from "@/components/LoadingStates";
+import { DashboardSkeleton } from "@/components/LoadingStates";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 interface DashboardStats {
@@ -95,7 +94,7 @@ export default function Dashboard() {
   });
 
   if (statsLoading) {
-    return <LoadingStates.Dashboard />;
+    return <DashboardSkeleton />;
   }
 
   const mockStats: DashboardStats = stats || {
@@ -400,21 +399,21 @@ export default function Dashboard() {
                               <span className="text-sm text-gray-500">{property.daysOnMarket} days</span>
                             </div>
                           </div>
-                          
+
                           <div className="text-center">
                             <div className="text-2xl font-bold text-gray-900">
                               ${(property.price / 1000).toFixed(0)}K
                             </div>
                             <div className="text-sm text-gray-500">Market Price</div>
                           </div>
-                          
+
                           <div className="text-center">
                             <div className="text-2xl font-bold text-green-600">
                               {property.estimatedROI}%
                             </div>
                             <div className="text-sm text-gray-500">Est. ROI</div>
                           </div>
-                          
+
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="text-sm text-gray-600 mb-1">Risk Score: {property.riskScore}/10</div>
