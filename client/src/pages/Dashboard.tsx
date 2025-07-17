@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
@@ -16,7 +17,16 @@ import {
   Handshake, 
   TrendingUp,
   Activity,
-  CheckCircle
+  CheckCircle,
+  DollarSign,
+  Building,
+  Target,
+  Zap,
+  ArrowUpRight,
+  PlayCircle,
+  Clock,
+  Star,
+  MapPin
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -39,184 +49,255 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
       <Sidebar />
 
       <main className="flex-1 ml-64 overflow-y-auto">
-        <Header title="Dashboard" subtitle="Overview of your lead generation activities" />
-
-        <div className="p-6 space-y-6">
-          {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatsCard
-              title="Total Leads"
-              value={stats?.total || 0}
-              change="+12% from last month"
-              icon={Users}
-              trend="up"
-            />
-            <StatsCard
-              title="High Priority"
-              value={stats?.highPriority || 0}
-              change="Urgent action needed"
-              icon={AlertTriangle}
-              trend="urgent"
-            />
-            <StatsCard
-              title="Active Outreach"
-              value={pipeline?.inConversation || 0}
-              change="In conversation"
-              icon={Send}
-              trend="neutral"
-            />
-            <StatsCard
-              title="Follow-ups"
-              value={pipeline?.followUp || 0}
-              change="Requiring follow-up"
-              icon={Handshake}
-              trend="neutral"
-            />
+        <div className="relative">
+          {/* Hero Header with Gradient */}
+          <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white">
+            <div className="px-8 py-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold mb-2">Good morning, ADMIN</h1>
+                  <p className="text-blue-100 text-lg">Here's what's happening with your deals today</p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Button className="bg-white/10 hover:bg-white/20 text-white border-white/20">
+                    <PlayCircle className="w-4 h-4 mr-2" />
+                    Quick Actions
+                  </Button>
+                  <Button className="bg-white text-blue-600 hover:bg-gray-50">
+                    <Zap className="w-4 h-4 mr-2" />
+                    Run Scraper
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Recent Activity & Lead Pipeline */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Recent Properties */}
-            <div className="lg:col-span-2">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Recent Properties</CardTitle>
-                    <Button variant="ghost" size="sm">View All</Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {Array.isArray(recentProperties) && recentProperties.length > 0 ? (
-                      recentProperties.map((property: any) => (
-                        <PropertyCard key={property.id} property={property} />
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        No properties found. Start scraping to find leads.
+          <div className="px-8 -mt-6 relative z-10">
+            {/* Premium Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <Card className="bg-white shadow-xl border-0 overflow-hidden group hover:shadow-2xl transition-all duration-300">
+                <CardContent className="p-0">
+                  <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-6 text-white">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-emerald-100 text-sm font-medium">Active Deals</p>
+                        <p className="text-3xl font-bold">{stats?.total || 0}</p>
+                        <p className="text-emerald-100 text-xs mt-1">+12% this month</p>
                       </div>
-                    )}
+                      <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                        <TrendingUp className="w-6 h-6" />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white shadow-xl border-0 overflow-hidden group hover:shadow-2xl transition-all duration-300">
+                <CardContent className="p-0">
+                  <div className="bg-gradient-to-br from-amber-500 to-orange-500 p-6 text-white">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-amber-100 text-sm font-medium">Hot Leads</p>
+                        <p className="text-3xl font-bold">{stats?.highPriority || 0}</p>
+                        <p className="text-amber-100 text-xs mt-1">Urgent attention</p>
+                      </div>
+                      <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                        <AlertTriangle className="w-6 h-6" />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white shadow-xl border-0 overflow-hidden group hover:shadow-2xl transition-all duration-300">
+                <CardContent className="p-0">
+                  <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 text-white">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-purple-100 text-sm font-medium">In Conversation</p>
+                        <p className="text-3xl font-bold">{pipeline?.inConversation || 0}</p>
+                        <p className="text-purple-100 text-xs mt-1">Active outreach</p>
+                      </div>
+                      <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                        <Send className="w-6 h-6" />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white shadow-xl border-0 overflow-hidden group hover:shadow-2xl transition-all duration-300">
+                <CardContent className="p-0">
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 text-white">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-blue-100 text-sm font-medium">Revenue Pipeline</p>
+                        <p className="text-3xl font-bold">$124K</p>
+                        <p className="text-blue-100 text-xs mt-1">Est. commission</p>
+                      </div>
+                      <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                        <DollarSign className="w-6 h-6" />
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Lead Pipeline */}
-            <div>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Lead Pipeline</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">To Contact</span>
-                    <Badge variant="secondary">{pipeline?.toContact || 0}</Badge>
-                  </div>
-                  <Progress value={45} className="h-2" />
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+              {/* Deal Pipeline Visualization */}
+              <div className="lg:col-span-2">
+                <Card className="shadow-xl border-0">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-xl font-bold flex items-center">
+                        <Target className="w-5 h-5 mr-2 text-blue-600" />
+                        Deal Pipeline
+                      </CardTitle>
+                      <Button variant="ghost" size="sm" className="text-blue-600">
+                        View All <ArrowUpRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {[
+                        { stage: "New Leads", count: pipeline?.toContact || 0, color: "bg-gray-400", progress: 45 },
+                        { stage: "Contacted", count: pipeline?.inConversation || 0, color: "bg-yellow-400", progress: 35 },
+                        { stage: "Qualified", count: pipeline?.appointmentSet || 0, color: "bg-purple-400", progress: 25 },
+                        { stage: "Under Contract", count: pipeline?.followUp || 0, color: "bg-green-400", progress: 15 }
+                      ].map((item, index) => (
+                        <div key={item.stage} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-3 h-3 rounded-full ${item.color}`}></div>
+                              <span className="font-medium text-gray-700">{item.stage}</span>
+                            </div>
+                            <Badge className="bg-gray-100 text-gray-700 hover:bg-gray-100">
+                              {item.count} deals
+                            </Badge>
+                          </div>
+                          <div className="ml-6">
+                            <Progress value={item.progress} className="h-2" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">In Conversation</span>
-                    <Badge className="bg-yellow-500">{pipeline?.inConversation || 0}</Badge>
-                  </div>
-                  <Progress value={35} className="h-2" />
+              {/* AI Assistant & Quick Actions */}
+              <div className="space-y-6">
+                {/* AI Assistant */}
+                <Card className="shadow-xl border-0 bg-gradient-to-br from-indigo-50 to-purple-50">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center text-lg">
+                      <Star className="w-5 h-5 mr-2 text-purple-600" />
+                      AI Assistant
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="bg-white rounded-lg p-4 mb-4 border border-purple-100">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Activity className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-700 leading-relaxed">
+                            I found <strong>{stats?.highPriority || 0} high-priority properties</strong> that need immediate attention. 
+                            Ready to generate personalized outreach?
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Button className="w-full bg-purple-600 hover:bg-purple-700" size="sm">
+                        <Zap className="w-4 h-4 mr-2" />
+                        Generate Outreach
+                      </Button>
+                      <Button variant="outline" className="w-full" size="sm">
+                        Create Property Binders
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Appointment Set</span>
-                    <Badge className="bg-purple-500">{pipeline?.appointmentSet || 0}</Badge>
-                  </div>
-                  <Progress value={25} className="h-2" />
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Follow-up</span>
-                    <Badge className="bg-green-500">{pipeline?.followUp || 0}</Badge>
-                  </div>
-                  <Progress value={15} className="h-2" />
-                </CardContent>
-              </Card>
+                {/* System Status */}
+                <Card className="shadow-xl border-0">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center text-lg">
+                      <Activity className="w-5 h-5 mr-2 text-green-600" />
+                      System Status
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {[
+                      { name: "StarAdvertiser Scraper", status: "active", lastRun: scrapingStatus?.star_advertiser?.lastRunAt },
+                      { name: "Tax Delinquent List", status: "active", lastRun: scrapingStatus?.tax_delinquent?.lastRunAt },
+                      { name: "Contact Enrichment", status: "processing", lastRun: null }
+                    ].map((scraper) => (
+                      <div key={scraper.name} className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-2 h-2 rounded-full ${
+                            scraper.status === 'active' ? 'bg-green-400' : 
+                            scraper.status === 'processing' ? 'bg-yellow-400 animate-pulse' : 'bg-gray-400'
+                          }`}></div>
+                          <span className="text-sm font-medium text-gray-700">{scraper.name}</span>
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {scraper.lastRun ? `${new Date(scraper.lastRun).toLocaleDateString()}` : 'Running...'}
+                        </span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
-          </div>
 
-          {/* System Status & AI Features */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Scraper Status */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Scraper Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            {/* Recent Properties with Map Preview */}
+            <Card className="shadow-xl border-0 mb-8">
+              <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span className="text-sm">StarAdvertiser Legal Notices</span>
-                  </div>
-                  <span className="text-xs text-gray-500">
-                    {scrapingStatus?.star_advertiser?.lastRunAt 
-                      ? `Last run: ${new Date(scrapingStatus.star_advertiser.lastRunAt).toLocaleDateString()}`
-                      : 'Never run'
-                    }
-                  </span>
+                  <CardTitle className="text-xl font-bold flex items-center">
+                    <MapPin className="w-5 h-5 mr-2 text-blue-600" />
+                    Recent Properties
+                  </CardTitle>
+                  <Button variant="ghost" size="sm" className="text-blue-600">
+                    View Map <ArrowUpRight className="w-4 h-4 ml-1" />
+                  </Button>
                 </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span className="text-sm">Hawaii Tax Delinquent List</span>
-                  </div>
-                  <span className="text-xs text-gray-500">
-                    {scrapingStatus?.tax_delinquent?.lastRunAt 
-                      ? `Last run: ${new Date(scrapingStatus.tax_delinquent.lastRunAt).toLocaleDateString()}`
-                      : 'Never run'
-                    }
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm">Contact Enrichment</span>
-                  </div>
-                  <span className="text-xs text-gray-500">Processing leads</span>
-                </div>
-
-                <Button className="w-full">Run Manual Scrape</Button>
-              </CardContent>
-            </Card>
-
-            {/* AI Assistant */}
-            <Card>
-              <CardHeader>
-                <CardTitle>AI Assistant</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                      <Activity className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-700">
-                        I've identified {stats?.highPriority || 0} high-priority properties that need immediate attention. 
-                        Would you like me to generate personalized outreach templates for these leads?
-                      </p>
-                    </div>
+                {Array.isArray(recentProperties) && recentProperties.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {recentProperties.map((property: any) => (
+                      <div key={property.id} className="group">
+                        <PropertyCard property={property} />
+                      </div>
+                    ))}
                   </div>
-                </div>
-                <div className="space-y-3">
-                  <Button className="w-full" size="sm">
-                    Generate Outreach Templates
-                  </Button>
-                  <Button variant="outline" className="w-full" size="sm">
-                    Create Property Binders
-                  </Button>
-                </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Building className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 text-lg mb-2">No properties found yet</p>
+                    <p className="text-gray-400 mb-6">Start scraping to discover new opportunities</p>
+                    <Button className="bg-blue-600 hover:bg-blue-700">
+                      <Zap className="w-4 h-4 mr-2" />
+                      Start Scraping
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
+
+            <GrokAnalysis />
           </div>
-           <GrokAnalysis />
         </div>
       </main>
 

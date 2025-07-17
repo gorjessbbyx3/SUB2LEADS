@@ -17,18 +17,39 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
-const navigation = [
-  { name: "Dashboard", href: "/", icon: BarChart3 },
-  { name: "Lead Management", href: "/leads", icon: Users },
-  { name: "Properties", href: "/properties", icon: Home },
-  { name: "Investors", href: "/investors", icon: DollarSign },
-  { name: "Matching", href: "/matching", icon: Target },
-  { name: "MLS", href: "/mls", icon: Building },
-  { name: "Evictions", href: "/evictions", icon: AlertTriangle },
-  { name: "Data Scraper", href: "/data-scraper", icon: Search },
-  { name: "Outreach", href: "/outreach", icon: Mail },
-  { name: "Reports & Binders", href: "/reports", icon: FileText },
-  { name: "Settings", href: "/settings", icon: Settings },
+const navigationSections = [
+  {
+    title: "Deal Pipeline",
+    items: [
+      { name: "Overview", href: "/", icon: BarChart3 },
+      { name: "Lead Management", href: "/leads", icon: Users },
+      { name: "Deal Matching", href: "/matching", icon: Target },
+      { name: "Outreach Center", href: "/outreach", icon: Mail },
+    ]
+  },
+  {
+    title: "Data Sources",
+    items: [
+      { name: "Properties", href: "/properties", icon: Home },
+      { name: "MLS Integration", href: "/mls", icon: Building },
+      { name: "Legal Notices", href: "/evictions", icon: AlertTriangle },
+      { name: "Data Scraper", href: "/data-scraper", icon: Search },
+    ]
+  },
+  {
+    title: "Network",
+    items: [
+      { name: "Investor Network", href: "/investors", icon: DollarSign },
+      { name: "Wholesale Deals", href: "/wholesaler", icon: Building },
+    ]
+  },
+  {
+    title: "Analytics",
+    items: [
+      { name: "Reports & Binders", href: "/reports", icon: FileText },
+      { name: "Notes & Research", href: "/notes", icon: FileText },
+    ]
+  }
 ];
 
 export function Sidebar() {
@@ -43,26 +64,37 @@ export function Sidebar() {
         <p className="text-sm text-gray-500 mt-1">Lead Generation Platform</p>
       </div>
 
-      <nav className="mt-6">
-        <ul className="space-y-2 px-4">
-          {navigation.map((item) => {
-            const isActive = location === item.href;
-            const Icon = item.icon;
+      <nav className="mt-6 px-4">
+        {navigationSections.map((section, sectionIndex) => (
+          <div key={section.title} className={sectionIndex > 0 ? "mt-8" : ""}>
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-2">
+              {section.title}
+            </h3>
+            <ul className="space-y-1">
+              {section.items.map((item) => {
+                const isActive = location === item.href;
+                const Icon = item.icon;
 
-            return (
-              <li key={item.name}>
-                <Link href={item.href} className={cn(
-                  "flex items-center px-4 py-3 rounded-lg font-medium transition-colors",
-                  isActive 
-                    ? "text-blue-600 bg-blue-50" 
-                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-                )}>
-                  {item.name}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                return (
+                  <li key={item.name}>
+                    <Link href={item.href} className={cn(
+                      "flex items-center px-3 py-2.5 rounded-xl font-medium transition-all duration-200 group",
+                      isActive 
+                        ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg shadow-blue-500/25" 
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    )}>
+                      <Icon className={cn(
+                        "mr-3 h-5 w-5 transition-colors",
+                        isActive ? "text-white" : "text-gray-400 group-hover:text-gray-600"
+                      )} />
+                      {item.name}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
       </nav>
 
       <div className="absolute bottom-6 left-4 right-4">

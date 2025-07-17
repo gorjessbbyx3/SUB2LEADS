@@ -13,13 +13,14 @@ interface HeaderProps {
 export function Header({ title, subtitle, action }: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 font-heading">{title}</h2>
-          {subtitle && (
-            <p className="text-gray-500 text-sm mt-1">{subtitle}</p>
-          )}
-        </div>
+      <div className="bg-white border-b border-gray-100 px-8 py-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{title}</h1>
+            {subtitle && (
+              <p className="text-gray-600 mt-2 text-lg">{subtitle}</p>
+            )}
+          </div>
         {action && (
           <Button 
             onClick={action.onClick}
