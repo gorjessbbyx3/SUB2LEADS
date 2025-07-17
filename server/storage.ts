@@ -553,22 +553,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       let query = db
-        .select({
-          id: investors.id,
-          userId: investors.userId,
-          name: investors.name,
-          email: investors.email,
-          phone: investors.phone,
-          maxBudget: investors.maxBudget,
-          minBudget: investors.minBudget,
-          preferredIslands: investors.preferredIslands,
-          strategies: investors.strategies,
-          priority: investors.priority,
-          status: investors.status,
-          notes: investors.notes,
-          createdAt: investors.createdAt,
-          updatedAt: investors.updatedAt
-        })
+        .select()
         .from(investors)
         .where(and(...conditions))
         .orderBy(desc(investors.createdAt));
@@ -626,21 +611,31 @@ export class DatabaseStorage implements IStorage {
     activeDeals: number;
     avgBudget: number;
   }> {
-    const [stats] = await db
-      .select({
-        totalInvestors: count(),
-        vipInvestors: count(sql`CASE WHEN ${investors.status} = 'vip' THEN 1 END`),
-        avgBudget: sql<number>`AVG(${investors.maxBudget})`,
-      })
-      .from(investors)
-      .where(eq(investors.userId, userId));
+    try {
+      const [stats] = await db
+        .select({
+          totalInvestors: count(),
+          vipInvestors: count(sql`CASE WHEN status = 'vip' THEN 1 END`),
+          avgBudget: sql<number>`AVG(COALESCE(max_budget, 0))`,
+        })
+        .from(investors)
+        .where(eq(investors.userId, userId));
 
     return {
-      totalInvestors: stats.totalInvestors,
-      vipInvestors: stats.vipInvestors,
-      activeDeals: stats.totalInvestors, // For now, assume all are active deals
-      avgBudget: Math.round(stats.avgBudget || 0),
-    };
+        totalInvestors: stats.totalInvestors,
+        vipInvestors: stats.vipInvestors,
+        activeDeals: stats.totalInvestors, // For now, assume all are active deals
+        avgBudget: Math.round(stats.avgBudget || 0),
+      };
+    } catch (error) {
+      console.error('Error fetching investor stats:', error);
+      return {
+        totalInvestors: 0,
+        vipInvestors: 0,
+        activeDeals: 0,
+        avgBudget: 0,
+      };
+    }
   }
 
   async getMatchedBuyers(propertyId: number): Promise<any[]> {

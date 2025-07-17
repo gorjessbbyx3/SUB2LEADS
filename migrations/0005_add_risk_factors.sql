@@ -51,3 +51,34 @@ ADD COLUMN IF NOT EXISTS company TEXT;
 -- Add missing columns to contacts table if they don't exist
 ALTER TABLE contacts 
 ADD COLUMN IF NOT EXISTS company TEXT;
+
+-- Add missing columns to properties table
+ALTER TABLE properties 
+ADD COLUMN IF NOT EXISTS estimated_arv INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS under_contract_status TEXT DEFAULT 'available',
+ADD COLUMN IF NOT EXISTS contract_upload_url TEXT;
+
+-- Add missing columns to investors table
+ALTER TABLE investors 
+ADD COLUMN IF NOT EXISTS max_budget INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS min_budget INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active',
+ADD COLUMN IF NOT EXISTS property_types TEXT[] DEFAULT ARRAY['Single Family'],
+ADD COLUMN IF NOT EXISTS deals_completed INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS last_contact_date TIMESTAMP,
+ADD COLUMN IF NOT EXISTS company TEXT;
+
+-- Update existing investors to have proper default values
+UPDATE investors SET 
+  max_budget = COALESCE(max_budget, 0),
+  min_budget = COALESCE(min_budget, 0),
+  status = COALESCE(status, 'active'),
+  property_types = COALESCE(property_types, ARRAY['Single Family']),
+  deals_completed = COALESCE(deals_completed, 0)
+WHERE max_budget IS NULL OR min_budget IS NULL OR status IS NULL;
+
+-- Add risk factors to properties
+ALTER TABLE properties 
+ADD COLUMN IF NOT EXISTS risk_factors JSONB DEFAULT '{}',
+ADD COLUMN IF NOT EXISTS city_development_risk JSONB DEFAULT '{}',
+ADD COLUMN IF NOT EXISTS environmental_risk JSONB DEFAULT '{}';
