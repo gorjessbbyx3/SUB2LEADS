@@ -1,7 +1,7 @@
 
-const { storage } = require('./server/storage');
-const fs = require('fs');
-const path = require('path');
+import { storage } from './server/storage.js';
+import fs from 'fs';
+import path from 'path';
 
 // Function to parse CSV data and filter Hawaii investors
 function parseCSVForHawaiiInvestors(csvFilePath) {
@@ -75,7 +75,7 @@ function parseCSVForHawaiiInvestors(csvFilePath) {
   }
 }
 
-async function importHawaiiInvestors(csvFilePath) {
+export async function importHawaiiInvestors(csvFilePath) {
   console.log('Starting Hawaii investor import from CSV...');
   
   const hawaiiInvestors = parseCSVForHawaiiInvestors(csvFilePath);
@@ -146,14 +146,4 @@ async function importHawaiiInvestors(csvFilePath) {
   }
 }
 
-// Usage examples:
-// 1. If you have a CSV file in the project directory:
-// importHawaiiInvestors('./path/to/your/investors.csv');
-
-// 2. If you want to import from attached_assets folder:
-// importHawaiiInvestors('./attached_assets/hawaii_buyers_with_recent_purchase_1752697814808.csv');
-
-// Uncomment the line below and update the path to run the import:
-// importHawaiiInvestors('./attached_assets/hawaii_buyers_with_recent_purchase_1752697814808.csv');
-
-module.exports = { importHawaiiInvestors, parseCSVForHawaiiInvestors };
+export { parseCSVForHawaiiInvestors };
